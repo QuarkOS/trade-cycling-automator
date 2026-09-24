@@ -41,3 +41,6 @@ replay_*.log
 
 # stonecutter
 .stonecutter/
+
+# verification skill copies JUnit XML here; cleanup must leave it, git should not
+.cursor/skills/verify-trade-cycling-automator/evidence/
