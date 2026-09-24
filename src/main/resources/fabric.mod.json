@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "Unofficial addon for Trade Cycling. Cycles a librarian until the enchanted book, level, and emerald price you asked for shows up.",
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.tradecycling.automator.TradeCyclingAutomator"
+    ],
+    "modmenu": [
+      "dev.tradecycling.automator.config.ModMenuIntegration"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "${minecraft}",
+    "java": "${java}",
+    "fabric-api": "*",
+    "trade_cycling": "*",
+    "cloth-config": "*",
+    "modmenu": "*"
+  },
+  "custom": {
+    "modmenu": {
+      "parent": "trade_cycling"
+    }
+  }
+}
