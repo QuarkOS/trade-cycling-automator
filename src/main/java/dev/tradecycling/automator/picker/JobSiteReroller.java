@@ -2,6 +2,7 @@ package dev.tradecycling.automator.picker;
 
 import dev.tradecycling.automator.TradeCyclingAutomator;
 import dev.tradecycling.automator.client.LibrarianTracker;
+import dev.tradecycling.automator.compat.TradeCyclingHook;
 import dev.tradecycling.automator.config.AutomatorConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
@@ -21,6 +22,8 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -41,6 +44,7 @@ public final class JobSiteReroller {
     private static final int EMPLOYED_TIMEOUT = 300;
     private static final int OPEN_TIMEOUT = 120;
     private static final int OFFER_TIMEOUT = 40;
+    private static final int TICKS_BETWEEN_CYCLES = 8;
 
     private static Phase phase = Phase.IDLE;
     private static StopReason stopReason;
@@ -53,6 +57,9 @@ public final class JobSiteReroller {
     private static ResourceKey<VillagerProfession> profession = VillagerProfession.NONE;
     private static int villagerId = Integer.MIN_VALUE;
     private static Component status = Component.empty();
+    private static String pendingSignature = "";
+    private static int ticksSinceSend;
+    private static boolean packetRun;
 
     private JobSiteReroller() {
     }
@@ -75,7 +82,9 @@ public final class JobSiteReroller {
         NEED_TARGET("need_target"),
         GUI_CLOSED("gui_closed"),
         VILLAGER_GONE("villager_gone"),
-        NEED_SCREEN("need_screen");
+        NEED_SCREEN("need_screen"),
+        CANNOT_CYCLE("cannot_cycle"),
+        MISSING_TRADE_CYCLING("missing_trade_cycling");
 
         private final String id;
 
@@ -98,7 +107,8 @@ public final class JobSiteReroller {
         PLACE,
         WAIT_EMPLOYED,
         OPEN,
-        CHECK
+        CHECK,
+        CYCLE
     }
 
     public static boolean isRunning() {
@@ -136,6 +146,8 @@ public final class JobSiteReroller {
         phase = Phase.IDLE;
         closingForReroll = false;
         breakStarted = false;
+        packetRun = false;
+        pendingSignature = "";
         stopReason = reason;
         status = message(reason);
         if (reason != StopReason.FOUND) {
@@ -148,6 +160,7 @@ public final class JobSiteReroller {
         if (isRunning()) {
             return;
         }
+        packetRun = false;
         AutomatorConfig config = AutomatorConfig.get();
         if (!config.enabled()) {
             fail(client, StopReason.DISABLED);
@@ -178,6 +191,10 @@ public final class JobSiteReroller {
         }
         if (TradeSession.offerMatchesSelection(menu.getOffers())) {
             succeed(client);
+            return;
+        }
+        if (RerollMethod.usesTradeCycling()) {
+            startCycling(client, villager, menu);
             return;
         }
         BlockPos pos = JobSiteFinder.find(client, villager);
@@ -241,9 +258,31 @@ public final class JobSiteReroller {
             case WAIT_EMPLOYED -> waitEmployed(villager);
             case OPEN -> open(client, player, villager);
             case CHECK -> check(client, player);
+            case CYCLE -> cycle(client);
             case IDLE -> {
             }
         }
+    }
+
+    private static void startCycling(Minecraft client, Villager villager, MerchantMenu menu) {
+        if (!TradeCyclingHook.installed()) {
+            fail(client, StopReason.MISSING_TRADE_CYCLING);
+            return;
+        }
+        if (!TradeCyclingHook.canCycle(menu)) {
+            fail(client, StopReason.CANNOT_CYCLE);
+            return;
+        }
+        villagerId = villager.getId();
+        attempts = 0;
+        ticksSinceSend = TICKS_BETWEEN_CYCLES;
+        pendingSignature = "";
+        packetRun = true;
+        stopReason = null;
+        TradeSession.setPanelOpen(true);
+        enter(Phase.CYCLE);
+        status = rerolling();
+        LOGGER.info("Trade cycling reroll started for {}", professionOf(villager));
     }
 
     private static void prepareBreak(Minecraft client, LocalPlayer player) {
@@ -410,6 +449,66 @@ public final class JobSiteReroller {
         enter(Phase.PREPARE_BREAK);
     }
 
+    private static void cycle(Minecraft client) {
+        if (!(client.screen instanceof MerchantScreen screen)) {
+            stop(StopReason.GUI_CLOSED);
+            return;
+        }
+        MerchantMenu menu = screen.getMenu();
+        MerchantOffers offers = menu.getOffers();
+        if (offers.isEmpty()) {
+            if (phaseTicks > OFFER_TIMEOUT) {
+                stop(StopReason.NO_OFFERS);
+            }
+            return;
+        }
+        if (locked(menu)) {
+            stop(StopReason.LOCKED);
+            return;
+        }
+        if (TradeSession.offerMatchesSelection(offers)) {
+            succeed(client);
+            return;
+        }
+        String signature = signature(offers);
+        if (signature.equals(pendingSignature)) {
+            ticksSinceSend++;
+            if (ticksSinceSend < TICKS_BETWEEN_CYCLES) {
+                return;
+            }
+        }
+        if (attempts >= AutomatorConfig.get().maxAttempts()) {
+            stop(StopReason.ATTEMPT_CAP);
+            return;
+        }
+        if (!TradeCyclingHook.cycle(menu)) {
+            stop(TradeCyclingHook.installed() ? StopReason.CANNOT_CYCLE : StopReason.MISSING_TRADE_CYCLING);
+            return;
+        }
+        attempts++;
+        pendingSignature = signature;
+        ticksSinceSend = 0;
+        status = rerolling();
+    }
+
+    private static String signature(MerchantOffers offers) {
+        StringBuilder builder = new StringBuilder();
+        for (MerchantOffer offer : offers) {
+            ItemStack result = offer.getResult();
+            builder.append(offer.getCostA().getCount())
+                    .append(':')
+                    .append(result.getCount())
+                    .append(':')
+                    .append(result.getComponents())
+                    .append(';');
+        }
+        return builder.toString();
+    }
+
+    private static String professionOf(Villager villager) {
+        return villager.getVillagerData().profession().unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
+    }
+
     private static void succeed(Minecraft client) {
         phase = Phase.IDLE;
         closingForReroll = false;
@@ -418,7 +517,8 @@ public final class JobSiteReroller {
         status = message(StopReason.FOUND);
         TradeSession.setPanelOpen(true);
         announce(client, status);
-        LOGGER.info("Trade reroll found a target after {} replacements", attempts);
+        LOGGER.info("Trade reroll found a target after {} {}", attempts, packetRun ? "cycles" : "replacements");
+        packetRun = false;
     }
 
     private static void fail(Minecraft client, StopReason reason) {

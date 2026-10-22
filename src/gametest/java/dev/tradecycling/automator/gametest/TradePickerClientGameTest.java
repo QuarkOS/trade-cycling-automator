@@ -1,15 +1,25 @@
 package dev.tradecycling.automator.gametest;
 
+import dev.tradecycling.automator.compat.TradeCyclingHook;
 import dev.tradecycling.automator.picker.JobSiteReroller;
+import dev.tradecycling.automator.picker.RerollMethod;
+import dev.tradecycling.automator.picker.TradeEntry;
+import dev.tradecycling.automator.picker.TradePickerUi;
 import dev.tradecycling.automator.picker.TradeSession;
+import dev.tradecycling.automator.text.ScrollingNames;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 
 import java.io.IOException;
@@ -89,11 +99,18 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             });
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(10);
-            saveShot(context, "merchant-button");
-
+            context.runOnClient(client -> RerollMethod.reset());
+            boolean cycling = context.computeOnClient(client -> TradeCyclingHook.installed());
+            if (!cycling) {
+                saveShot(context, "merchant-button");
+            }
             context.clickScreenButton("text.trade-cycling-automator.button.offers");
             context.waitTicks(5);
             context.runOnClient(client -> {
+                if (ScrollingNames.PERIOD_PER_PIXEL != ActiveTextCollector.PERIOD_PER_SCROLLED_PIXEL
+                        || ScrollingNames.MIN_PERIOD_SECONDS != ActiveTextCollector.MIN_SCROLL_PERIOD) {
+                    throw new AssertionError("name scroll period does not match vanilla");
+                }
                 boolean ranged = TradeSession.entries().stream().anyMatch(entry -> entry.paysEmeralds && entry.emeraldMin != entry.emeraldMax);
                 boolean fixed = TradeSession.entries().stream().anyMatch(entry -> entry.emeraldMin == entry.emeraldMax && entry.emeraldMin > 0);
                 if (!ranged || !fixed) {
@@ -103,8 +120,21 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("offers button did not leave the merchant screen open");
                 }
             });
-            // Capture the ranges before selection replaces a chosen ceiling with "Any".
-            saveShot(context, "trade-panel");
+            context.waitFor(client -> nameIsMidScroll(client), 20 * 40);
+            if (!cycling) {
+                saveShot(context, "name-scroll");
+                copyArtifact("name-scroll", "trade-panel");
+                copyArtifact("name-scroll", "panel-job-site");
+            } else {
+                saveShot(context, "panel-job-site");
+                context.clickScreenButton("text.trade-cycling-automator.method.job_site");
+                context.waitTicks(5);
+                boolean switched = context.computeOnClient(client -> RerollMethod.usesTradeCycling());
+                if (!switched) {
+                    throw new AssertionError("method toggle did not select Trade Cycling");
+                }
+                saveShot(context, "panel-trade-cycling");
+            }
             context.runOnClient(client -> {
                 if (!(client.screen instanceof MerchantScreen screen)) {
                     throw new AssertionError("offers button did not leave the merchant screen open");
@@ -115,12 +145,23 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 }
             });
 
+            BlockPos lecternPos = new BlockPos(x, y, z);
+            boolean lecternThere = context.computeOnClient(client -> client.level.getBlockState(lecternPos).is(Blocks.LECTERN));
+            if (!lecternThere) {
+                throw new AssertionError("lectern missing before the reroll");
+            }
+            int lecternsBefore = context.computeOnClient(TradePickerClientGameTest::lecternCount);
             context.clickScreenButton("text.trade-cycling-automator.button.start");
             String reason = "running";
+            boolean sawAir = false;
             for (int tick = 0; tick < 20 * 180; tick++) {
                 context.waitTick();
                 if (tick % 20 == 0) {
                     world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+                }
+                boolean air = context.computeOnClient(client -> client.level.getBlockState(lecternPos).isAir());
+                if (air) {
+                    sawAir = true;
                 }
                 boolean running = context.computeOnClient(client -> JobSiteReroller.isRunning());
                 JobSiteReroller.StopReason stop = context.computeOnClient(client -> JobSiteReroller.stopReason());
@@ -131,12 +172,56 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             }
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(5);
-            saveShot(context, "reroll-found");
+            saveShot(context, cycling ? "reroll-cycling" : "reroll-found");
             if (!"FOUND".equals(reason)) {
                 int attempts = context.computeOnClient(client -> JobSiteReroller.attempts());
                 throw new AssertionError("reroll stopped with " + reason + " after " + attempts + " attempts");
             }
+            int attempts = context.computeOnClient(client -> JobSiteReroller.attempts());
+            boolean stillLectern = context.computeOnClient(client -> client.level.getBlockState(lecternPos).is(Blocks.LECTERN));
+            int lecternsAfter = context.computeOnClient(TradePickerClientGameTest::lecternCount);
+            if (cycling) {
+                if (sawAir || !stillLectern || lecternsAfter != lecternsBefore) {
+                    throw new AssertionError("Trade Cycling path broke the lectern: air=" + sawAir + " still=" + stillLectern + " items " + lecternsBefore + "->" + lecternsAfter);
+                }
+                if (attempts < 1) {
+                    throw new AssertionError("Trade Cycling path matched without sending a cycle");
+                }
+            } else if (!sawAir) {
+                throw new AssertionError("job-block path never broke the lectern");
+            }
         }
+    }
+
+    private static boolean nameIsMidScroll(net.minecraft.client.Minecraft client) {
+        TradeEntry bane = null;
+        for (TradeEntry entry : TradeSession.entries()) {
+            if (entry.name.startsWith("Bane of Arthropods")) {
+                bane = entry;
+                break;
+            }
+        }
+        if (bane == null || client.font == null) {
+            return false;
+        }
+        int available = TradePickerUi.nameBudget(client.font.width(bane.priceLabel()));
+        int textWidth = client.font.width(bane.name);
+        int overflow = textWidth - available;
+        if (overflow < 8) {
+            return false;
+        }
+        int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
+        return offset >= overflow * 2 / 5 && offset <= overflow * 3 / 5;
+    }
+
+    private static int lecternCount(net.minecraft.client.Minecraft client) {
+        int count = 0;
+        for (ItemStack stack : client.player.getInventory().getNonEquipmentItems()) {
+            if (stack.is(Items.LECTERN)) {
+                count += stack.getCount();
+            }
+        }
+        return count;
     }
 
     private static Villager nearestLibrarian(net.minecraft.client.Minecraft client) {
@@ -161,6 +246,14 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
         try {
             Files.createDirectories(ARTIFACTS);
             Files.copy(shot, ARTIFACTS.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void copyArtifact(String from, String to) {
+        try {
+            Files.copy(ARTIFACTS.resolve(from + ".png"), ARTIFACTS.resolve(to + ".png"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

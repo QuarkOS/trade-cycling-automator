@@ -56,8 +56,13 @@ dependencies {
 
     modImplementation("maven.modrinth:cloth-config:${property("deps.cloth_config")}")
     modImplementation("maven.modrinth:modmenu:${property("deps.modmenu")}")
-    // Compile-only: Trade Cycling is a required runtime dependency and is never bundled.
-    modCompileOnly("maven.modrinth:trade-cycling:${property("deps.trade_cycling")}")
+    // Trade Cycling is optional on 1.21.11 and required by the older packet driver.
+    // Compile against it, never bundle it. -PwithTradeCycling=true also puts it on the dev runtime.
+    val tradeCycling = "maven.modrinth:trade-cycling:${sc.properties.get<String>("deps.trade_cycling")}"
+    modCompileOnly(tradeCycling)
+    if (providers.gradleProperty("withTradeCycling").orNull == "true") {
+        modLocalRuntime(tradeCycling)
+    }
 
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")

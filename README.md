@@ -2,7 +2,7 @@
 
 Client-side Fabric mod. On Minecraft 1.21.11 it adds a vanilla-style button to the villager trade screen. The button opens a list of every offer that profession can roll at its current level, with the vanilla minimum and maximum emerald price. Start breaks the job-site block and places it again until one of the chosen offers appears at or under the price you set.
 
-This project does not include Trade Cycling. Jars built for 1.21.1 and 26.x still call Trade Cycling's cycle packet for a single librarian book. 1.21.11 does not need Trade Cycling installed.
+This project does not include Trade Cycling. Jars built for 1.21.1 and 26.x still call Trade Cycling's cycle packet for a single librarian book. On 1.21.11 the default is to break and replace the job block. If [Trade Cycling](https://modrinth.com/mod/trade-cycling) 1.0.23 is installed, the panel can use that mod's cycle action instead. The addon is not a hard dependency.
 
 ## What it does on 1.21.11
 
@@ -10,7 +10,7 @@ This project does not include Trade Cycling. Jars built for 1.21.1 and 26.x stil
 2. Press the book button at the top right of that screen. It uses the vanilla recipe-book button sprite.
 3. The panel lists that level's trades: item, name, and emerald range. Enchanted books use the 1.21.11 formula, including treasure doubling and the 64 emerald cap. Trade Rebalance uses the experimental table when that experiment is on, with the same prices.
 4. Select one or more rows. A buy defaults to the minimum emerald price. Click the price to raise it, or set it to Any. Shift is not required: left click raises, right click lowers.
-5. Press Start. The mod closes the screen, mines the job site with a real tool, waits until the villager is unemployed, places the block, and opens the new offers. It repeats until a target matches, then leaves the trade screen open.
+5. Press Start. By default the mod closes the screen, mines the job site with a real tool, waits until the villager is unemployed, places the block, and opens the new offers. It repeats until a target matches, then leaves the trade screen open. Names that do not fit the row scroll back and forth, the same way vanilla buttons do, and the price stays in its column. If Trade Cycling is installed, a toggle on the panel switches the reroll to that mod's cycle packet and leaves the job block alone.
 6. Stop, Esc, or the toggle key (default `K`) cancels. Esc while the screen is closed also cancels, and the pause menu is closed so the player stays in the world.
 
 It refuses to start when:
@@ -30,14 +30,14 @@ Built with [Stonecutter](https://stonecutter.kikugie.dev/). The sources in `src/
 | Minecraft | This addon's range | Reroll |
 | --- | --- | --- |
 | 1.21 and 1.21.1 | `>=1.21 <=1.21.1` | Trade Cycling `fabric-1.21.1-1.0.22` |
-| 1.21.11 | `1.21.11` | Break and replace the job site |
+| 1.21.11 | `1.21.11` | Break and replace the job site. Optional Trade Cycling `fabric-1.21.11-1.0.23` |
 | 26.1, 26.1.1, 26.1.2 | `>=26.1 <26.2` | Trade Cycling `fabric-1.0.22+26.1.2` |
 | 26.2 | `~26.2` | Trade Cycling `fabric-1.0.22+26.2` |
 | 26.3 | `~26.3` | Trade Cycling `fabric-1.0.22+26.3` |
 
 The 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
 
-Also required: Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Trade Cycling is required only on the packet-driver versions.
+Also required: Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Trade Cycling is required on the packet-driver versions. On 1.21.11 it is optional: [Trade Cycling](https://modrinth.com/mod/trade-cycling) by Max Henkel, Fabric file `1.21.11-1.0.23` ([CurseForge](https://www.curseforge.com/minecraft/mc-mods/trade-cycling)).
 
 ## How to use
 
@@ -85,8 +85,10 @@ export JAVA_HOME=/opt/jdk25
 # Headless client gametest. Stop the daemon first if it was started without a display.
 ./gradlew --stop
 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew :1.21.11:runClientGameTest
+# Same gametest with Trade Cycling on the dev runtime. The published jar still does not bundle it.
+xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew :1.21.11:runClientGameTest -PwithTradeCycling=true
 ```
 
-`:1.21.11:test` checks the wiki price table and the vanilla roll. The client gametest spawns a librarian next to a lectern, screenshots the trade screen, the offer panel, and a finished reroll.
+`:1.21.11:test` checks the wiki price table, the vanilla roll, and the scrolling-name offset. The client gametest spawns a librarian next to a lectern. Without the property it breaks the lectern. With `-PwithTradeCycling=true` it cycles through Trade Cycling and leaves the lectern in place.
 
 The Java package is `dev.tradecycling.automator`.

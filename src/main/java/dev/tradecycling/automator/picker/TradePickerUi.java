@@ -2,8 +2,10 @@ package dev.tradecycling.automator.picker;
 
 import dev.tradecycling.automator.TradeCyclingAutomator;
 import dev.tradecycling.automator.client.LibrarianTracker;
+import dev.tradecycling.automator.text.ScrollingNames;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -17,6 +19,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
 
@@ -31,7 +34,15 @@ public final class TradePickerUi {
     private static final int MERCHANT_WIDTH = 276;
     private static final int MERCHANT_HEIGHT = 166;
     private static final int PANEL_WIDTH = 168;
-    private static final int PANEL_HEIGHT = 176;
+    private static final int PANEL_HEIGHT = 188;
+    private static final int LIST_TOP = 42;
+    private static final int LIST_HEIGHT = 80;
+    private static final int NAME_LEFT = 36;
+    private static final int PRICE_GAP = 4;
+    private static final int PRICE_RIGHT = 16;
+    private static final int STATUS_TOP = 126;
+    private static final int METHOD_TOP = 140;
+    private static final int START_TOP = 164;
     private static final int ROW_HEIGHT = 20;
     private static final int TEXT = 0xFF404040;
     private static final int CURSE = 0xFFAA0000;
@@ -42,6 +53,7 @@ public final class TradePickerUi {
 
     private static final List<AbstractWidget> panelWidgets = new ArrayList<>();
     private static OfferList list;
+    private static Button methodButton;
 
     private TradePickerUi() {
     }
@@ -49,6 +61,7 @@ public final class TradePickerUi {
     public static void attach(Minecraft client, MerchantScreen screen) {
         panelWidgets.clear();
         list = null;
+        methodButton = null;
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
@@ -91,9 +104,9 @@ public final class TradePickerUi {
             panelX = Math.max(2, screen.width - PANEL_WIDTH - 2);
         }
         int listX = panelX + 6;
-        int listY = panelY + 42;
+        int listY = panelY + LIST_TOP;
         int listW = PANEL_WIDTH - 12;
-        int listH = 90;
+        int listH = LIST_HEIGHT;
 
         var buttons = Screens.getButtons(screen);
         PanelBackground background = new PanelBackground(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, screen.getMenu().getTraderLevel());
@@ -119,9 +132,22 @@ public final class TradePickerUi {
                 JobSiteReroller.start(client);
             }
             button.setMessage(actionLabel());
-        }).bounds(panelX + 6, panelY + PANEL_HEIGHT - 24, PANEL_WIDTH - 12, 20).build();
+        }).bounds(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20).build();
         buttons.add(action);
         panelWidgets.add(action);
+
+        if (RerollMethod.canChoose()) {
+            int buttonWidth = Math.max(72, client.font.width(Component.translatable("text." + TradeCyclingAutomator.MOD_ID + ".method.trade_cycling").getString()) + 8);
+            methodButton = Button.builder(RerollMethod.label(), pressed -> {
+                if (JobSiteReroller.isRunning()) {
+                    return;
+                }
+                RerollMethod.toggle();
+                pressed.setMessage(RerollMethod.label());
+            }).bounds(panelX + PANEL_WIDTH - 6 - buttonWidth, panelY + METHOD_TOP, buttonWidth, 20).build();
+            buttons.add(methodButton);
+            panelWidgets.add(methodButton);
+        }
 
         list = new OfferList(listX, listY, listW, listH, action);
         buttons.add(list);
@@ -135,6 +161,15 @@ public final class TradePickerUi {
         }
         panelWidgets.clear();
         list = null;
+        methodButton = null;
+    }
+
+    /**
+     * Pixels available for a row name once the price column is reserved.
+     * The gametest uses the same budget when it waits for a mid-scroll frame.
+     */
+    public static int nameBudget(int priceWidth) {
+        return (PANEL_WIDTH - 12) - NAME_LEFT - PRICE_GAP - PRICE_RIGHT - priceWidth;
     }
 
     private static Component actionLabel() {
@@ -172,7 +207,18 @@ public final class TradePickerUi {
             Component status = JobSiteReroller.status();
             if (status != null && !status.getString().isEmpty()) {
                 String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
-                graphics.drawString(minecraft.font, line, getX() + 6, getY() + height - 38, TEXT, false);
+                graphics.drawString(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
+            }
+            graphics.drawString(
+                    minecraft.font,
+                    Component.translatable("text." + TradeCyclingAutomator.MOD_ID + ".method.prefix"),
+                    getX() + 6,
+                    getY() + METHOD_TOP + 6,
+                    TEXT,
+                    false
+            );
+            if (methodButton == null) {
+                graphics.drawString(minecraft.font, RerollMethod.label(), getX() + 48, getY() + METHOD_TOP + 6, TEXT, false);
             }
         }
 
@@ -194,9 +240,30 @@ public final class TradePickerUi {
             this.scroll = Math.max(0, scroll);
         }
 
+        private static void drawName(GuiGraphics graphics, Font font, String text, int color, int left, int right, int rowTop, int rowBottom) {
+            int available = right - left;
+            if (available <= 0) {
+                return;
+            }
+            int textWidth = font.width(text);
+            int top = rowTop + 6;
+            if (textWidth <= available) {
+                graphics.drawString(font, text, left, top, color, false);
+                return;
+            }
+            int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
+            graphics.enableScissor(left, rowTop, right, rowBottom);
+            graphics.drawString(font, text, left - offset, top, color, false);
+            graphics.disableScissor();
+        }
+
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             action.setMessage(actionLabel());
+            if (methodButton != null) {
+                methodButton.active = !JobSiteReroller.isRunning();
+                methodButton.setMessage(RerollMethod.label());
+            }
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
             int maxScroll = Math.max(0, rows.size() - visibleRows);
@@ -215,13 +282,13 @@ public final class TradePickerUi {
                 ItemStack icon = entry.icon;
                 graphics.renderItem(icon, getX() + 16, rowY + 1);
                 graphics.renderItemDecorations(minecraft.font, icon, getX() + 16, rowY + 1);
-                String name = minecraft.font.plainSubstrByWidth(entry.name, width - 86);
-                graphics.drawString(minecraft.font, name, getX() + 36, rowY + 6, entry.curse ? CURSE : TEXT, false);
                 String price = selected && entry.paysEmeralds
                         ? (TradeSession.anyPrice(entry.id) ? Component.translatable("text." + TradeCyclingAutomator.MOD_ID + ".any").getString() : "\u2264" + TradeSession.chosenMax(entry.id))
                         : entry.priceLabel();
                 int priceWidth = minecraft.font.width(price);
-                graphics.drawString(minecraft.font, price, getX() + width - 16 - priceWidth, rowY + 6, TEXT, false);
+                int priceX = getX() + width - PRICE_RIGHT - priceWidth;
+                drawName(graphics, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, getX() + NAME_LEFT, priceX - PRICE_GAP, rowY, rowY + ROW_HEIGHT);
+                graphics.drawString(minecraft.font, price, priceX, rowY + 6, TEXT, false);
             }
             graphics.disableScissor();
             Identifier scroller = maxScroll == 0 ? SCROLLER_DISABLED : SCROLLER;
