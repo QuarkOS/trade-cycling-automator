@@ -1,4 +1,6 @@
-# Automator for Trade Cycling
+# Villager Reroller
+
+Not affiliated with or endorsed by Trade Cycling or its author.
 
 Client-side Fabric mod. On Minecraft 1.21.11 it adds a vanilla-style button to the villager trade screen. The button opens a list of every offer that profession can roll at its current level, with the vanilla minimum and maximum emerald price. Start breaks the job-site block and places it again until one of the chosen offers appears at or under the price you set.
 
@@ -73,7 +75,7 @@ Trade Rebalance does not change the cost formula. It only changes which book can
 
 Enchanted gear adds `5 + random.nextInt(15)` to its base cost, so the added emeralds are 5 through 19, then capped at 64. A fletcher's enchanted bow (base 2) is 7–21.
 
-`src/main/java/dev/tradecycling/automator/price/VanillaBookPrices.java` is that math with no Minecraft bootstrap. `librarian_book_prices.json` is the same capped table, still used to reject impossible prices in the older config screen.
+`src/main/java/dev/quarkos/villagerreroller/price/VanillaBookPrices.java` is that math with no Minecraft bootstrap. `librarian_book_prices.json` is the same capped table, still used to reject impossible prices in the older config screen.
 
 ## Build
 
@@ -91,4 +93,4 @@ xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew :1.21.11:runClientGameTest -Pwi
 
 `:1.21.11:test` checks the wiki price table, the vanilla roll, and the scrolling-name offset. The client gametest spawns a librarian next to a lectern. Without the property it breaks the lectern. With `-PwithTradeCycling=true` it cycles through Trade Cycling and leaves the lectern in place.
 
-The Java package is `dev.tradecycling.automator`.
+The Java package is `dev.quarkos.villagerreroller`. The mod id is `villager_reroller`.

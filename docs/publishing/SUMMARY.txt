@@ -1,0 +1,1 @@
+Villager Reroller lists every trade a villager can roll, with vanilla emerald prices, and rerolls the job site until a chosen offer is cheap enough.

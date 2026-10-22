@@ -23,7 +23,7 @@ if (sc.current.version == "1.21.11") {
     extensions.configure<net.fabricmc.loom.api.fabricapi.FabricApiExtension>("fabricApi") {
         configureTests {
             createSourceSet.set(true)
-            modId.set("trade-cycling-automator-test")
+            modId.set("villager_reroller_test")
             enableGameTests.set(false)
             enableClientGameTests.set(true)
             eula.set(true)
@@ -72,7 +72,7 @@ dependencies {
 loom {
     fabricModJsonPath = rootProject.file("src/main/resources/fabric.mod.json")
     if (sc.current.version == "1.21.11") {
-        accessWidenerPath = rootProject.file("src/main/resources/trade-cycling-automator.accesswidener")
+        accessWidenerPath = rootProject.file("src/main/resources/villager_reroller.accesswidener")
     }
 
     runConfigs.all {
@@ -108,10 +108,11 @@ tasks {
             register("java", if (sc.current.parsed >= "26.1") ">=25" else ">=21")
         }
 
-        val droppedLine = if (minecraftVersion == "1.21.11") "trade_cycling" else "accessWidener"
+        // 1.21.11 drops the hard Trade Cycling line and keeps suggests. Other versions drop the 1.21.11 access widener.
+        val droppedLine = if (minecraftVersion == "1.21.11") ">=1.0.0" else "accessWidener"
         filesMatching("fabric.mod.json") {
             expand(props)
-            filter(mapOf("needles" to droppedLine), dev.tradecycling.gradle.SkipMatchingLines::class.java)
+            filter(mapOf("needles" to droppedLine), dev.quarkos.gradle.SkipMatchingLines::class.java)
         }
     }
 

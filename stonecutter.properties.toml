@@ -1,6 +1,6 @@
-mod.id = "trade-cycling-automator"
-mod.name = "Automator for Trade Cycling"
-mod.group = "dev.tradecycling"
+mod.id = "villager_reroller"
+mod.name = "Villager Reroller"
+mod.group = "dev.quarkos"
 mod.version = "1.0.0"
 
 deps.fabric_loader = "0.19.5"

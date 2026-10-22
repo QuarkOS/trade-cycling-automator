@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "id": "trade-cycling-automator-test",
+  "id": "villager_reroller_test",
   "version": "1.0.0",
-  "name": "Trade Cycling Automator Test",
+  "name": "Villager Reroller Test",
   "environment": "client",
   "entrypoints": {
     "fabric-client-gametest": [
-      "dev.tradecycling.automator.gametest.TradePickerClientGameTest"
+      "dev.quarkos.villagerreroller.gametest.TradePickerClientGameTest"
     ]
   },
   "depends": {
     "fabricloader": "*",
     "minecraft": "*",
     "fabric-api": "*",
-    "trade-cycling-automator": "*"
+    "villager_reroller": "*"
   }
 }
