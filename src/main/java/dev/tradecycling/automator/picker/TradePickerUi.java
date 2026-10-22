@@ -3,6 +3,7 @@ package dev.tradecycling.automator.picker;
 import dev.tradecycling.automator.TradeCyclingAutomator;
 import dev.tradecycling.automator.client.LibrarianTracker;
 import dev.tradecycling.automator.text.ScrollingNames;
+import dev.tradecycling.automator.text.TradeNameLayout;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -37,9 +38,7 @@ public final class TradePickerUi {
     private static final int PANEL_HEIGHT = 188;
     private static final int LIST_TOP = 42;
     private static final int LIST_HEIGHT = 80;
-    private static final int NAME_LEFT = 36;
-    private static final int PRICE_GAP = 4;
-    private static final int PRICE_RIGHT = 16;
+    private static final int LIST_WIDTH = PANEL_WIDTH - 12;
     private static final int STATUS_TOP = 126;
     private static final int METHOD_TOP = 140;
     private static final int START_TOP = 164;
@@ -105,7 +104,7 @@ public final class TradePickerUi {
         }
         int listX = panelX + 6;
         int listY = panelY + LIST_TOP;
-        int listW = PANEL_WIDTH - 12;
+        int listW = LIST_WIDTH;
         int listH = LIST_HEIGHT;
 
         var buttons = Screens.getButtons(screen);
@@ -169,7 +168,7 @@ public final class TradePickerUi {
      * The gametest uses the same budget when it waits for a mid-scroll frame.
      */
     public static int nameBudget(int priceWidth) {
-        return (PANEL_WIDTH - 12) - NAME_LEFT - PRICE_GAP - PRICE_RIGHT - priceWidth;
+        return TradeNameLayout.availableWidth(LIST_WIDTH, priceWidth);
     }
 
     private static Component actionLabel() {
@@ -252,6 +251,7 @@ public final class TradePickerUi {
                 return;
             }
             int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
+            // right is exclusive and already stops PRICE_GAP pixels before the price.
             graphics.enableScissor(left, rowTop, right, rowBottom);
             graphics.drawString(font, text, left - offset, top, color, false);
             graphics.disableScissor();
@@ -286,8 +286,10 @@ public final class TradePickerUi {
                         ? (TradeSession.anyPrice(entry.id) ? Component.translatable("text." + TradeCyclingAutomator.MOD_ID + ".any").getString() : "\u2264" + TradeSession.chosenMax(entry.id))
                         : entry.priceLabel();
                 int priceWidth = minecraft.font.width(price);
-                int priceX = getX() + width - PRICE_RIGHT - priceWidth;
-                drawName(graphics, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, getX() + NAME_LEFT, priceX - PRICE_GAP, rowY, rowY + ROW_HEIGHT);
+                int priceX = TradeNameLayout.priceX(getX(), width, priceWidth);
+                int nameLeft = TradeNameLayout.nameLeft(getX());
+                int nameRight = TradeNameLayout.nameRight(priceX);
+                drawName(graphics, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
                 graphics.drawString(minecraft.font, price, priceX, rowY + 6, TEXT, false);
             }
             graphics.disableScissor();

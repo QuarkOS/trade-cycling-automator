@@ -7,6 +7,7 @@ import dev.tradecycling.automator.picker.TradeEntry;
 import dev.tradecycling.automator.picker.TradePickerUi;
 import dev.tradecycling.automator.picker.TradeSession;
 import dev.tradecycling.automator.text.ScrollingNames;
+import dev.tradecycling.automator.text.TradeNameLayout;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
@@ -120,11 +121,16 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("offers button did not leave the merchant screen open");
                 }
             });
-            context.waitFor(client -> nameIsMidScroll(client), 20 * 40);
+            context.waitFor(client -> scrollSpot(client) == ScrollSpot.MID, 20 * 40);
             if (!cycling) {
-                saveShot(context, "name-scroll");
-                copyArtifact("name-scroll", "trade-panel");
-                copyArtifact("name-scroll", "panel-job-site");
+                saveShot(context, "name-scroll-mid");
+                copyArtifact("name-scroll-mid", "name-scroll");
+                copyArtifact("name-scroll-mid", "trade-panel");
+            }
+            context.waitFor(client -> scrollSpot(client) == ScrollSpot.MAX, 20 * 40);
+            if (!cycling) {
+                saveShot(context, "name-scroll-max");
+                copyArtifact("name-scroll-max", "panel-job-site");
             } else {
                 saveShot(context, "panel-job-site");
                 context.clickScreenButton("text.trade-cycling-automator.method.job_site");
@@ -133,8 +139,10 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 if (!switched) {
                     throw new AssertionError("method toggle did not select Trade Cycling");
                 }
+                context.waitFor(client -> scrollSpot(client) == ScrollSpot.MAX, 20 * 40);
                 saveShot(context, "panel-trade-cycling");
             }
+            context.runOnClient(client -> assertNameClearsThePrice(client));
             context.runOnClient(client -> {
                 if (!(client.screen instanceof MerchantScreen screen)) {
                     throw new AssertionError("offers button did not leave the merchant screen open");
@@ -193,25 +201,66 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private static boolean nameIsMidScroll(net.minecraft.client.Minecraft client) {
-        TradeEntry bane = null;
-        for (TradeEntry entry : TradeSession.entries()) {
-            if (entry.name.startsWith("Bane of Arthropods")) {
-                bane = entry;
-                break;
-            }
-        }
-        if (bane == null || client.font == null) {
-            return false;
+    private enum ScrollSpot {
+        NONE,
+        MID,
+        MAX
+    }
+
+    private static ScrollSpot scrollSpot(net.minecraft.client.Minecraft client) {
+        TradeEntry bane = bane(client);
+        if (bane == null) {
+            return ScrollSpot.NONE;
         }
         int available = TradePickerUi.nameBudget(client.font.width(bane.priceLabel()));
         int textWidth = client.font.width(bane.name);
         int overflow = textWidth - available;
         if (overflow < 8) {
-            return false;
+            return ScrollSpot.NONE;
         }
         int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
-        return offset >= overflow * 2 / 5 && offset <= overflow * 3 / 5;
+        if (offset >= overflow - 1) {
+            return ScrollSpot.MAX;
+        }
+        if (offset >= overflow * 2 / 5 && offset <= overflow * 3 / 5) {
+            return ScrollSpot.MID;
+        }
+        return ScrollSpot.NONE;
+    }
+
+    private static void assertNameClearsThePrice(net.minecraft.client.Minecraft client) {
+        TradeEntry bane = bane(client);
+        if (bane == null) {
+            throw new AssertionError("Bane of Arthropods was not in the catalog");
+        }
+        int priceWidth = client.font.width(bane.priceLabel());
+        int textWidth = client.font.width(bane.name);
+        int available = TradePickerUi.nameBudget(priceWidth);
+        int nameLeft = TradeNameLayout.NAME_LEFT;
+        int nameRight = nameLeft + available;
+        int priceX = nameRight + TradeNameLayout.PRICE_GAP;
+        int overflow = textWidth - available;
+        if (overflow < 8) {
+            throw new AssertionError("Bane of Arthropods does not overflow the name box");
+        }
+        for (int offset = 0; offset <= overflow; offset++) {
+            int visibleRight = TradeNameLayout.clippedRight(nameLeft, nameRight, textWidth, offset);
+            if (visibleRight > priceX - TradeNameLayout.PRICE_GAP) {
+                throw new AssertionError("name reaches the price at offset " + offset);
+            }
+        }
+    }
+
+    private static TradeEntry bane(net.minecraft.client.Minecraft client) {
+        if (client.font == null) {
+            return null;
+        }
+        for (TradeEntry entry : TradeSession.entries()) {
+            if (entry.name.startsWith("Bane of Arthropods")) {
+                return entry;
+            }
+        }
+        return null;
     }
 
     private static int lecternCount(net.minecraft.client.Minecraft client) {
