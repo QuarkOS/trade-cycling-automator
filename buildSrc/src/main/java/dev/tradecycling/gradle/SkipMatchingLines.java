@@ -40,4 +40,20 @@ public final class SkipMatchingLines extends FilterReader {
         }
         return pending.charAt(index++);
     }
+
+    @Override
+    public int read(char[] cbuf, int off, int len) throws IOException {
+        // FilterReader.read(char[], int, int) reads the wrapped stream directly
+        // and would skip the line filter above.
+        int count = 0;
+        while (count < len) {
+            int next = read();
+            if (next == -1) {
+                return count == 0 ? -1 : count;
+            }
+            cbuf[off + count] = (char) next;
+            count++;
+        }
+        return count;
+    }
 }
