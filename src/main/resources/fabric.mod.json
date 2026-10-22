@@ -3,9 +3,10 @@
   "id": "${id}",
   "version": "${version}",
   "name": "${name}",
-  "description": "Unofficial addon for Trade Cycling. Cycles a librarian until the enchanted book, level, and emerald price you asked for shows up.",
+  "description": "Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough.",
   "license": "MIT",
   "environment": "client",
+  "accessWidener": "trade-cycling-automator.accesswidener",
   "entrypoints": {
     "client": [
       "dev.tradecycling.automator.TradeCyclingAutomator"

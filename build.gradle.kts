@@ -19,6 +19,19 @@ repositories {
     strictMaven("https://api.modrinth.com/maven", "Modrinth", "maven.modrinth")
 }
 
+if (sc.current.version == "1.21.11") {
+    extensions.configure<net.fabricmc.loom.api.fabricapi.FabricApiExtension>("fabricApi") {
+        configureTests {
+            createSourceSet.set(true)
+            modId.set("trade-cycling-automator-test")
+            enableGameTests.set(false)
+            enableClientGameTests.set(true)
+            eula.set(true)
+            clearRunDirectory.set(false)
+        }
+    }
+}
+
 dependencies {
     fun fapi(vararg modules: String) {
         for (it in modules) modImplementation(fabricApi.module(it, sc.properties["deps.fabric_api"]))
@@ -38,6 +51,9 @@ dependencies {
 
     modImplementation("maven.modrinth:cloth-config:${property("deps.cloth_config")}")
     modImplementation("maven.modrinth:modmenu:${property("deps.modmenu")}")
+    if (sc.current.version == "1.21.11") {
+        modImplementation(fabricApi.module("fabric-client-gametest-api-v1", sc.properties["deps.fabric_api"]))
+    }
     // Compile-only: Trade Cycling is a required runtime dependency and is never bundled.
     modCompileOnly("maven.modrinth:trade-cycling:${property("deps.trade_cycling")}")
 
@@ -48,6 +64,9 @@ dependencies {
 
 loom {
     fabricModJsonPath = rootProject.file("src/main/resources/fabric.mod.json")
+    if (sc.current.version == "1.21.11") {
+        accessWidenerPath = rootProject.file("src/main/resources/trade-cycling-automator.accesswidener")
+    }
 
     runConfigs.all {
         preferGradleTask = true
@@ -73,15 +92,26 @@ tasks {
             set(key, value)
         }
 
+        val minecraftVersion = sc.current.version
         val props = buildMap {
             register("id", sc.properties["mod.id"])
             register("name", sc.properties["mod.name"])
-            register("version", "${sc.properties.get<String>("mod.version")}+${sc.current.version}")
+            register("version", "${sc.properties.get<String>("mod.version")}+$minecraftVersion")
             register("minecraft", sc.properties["mod.mc_compat"])
             register("java", if (sc.current.parsed >= "26.1") ">=25" else ">=21")
         }
 
-        filesMatching("fabric.mod.json") { expand(props) }
+        val droppedLine = if (minecraftVersion == "1.21.11") "trade_cycling" else "accessWidener"
+        filesMatching("fabric.mod.json") {
+            expand(props)
+            filter(mapOf("needles" to droppedLine), dev.tradecycling.gradle.SkipMatchingLines::class.java)
+        }
+    }
+
+    if (sc.current.version != "1.21.11") {
+        named<JavaCompile>("compileJava") {
+            exclude("**/picker/**")
+        }
     }
 
     test {

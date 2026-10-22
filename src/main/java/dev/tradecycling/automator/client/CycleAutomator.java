@@ -40,11 +40,23 @@ public final class CycleAutomator {
     }
 
     public static void toggle() {
-        if (running) {
+        //? if <1.21.11 {
+        /*if (running) {
             stop(StopReason.KEYBIND);
         } else {
             start();
         }
+        *///?} else {
+        //? if >=26.1 {
+        /*if (running) {
+            stop(StopReason.KEYBIND);
+        } else {
+            start();
+        }
+        *///?} else {
+        dev.tradecycling.automator.picker.JobSiteReroller.onToggleKey();
+        //?}
+        //?}
     }
 
     public static void start() {
@@ -72,6 +84,24 @@ public final class CycleAutomator {
     }
 
     public static void stop(StopReason reason) {
+        //? if <1.21.11 {
+        /*stopLegacy(reason);
+        *///?} else {
+        //? if >=26.1 {
+        /*stopLegacy(reason);
+        *///?} else {
+        dev.tradecycling.automator.picker.JobSiteReroller.stop(switch (reason) {
+            case DISABLED -> dev.tradecycling.automator.picker.JobSiteReroller.StopReason.DISABLED;
+            case PANIC -> dev.tradecycling.automator.picker.JobSiteReroller.StopReason.PANIC;
+            case FOUND -> dev.tradecycling.automator.picker.JobSiteReroller.StopReason.FOUND;
+            case KEYBIND -> dev.tradecycling.automator.picker.JobSiteReroller.StopReason.STOPPED;
+            default -> dev.tradecycling.automator.picker.JobSiteReroller.StopReason.STOPPED;
+        });
+        //?}
+        //?}
+    }
+
+    private static void stopLegacy(StopReason reason) {
         boolean wasRunning = running;
         running = false;
         pendingSignature = "";
