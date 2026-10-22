@@ -41,19 +41,21 @@ dependencies {
     loomx.applyMojangMappings()
 
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-    fapi(
-        "fabric-api-base",
-        if (sc.current.parsed >= "26.1") "fabric-key-mapping-api-v1" else "fabric-key-binding-api-v1",
-        "fabric-lifecycle-events-v1",
-        "fabric-screen-api-v1",
-        "fabric-events-interaction-v0",
-    )
+    if (sc.current.version == "1.21.11") {
+        // The client gametest and Mod Menu need the Fabric API mod id, not only the split modules.
+        modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties["deps.fabric_api"]}")
+    } else {
+        fapi(
+            "fabric-api-base",
+            if (sc.current.parsed >= "26.1") "fabric-key-mapping-api-v1" else "fabric-key-binding-api-v1",
+            "fabric-lifecycle-events-v1",
+            "fabric-screen-api-v1",
+            "fabric-events-interaction-v0",
+        )
+    }
 
     modImplementation("maven.modrinth:cloth-config:${property("deps.cloth_config")}")
     modImplementation("maven.modrinth:modmenu:${property("deps.modmenu")}")
-    if (sc.current.version == "1.21.11") {
-        modImplementation(fabricApi.module("fabric-client-gametest-api-v1", sc.properties["deps.fabric_api"]))
-    }
     // Compile-only: Trade Cycling is a required runtime dependency and is never bundled.
     modCompileOnly("maven.modrinth:trade-cycling:${property("deps.trade_cycling")}")
 
