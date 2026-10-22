@@ -99,6 +99,13 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 if (!ranged || !fixed) {
                     throw new AssertionError("panel catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
                 }
+                if (!(client.screen instanceof MerchantScreen)) {
+                    throw new AssertionError("offers button did not leave the merchant screen open");
+                }
+            });
+            // Capture the ranges before selection replaces a chosen ceiling with "Any".
+            saveShot(context, "trade-panel");
+            context.runOnClient(client -> {
                 if (!(client.screen instanceof MerchantScreen screen)) {
                     throw new AssertionError("offers button did not leave the merchant screen open");
                 }
@@ -107,7 +114,6 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("every catalog row was already on the counter");
                 }
             });
-            saveShot(context, "trade-panel");
 
             context.clickScreenButton("text.trade-cycling-automator.button.start");
             String reason = "running";
