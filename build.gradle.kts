@@ -43,7 +43,7 @@ dependencies {
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
     if (sc.current.version == "1.21.11") {
         // The client gametest and Mod Menu need the Fabric API mod id, not only the split modules.
-        modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties["deps.fabric_api"]}")
+        modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties.get<String>("deps.fabric_api")}")
     } else {
         fapi(
             "fabric-api-base",
