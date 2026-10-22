@@ -1,0 +1,48 @@
+accessWidener v2 named
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$EmeraldForItems
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EmeraldForItems itemStack Lnet/minecraft/world/item/trading/ItemCost;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EmeraldForItems emeraldAmount I
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$EnchantBookForEmeralds
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EnchantBookForEmeralds tradeableEnchantments Lnet/minecraft/tags/TagKey;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EnchantBookForEmeralds minLevel I
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EnchantBookForEmeralds maxLevel I
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$EnchantedItemForEmeralds
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EnchantedItemForEmeralds itemStack Lnet/minecraft/world/item/ItemStack;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EnchantedItemForEmeralds baseEmeraldCost I
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$ItemsForEmeralds
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$ItemsForEmeralds itemStack Lnet/minecraft/world/item/ItemStack;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$ItemsForEmeralds emeraldCost I
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$ItemsAndEmeraldsToItems
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$ItemsAndEmeraldsToItems fromItem Lnet/minecraft/world/item/trading/ItemCost;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$ItemsAndEmeraldsToItems emeraldCost I
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$ItemsAndEmeraldsToItems toItem Lnet/minecraft/world/item/ItemStack;
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$EmeraldsForVillagerTypeItem
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EmeraldsForVillagerTypeItem trades Ljava/util/Map;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$EmeraldsForVillagerTypeItem cost I
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$DyedArmorForEmeralds
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$DyedArmorForEmeralds item Lnet/minecraft/world/item/Item;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$DyedArmorForEmeralds value I
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$TippedArrowForItemsAndEmeralds
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$TippedArrowForItemsAndEmeralds emeraldCost I
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$TippedArrowForItemsAndEmeralds toItem Lnet/minecraft/world/item/ItemStack;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$TippedArrowForItemsAndEmeralds toCount I
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$TippedArrowForItemsAndEmeralds fromItem Lnet/minecraft/world/item/Item;
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$TippedArrowForItemsAndEmeralds fromCount I
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$TreasureMapForEmeralds
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$TreasureMapForEmeralds emeraldCost I
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$TreasureMapForEmeralds displayName Ljava/lang/String;
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$SuspiciousStewForEmerald
+accessible field net/minecraft/world/entity/npc/villager/VillagerTrades$SuspiciousStewForEmerald effects Lnet/minecraft/world/item/component/SuspiciousStewEffects;
+
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$TypeSpecificTrade
+accessible class net/minecraft/world/entity/npc/villager/VillagerTrades$FailureItemListing

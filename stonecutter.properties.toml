@@ -1,12 +1,12 @@
-mod.id = "trade-cycling-automator"
-mod.name = "Automator for Trade Cycling"
-mod.group = "dev.tradecycling"
+mod.id = "villager_reroller"
+mod.name = "Villager Reroller"
+mod.group = "dev.quarkos"
 mod.version = "1.0.0"
 
 deps.fabric_loader = "0.19.5"
 loomx.loom_version = "1.18-SNAPSHOT"
 
-# Trade Cycling versions are the Fabric files of upstream release 1.0.22 on Modrinth.
+# Trade Cycling versions are Fabric files from Modrinth. 1.21.11 tracks the current 1.0.23 release.
 
 ["1.21.1"]
 mod.mc_compat = ">=1.21 <=1.21.1"
@@ -24,7 +24,7 @@ mod.mc_releases = ["1.21.11"]
 deps.fabric_api = "0.141.6+1.21.11"
 deps.modmenu = "17.0.0"
 deps.cloth_config = "21.11.153+fabric"
-deps.trade_cycling = "fabric-1.21.11-1.0.22"
+deps.trade_cycling = "fabric-1.21.11-1.0.23"
 
 ["26.1.2"]
 mod.mc_compat = ">=26.1 <26.2"

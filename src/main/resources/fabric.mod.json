@@ -3,15 +3,25 @@
   "id": "${id}",
   "version": "${version}",
   "name": "${name}",
-  "description": "Unofficial addon for Trade Cycling. Cycles a librarian until the enchanted book, level, and emerald price you asked for shows up.",
+  "description": "Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If Trade Cycling is installed, the list can use that mod's cycle action instead.",
+  "authors": [
+    "Emilio Schwaiger"
+  ],
+  "contact": {
+    "homepage": "https://github.com/QuarkOS/trade-cycling-automator",
+    "sources": "https://github.com/QuarkOS/trade-cycling-automator",
+    "issues": "https://github.com/QuarkOS/trade-cycling-automator/issues"
+  },
   "license": "MIT",
+  "icon": "assets/${id}/icon.png",
   "environment": "client",
+  "accessWidener": "villager_reroller.accesswidener",
   "entrypoints": {
     "client": [
-      "dev.tradecycling.automator.TradeCyclingAutomator"
+      "dev.quarkos.villagerreroller.VillagerReroller"
     ],
     "modmenu": [
-      "dev.tradecycling.automator.config.ModMenuIntegration"
+      "dev.quarkos.villagerreroller.config.ModMenuIntegration"
     ]
   },
   "depends": {
@@ -19,13 +29,11 @@
     "minecraft": "${minecraft}",
     "java": "${java}",
     "fabric-api": "*",
-    "trade_cycling": "*",
     "cloth-config": "*",
+    "trade_cycling": ">=1.0.0",
     "modmenu": "*"
   },
-  "custom": {
-    "modmenu": {
-      "parent": "trade_cycling"
-    }
+  "suggests": {
+    "trade_cycling": "*"
   }
 }
