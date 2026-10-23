@@ -22,7 +22,9 @@ import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.input.InputWithModifiers;
 //?}
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
+//? if >=1.20.2 {
 import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
+//?}
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
@@ -124,10 +126,12 @@ public final class ClientHarness121 {
             McBridge.setScreen(client, new TitleScreen());
             return;
         }
+        //? if >=1.20.2 {
         if (McBridge.currentScreen(client) instanceof NoticeWithLinkScreen notice) {
             notice.onClose();
             return;
         }
+        //?}
         //? if forge {
         /*if (McBridge.currentScreen(client) instanceof net.minecraftforge.client.gui.LoadingErrorScreen) {
             for (AbstractWidget widget : McBridge.buttons(McBridge.currentScreen(client))) {

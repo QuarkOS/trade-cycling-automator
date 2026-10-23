@@ -80,6 +80,22 @@ public final class TradePickerUi {
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
+        //? if <1.20.2 {
+        /*dev.quarkos.villagerreroller.client.McBridge.buttons(screen).add(new ImageButton(
+                left + MERCHANT_WIDTH - 24,
+                top + 4,
+                20,
+                18,
+                0,
+                0,
+                19,
+                new Identifier("minecraft", "textures/gui/recipe_button.png"),
+                256,
+                256,
+                button -> toggle(client, screen),
+                Component.translatable("text." + VillagerReroller.MOD_ID + ".button.offers")
+        ));
+        *///?} else {
         dev.quarkos.villagerreroller.client.McBridge.buttons(screen).add(new ImageButton(
                 left + MERCHANT_WIDTH - 24,
                 top + 4,
@@ -89,6 +105,7 @@ public final class TradePickerUi {
                 button -> toggle(client, screen),
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".button.offers")
         ));
+        //?}
         if (TradeSession.panelOpen() || JobSiteReroller.isRunning()) {
             TradeSession.setPanelOpen(true);
             open(client, screen);
@@ -324,8 +341,12 @@ public final class TradePickerUi {
                 //? if >=1.21.2 && <1.21.6 {
                 /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, checkbox, getX() + 1, rowY + 4, 12, 12);
                 *///?}
-                //? if <1.21.2 {
+                //? if >=1.20.2 && <1.21.2 {
                 /*graphics.blitSprite(checkbox, getX() + 1, rowY + 4, 12, 12);
+                *///?}
+                //? if <1.20.2 {
+                /*graphics.fill(getX() + 1, rowY + 4, getX() + 13, rowY + 16, 0xFF000000);
+                graphics.fill(getX() + 2, rowY + 5, getX() + 12, rowY + 15, selected ? 0xFF55FF55 : 0xFF8B8B8B);
                 *///?}
                 ItemStack icon = entry.icon;
                 //? if >=26.1 {
@@ -359,8 +380,11 @@ public final class TradePickerUi {
             //? if >=1.21.2 && <1.21.6 {
             /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, scroller, getX() + width - 6, scrollerY, 6, 27);
             *///?}
-            //? if <1.21.2 {
+            //? if >=1.20.2 && <1.21.2 {
             /*graphics.blitSprite(scroller, getX() + width - 6, scrollerY, 6, 27);
+            *///?}
+            //? if <1.20.2 {
+            /*graphics.fill(getX() + width - 6, scrollerY, getX() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
             *///?}
         }
 
@@ -396,8 +420,19 @@ public final class TradePickerUi {
             return true;
         }
 
+        //? if <1.20.2 {
+        /*@Override
+        public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+            return scrollBy(mouseX, mouseY, delta);
+        }
+        *///?} else {
         @Override
         public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+            return scrollBy(mouseX, mouseY, vertical);
+        }
+        //?}
+
+        private boolean scrollBy(double mouseX, double mouseY, double vertical) {
             if (!isMouseOver(mouseX, mouseY)) {
                 return false;
             }

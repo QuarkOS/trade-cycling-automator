@@ -150,7 +150,23 @@ public final class TradeEntry {
         //?}
     }
 
-    //? if <1.20.5 {
+    //? if <1.20.2 {
+    /*public static boolean stewHas(ItemStack stack, MobEffect effect) {
+        net.minecraft.nbt.CompoundTag tag = stack.getTag();
+        if (tag == null || !tag.contains("Effects", 9)) {
+            return false;
+        }
+        int wanted = MobEffect.getId(effect);
+        net.minecraft.nbt.ListTag list = tag.getList("Effects", 10);
+        for (int i = 0; i < list.size(); i++) {
+            if (list.getCompound(i).getInt("EffectId") == wanted) {
+                return true;
+            }
+        }
+        return false;
+    }
+    *///?}
+    //? if >=1.20.2 && <1.20.5 {
     /*public static boolean stewHas(ItemStack stack, MobEffect effect) {
         net.minecraft.nbt.CompoundTag tag = stack.getTag();
         if (tag == null || !tag.contains("effects", 9)) {
@@ -169,7 +185,8 @@ public final class TradeEntry {
         }
         return false;
     }
-    *///?} else {
+    *///?}
+    //? if >=1.20.5 {
     public static boolean stewHas(ItemStack stack, Holder<MobEffect> effect) {
         var effects = stack.get(DataComponents.SUSPICIOUS_STEW_EFFECTS);
         if (effects == null) {

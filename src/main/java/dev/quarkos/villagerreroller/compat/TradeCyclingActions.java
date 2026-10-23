@@ -28,14 +28,19 @@ final class TradeCyclingActions {
             return false;
         }
         //? if forge {
-        /*var handler = Minecraft.getInstance().getConnection();
+        /*        var handler = Minecraft.getInstance().getConnection();
         if (handler == null) {
             return false;
         }
+        //? if <1.20.2 {
+        de.maxhenkel.tradecycling.TradeCyclingClientMod.sendCycleTradesPacket();
+        //?}
+        //? if >=1.20.2 {
         // FML constructs ForgeTradeCyclingMod. sendCycleTradesPacket() lives on a
         // client object stored in a private field of that class, and the method
         // itself only writes an empty buffer to this public channel.
         ForgeTradeCyclingMod.CYCLE_TRADES_CHANNEL.send(new FriendlyByteBuf(Unpooled.buffer()), handler.getConnection());
+        //?}
         *///?} else {
         FabricTradeCyclingClientMod mod = FabricTradeCyclingClientMod.instance();
         if (mod == null) {
