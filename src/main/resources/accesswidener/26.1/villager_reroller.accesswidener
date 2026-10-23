@@ -1,5 +1,8 @@
 accessWidener v2 official
 
+accessible method net/minecraft/client/gui/screens/Screen addRenderableWidget (Lnet/minecraft/client/gui/components/events/GuiEventListener;)Lnet/minecraft/client/gui/components/events/GuiEventListener;
+accessible method net/minecraft/client/gui/screens/Screen removeWidget (Lnet/minecraft/client/gui/components/events/GuiEventListener;)V
+
 accessible field net/minecraft/world/item/trading/VillagerTrade wants Lnet/minecraft/world/item/trading/TradeCost;
 accessible field net/minecraft/world/item/trading/VillagerTrade gives Lnet/minecraft/world/item/ItemStackTemplate;
 accessible field net/minecraft/world/item/trading/VillagerTrade givenItemModifiers Ljava/util/List;

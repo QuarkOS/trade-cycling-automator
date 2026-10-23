@@ -2,14 +2,14 @@ package dev.quarkos.villagerreroller.client;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
 //? if forge {
-/*import net.minecraft.client.gui.components.events.GuiEventListener;
-*///?} else {
+/* *///?} else {
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 //?}
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
@@ -117,15 +117,9 @@ public final class McBridge {
     }
 
     public static List<AbstractWidget> buttons(Screen screen) {
-        //? if forge {
-        /*return new ForgeScreenWidgets(screen);
-        *///?} else {
-        //? if >=26.1 {
-        /*return net.fabricmc.fabric.api.client.screen.v1.Screens.getWidgets(screen);
-        *///?} else {
-        return net.fabricmc.fabric.api.client.screen.v1.Screens.getButtons(screen);
-        //?}
-        //?}
+        // Fabric's button list inserts by a stale index. Trade Cycling's own merchant
+        // widgets make that index run past the list, which disconnects the client.
+        return new ScreenWidgets(screen);
     }
 
     public static void toast(Minecraft client, Component title, Component message) {
@@ -270,11 +264,10 @@ public final class McBridge {
         return lookup.get(key).map(holder -> (Holder<Enchantment>) holder);
     }
 
-    //? if forge {
-    /*private static final class ForgeScreenWidgets extends java.util.AbstractList<AbstractWidget> {
+    private static final class ScreenWidgets extends java.util.AbstractList<AbstractWidget> {
         private final Screen screen;
 
-        private ForgeScreenWidgets(Screen screen) {
+        private ScreenWidgets(Screen screen) {
             this.screen = screen;
         }
 
@@ -313,5 +306,4 @@ public final class McBridge {
             return found;
         }
     }
-    *///?}
 }
