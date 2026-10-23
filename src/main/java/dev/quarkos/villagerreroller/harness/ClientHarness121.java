@@ -1,5 +1,4 @@
-//? if <1.21.5 {
-/*package dev.quarkos.villagerreroller.harness;
+package dev.quarkos.villagerreroller.harness;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
@@ -16,6 +15,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+//? if >=1.21.11 {
+import net.minecraft.client.gui.ActiveTextCollector;
+//?}
+//? if >=1.21.9 {
+import net.minecraft.client.input.InputWithModifiers;
+//?}
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -25,7 +30,11 @@ import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.Util;
+//? if <1.21.11 {
+/*import net.minecraft.Util;
+*///?} else {
+import net.minecraft.util.Util;
+//?}
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
@@ -40,9 +49,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-// 1.21.1 has no Fabric client gametest entrypoint. This tick harness opens a
-// flat world and drives the same trade-screen checks when
-// -Dvillager_reroller.harness=true is set. Normal launches ignore it.
+// Fabric 1.21.5+ uses the client gametest. This tick harness covers Fabric
+// before that, and every Forge version, when -Dvillager_reroller.harness=true
+// is set. Normal launches ignore it.
 public final class ClientHarness121 {
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
     private static final int SCALE = Integer.getInteger("villager_reroller.timeoutScale", 1);
@@ -98,40 +107,44 @@ public final class ClientHarness121 {
     }
 
     private static void waitTitle(Minecraft client) {
-        if (client.screen instanceof AccessibilityOnboardingScreen) {
+        if (McBridge.currentScreen(client) instanceof AccessibilityOnboardingScreen) {
             client.options.onboardingAccessibilityFinished();
-            client.setScreen(new TitleScreen());
+            McBridge.setScreen(client, new TitleScreen());
             return;
         }
-        if (client.screen instanceof NoticeWithLinkScreen notice) {
+        if (McBridge.currentScreen(client) instanceof NoticeWithLinkScreen notice) {
             notice.onClose();
             return;
         }
         //? if forge {
-        if (client.screen instanceof net.minecraftforge.client.gui.LoadingErrorScreen) {
-            for (AbstractWidget widget : McBridge.buttons(client.screen)) {
+        /*if (McBridge.currentScreen(client) instanceof net.minecraftforge.client.gui.LoadingErrorScreen) {
+            for (AbstractWidget widget : McBridge.buttons(McBridge.currentScreen(client))) {
                 if (widget instanceof Button button
                         && button.getMessage().getString().toLowerCase(java.util.Locale.ROOT).contains("continue")) {
-                    button.onPress();
-                    client.setScreen(new TitleScreen());
+                    pressButton(button);
+                    McBridge.setScreen(client, new TitleScreen());
                     return;
                 }
             }
         }
-        //?}
-        if (!(client.screen instanceof TitleScreen)) {
+        *///?}
+        if (!(McBridge.currentScreen(client) instanceof TitleScreen)) {
             if (ticks > timeout(20 * 45)) {
-                fail("title screen did not open, screen=" + client.screen);
+                fail("title screen did not open, screen=" + McBridge.currentScreen(client));
             }
             return;
         }
-        CreateWorldScreen.openFresh(client, client.screen);
+        //? if <1.21.9 {
+        /*CreateWorldScreen.openFresh(client, McBridge.currentScreen(client));
+        *///?} else {
+        CreateWorldScreen.openFresh(client, () -> McBridge.setScreen(client, new TitleScreen()));
+        //?}
         state = State.WAIT_PRESETS;
         ticks = 0;
     }
 
     private static void waitPresets(Minecraft client) {
-        if (!(client.screen instanceof CreateWorldScreen create)) {
+        if (!(McBridge.currentScreen(client) instanceof CreateWorldScreen create)) {
             if (ticks > timeout(20 * 60)) {
                 fail("create-world screen did not open");
             }
@@ -160,7 +173,7 @@ public final class ClientHarness121 {
     private static void waitPlayer(Minecraft client) {
         if (client.player == null || client.level == null || client.getSingleplayerServer() == null) {
             if (ticks > timeout(20 * 180)) {
-                fail("world did not load, screen=" + client.screen);
+                fail("world did not load, screen=" + McBridge.currentScreen(client));
             }
             return;
         }
@@ -215,7 +228,7 @@ public final class ClientHarness121 {
     }
 
     private static void waitMerchant(Minecraft client) {
-        if (!(client.screen instanceof MerchantScreen)) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
             if (ticks > timeout(20 * 20)) {
                 fail("merchant screen did not open");
             }
@@ -229,7 +242,7 @@ public final class ClientHarness121 {
         if (!cycling) {
             shot(client, "merchant-button");
         }
-        if (!press(client.screen, "text.villager_reroller.button.offers")) {
+        if (!press(McBridge.currentScreen(client), "text.villager_reroller.button.offers")) {
             fail("offers button missing");
             return;
         }
@@ -241,8 +254,13 @@ public final class ClientHarness121 {
         if (ticks < 5) {
             return;
         }
-        if (ScrollingNames.PERIOD_PER_PIXEL != AbstractWidget.PERIOD_PER_SCROLLED_PIXEL
+        //? if <1.21.11 {
+        /*if (ScrollingNames.PERIOD_PER_PIXEL != AbstractWidget.PERIOD_PER_SCROLLED_PIXEL
                 || ScrollingNames.MIN_PERIOD_SECONDS != AbstractWidget.MIN_SCROLL_PERIOD) {
+        *///?} else {
+        if (ScrollingNames.PERIOD_PER_PIXEL != ActiveTextCollector.PERIOD_PER_SCROLLED_PIXEL
+                || ScrollingNames.MIN_PERIOD_SECONDS != ActiveTextCollector.MIN_SCROLL_PERIOD) {
+        //?}
             fail("name scroll period does not match vanilla");
             return;
         }
@@ -280,7 +298,7 @@ public final class ClientHarness121 {
         }
         if (!Files.exists(artifacts().resolve("panel-job-site.png"))) {
             shot(client, "panel-job-site");
-            if (!press(client.screen, "text.villager_reroller.method.job_site")) {
+            if (!press(McBridge.currentScreen(client), "text.villager_reroller.method.job_site")) {
                 fail("method button missing");
                 return;
             }
@@ -300,7 +318,7 @@ public final class ClientHarness121 {
     }
 
     private static void selectAndRemember(Minecraft client) {
-        if (!(client.screen instanceof MerchantScreen screen)) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
             fail("offers button did not leave the merchant screen open");
             return;
         }
@@ -317,7 +335,7 @@ public final class ClientHarness121 {
     }
 
     private static void startReroll(Minecraft client) {
-        if (!press(client.screen, "text.villager_reroller.button.start")) {
+        if (!press(McBridge.currentScreen(client), "text.villager_reroller.button.start")) {
             fail("start button missing");
             return;
         }
@@ -331,7 +349,7 @@ public final class ClientHarness121 {
         // Teleporting the villager the player is trading with closes MerchantScreen.
         // 1.21.4 then sits in this state until the deadline, which looked like a reroll timeout.
         boolean running = JobSiteReroller.isRunning() || JobSiteReroller.stopReason() == null;
-        if (running && !(client.screen instanceof MerchantScreen) && ticks % 40 == 0) {
+        if (running && !(McBridge.currentScreen(client) instanceof MerchantScreen) && ticks % 40 == 0) {
             Villager villager = nearestLibrarian(client);
             if (villager != null && villager.distanceToSqr(villagerX, y, villagerZ) > 4.0) {
                 command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
@@ -356,7 +374,7 @@ public final class ClientHarness121 {
     }
 
     private static void finish(Minecraft client) {
-        if (!(client.screen instanceof MerchantScreen)) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
             if (ticks > timeout(20 * 20)) {
                 fail("merchant screen did not reopen after a found trade");
             }
@@ -417,7 +435,7 @@ public final class ClientHarness121 {
         String wanted = Component.translatable(key).getString();
         for (AbstractWidget widget : McBridge.buttons(screen)) {
             if (widget.getMessage().getString().equals(wanted) && widget instanceof Button button) {
-                button.onPress();
+                pressButton(button);
                 return true;
             }
         }
@@ -502,12 +520,24 @@ public final class ClientHarness121 {
         try {
             Path dir = artifacts();
             Files.createDirectories(dir);
-            NativeImage image = Screenshot.takeScreenshot(client.getMainRenderTarget());
+            //? if <1.21.5 {
+            /*NativeImage image = Screenshot.takeScreenshot(mainTarget(client));
             try {
                 image.writeToFile(dir.resolve(name + ".png"));
             } finally {
                 image.close();
             }
+            *///?} else {
+            Screenshot.takeScreenshot(mainTarget(client), image -> {
+                try {
+                    image.writeToFile(dir.resolve(name + ".png"));
+                } catch (IOException e) {
+                    fail("screenshot " + name + " failed: " + e.getMessage());
+                } finally {
+                    image.close();
+                }
+            });
+            //?}
         } catch (IOException e) {
             fail("screenshot " + name + " failed: " + e.getMessage());
         }
@@ -528,6 +558,32 @@ public final class ClientHarness121 {
             return Path.of("/opt/cursor/artifacts/1.21.1/plain");
         }
         return Path.of(configured);
+    }
+
+    private static com.mojang.blaze3d.pipeline.RenderTarget mainTarget(Minecraft client) {
+        //? if >=26.2 {
+        /*return client.gameRenderer.mainRenderTarget();
+        *///?} else {
+        return client.getMainRenderTarget();
+        //?}
+    }
+
+    private static void pressButton(Button button) {
+        //? if <1.21.9 {
+        /*button.onPress();
+        *///?} else {
+        button.onPress(new InputWithModifiers() {
+            @Override
+            public int input() {
+                return 0;
+            }
+
+            @Override
+            public int modifiers() {
+                return 0;
+            }
+        });
+        //?}
     }
 
     private static int timeout(int ticks) {
@@ -552,4 +608,3 @@ public final class ClientHarness121 {
         DONE
     }
 }
-*///?}
