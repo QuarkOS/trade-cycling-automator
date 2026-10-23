@@ -27,21 +27,32 @@ Break, place, and reopen each send the same packets vanilla uses, at most once p
 
 ## Versions
 
-Built with [Stonecutter](https://stonecutter.kikugie.dev/) 0.9.8. The sources in `src/` are the 1.21.11 Fabric tree. The root branch is Fabric (`:1.21.1`, `:1.21.11`, `:26.1.2`, `:26.2`, `:26.3`). The `forge` branch shares those sources through `forge/src` and builds `:forge:<version>`. Every shipped version breaks and replaces the job site. Each jar's Minecraft range is the exact version that was run.
+Built with [Stonecutter](https://stonecutter.kikugie.dev/) 0.9.8. The sources in `src/` are the 1.21.11 Fabric tree. The root branch is Fabric. The `forge` branch shares those sources through `forge/src` and builds `:forge:<version>`. Every shipped version breaks and replaces the job site. Each jar's Minecraft range is the exact version that was launched. 1.21.6 covers only 1.21.6, and 1.21.9 covers only 1.21.9, until 1.21.7, 1.21.8, and 1.21.10 are launched.
 
-| Minecraft | Fabric jar | Forge jar |
+| Minecraft | Fabric | Forge |
 | --- | --- | --- |
-| 1.21.1 | `villager_reroller-fabric-1.0.0+1.21.1.jar` | `villager_reroller-forge-1.0.0+1.21.1.jar` |
-| 1.21.11 | `villager_reroller-fabric-1.0.0+1.21.11.jar` | not shipped |
-| 26.1.2 | `villager_reroller-fabric-1.0.0+26.1.2.jar` | not shipped |
-| 26.2 | `villager_reroller-fabric-1.0.0+26.2.jar` | not shipped |
-| 26.3 | `villager_reroller-fabric-1.0.0+26.3.jar` | not shipped |
+| 1.20.6 | `villager_reroller-fabric-1.0.0+1.20.6.jar` | `villager_reroller-forge-1.0.0+1.20.6.jar` (Forge 50.0.8) |
+| 1.21 | `villager_reroller-fabric-1.0.0+1.21.jar` | `villager_reroller-forge-1.0.0+1.21.jar` (Forge 51.0.33) |
+| 1.21.1 | `villager_reroller-fabric-1.0.0+1.21.1.jar` | `villager_reroller-forge-1.0.0+1.21.1.jar` (Forge 52.1.20) |
+| 1.21.3 | `villager_reroller-fabric-1.0.0+1.21.3.jar` | `villager_reroller-forge-1.0.0+1.21.3.jar` (Forge 53.1.16) |
+| 1.21.4 | `villager_reroller-fabric-1.0.0+1.21.4.jar` | `villager_reroller-forge-1.0.0+1.21.4.jar` (Forge 54.1.22) |
+| 1.21.5 | `villager_reroller-fabric-1.0.0+1.21.5.jar` | `villager_reroller-forge-1.0.0+1.21.5.jar` (Forge 55.1.18) |
+| 1.21.6 | `villager_reroller-fabric-1.0.0+1.21.6.jar` | `villager_reroller-forge-1.0.0+1.21.6.jar` (Forge 56.0.9) |
+| 1.21.9 | `villager_reroller-fabric-1.0.0+1.21.9.jar` | `villager_reroller-forge-1.0.0+1.21.9.jar` (Forge 59.0.5) |
+| 1.21.11 | `villager_reroller-fabric-1.0.0+1.21.11.jar` | `villager_reroller-forge-1.0.0+1.21.11.jar` (Forge 61.2.4) |
+| 26.1.2 | `villager_reroller-fabric-1.0.0+26.1.2.jar` | `villager_reroller-forge-1.0.0+26.1.2.jar` (Forge 64.1.5) |
+| 26.2 | `villager_reroller-fabric-1.0.0+26.2.jar` | `villager_reroller-forge-1.0.0+26.2.jar` (Forge 65.1.5) |
+| 26.3 | `villager_reroller-fabric-1.0.0+26.3.jar` | `villager_reroller-forge-1.0.0+26.3.jar` (Forge 66.1.0) |
 
-Forge 1.21.11, 26.1.2, 26.2, and 26.3 stay in the Stonecutter tree and fail `:forge:<version>:build`. [Cloth Config](https://modrinth.com/mod/cloth-config) publishes a Forge jar for 1.21.1 (`15.0.140+forge`) and does not publish one for those four game versions. shedaniel `cloth-config-forge` stops at 17.0.144 (Minecraft 1.21.2/1.21.3). NeoForge cloth builds exist for the newer versions; this project targets Minecraft Forge, so those jars are not used.
+1.21.2 is not built. Trade Cycling does not publish a 1.21.2 jar, and Forge has no 1.21.2 promotion. 1.20.4 and older (including 1.19.2 and 1.19.4) are not in this tree yet: those versions store trades in NBT rather than data components.
 
-Fabric needs Fabric Loader, Fabric API, Cloth Config, and [Mod Menu](https://modrinth.com/mod/modmenu). Forge 1.21.1 needs Forge `1.21.1-52.1.20` or newer and Cloth Config Forge. The settings screen is Cloth Config on both loaders. Forge opens it from the mods list (`ConfigScreenHandler.ConfigScreenFactory`). Mod Menu is Fabric-only. Trade Cycling 1.0.23 by Max Henkel is optional on every version ([Modrinth](https://modrinth.com/mod/trade-cycling), [CurseForge](https://www.curseforge.com/minecraft/mc-mods/trade-cycling)).
+Fabric needs Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Forge does not depend on Cloth Config on any version. Its settings screen is a vanilla `Screen` registered with `MinecraftForge.registerConfigScreen`, so the mods list Config button opens it, and it writes the same `villager_reroller.json` file. Mod Menu is Fabric-only.
 
-The 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
+Forge 1.20.6 is pinned to 50.0.8. Trade Cycling 1.0.11 calls `CustomPayloadEvent.Context.getDirection()`, and Forge removed that method in 50.0.9. A newer 1.20.6 Forge disconnects the client on the first cycle.
+
+Trade Cycling by Max Henkel is optional on every version ([Modrinth](https://modrinth.com/mod/trade-cycling), [CurseForge](https://www.curseforge.com/minecraft/mc-mods/trade-cycling)). 1.21 reuses the 1.21.1 Trade Cycling jar.
+
+1.20.6 and the 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
 
 ## How to use
 
@@ -49,7 +60,7 @@ Install Fabric (or Forge 1.21.1), the loader's dependencies above, and this mod.
 
 The book button opens the list. Search filters by name. Start rerolls until a selected row appears. The price you set is the most you will pay in emeralds before you count it as a match. Reputation can make a trade cheaper than the vanilla minimum; that still matches. Sells, where the villager pays you emeralds, match on the item rather than a ceiling.
 
-Cloth Config has an enabled switch, an attempt cap (default 500), and a panic stop. On Fabric that screen is opened from Mod Menu. On Forge it is opened from the mods list.
+The settings screen has an enabled switch, an attempt cap (default 500), and a panic stop. On Fabric, Cloth Config opens it from Mod Menu. On Forge, the same options are a vanilla screen opened from the mods list.
 
 The toggle key is `K`. It starts the selected targets while the trade screen is open, and stops a reroll from anywhere. Change it in Controls, under Miscellaneous.
 
@@ -82,28 +93,21 @@ Enchanted gear adds `5 + random.nextInt(15)` to its base cost, so the added emer
 ## Build
 
 ```bash
-# Gradle must be running on Java 25 (Loom 1.18). The 1.21.x jars still target Java 21.
+# Gradle must be running on Java 25 (Loom 1.18). 1.20.6 and 1.21.x jars target Java 21.
 export JAVA_HOME=/opt/jdk25
 ./gradlew :1.21.11:test
-./gradlew :1.21.1:build :1.21.11:build :26.1.2:build :26.2:build :26.3:build
-./gradlew :forge:1.21.1:build
-# These four fail on purpose. Cloth Config has no Forge build for them.
-./gradlew :forge:26.3:build :forge:26.2:build :forge:26.1.2:build :forge:1.21.11:build
+./gradlew build -x test
 
-# Headless client gametest (1.21.11 and the 26.x nodes). The daemon does not
-# see xvfb-run's DISPLAY, so pass it through.
+# Fabric 1.21.5 and newer use the client gametest. Older Fabric versions, and every
+# Forge version, use the tick harness. The daemon does not see xvfb-run's DISPLAY.
 xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
   './gradlew :1.21.11:runClientGameTest -Pdisplay=$DISPLAY -Pxauth=$XAUTHORITY'
 xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
-  './gradlew :1.21.11:runClientGameTest -PwithTradeCycling=true -Pdisplay=$DISPLAY -Pxauth=$XAUTHORITY'
-
-# 1.21.1 has no Fabric client gametest. The same tick harness drives Fabric and Forge.
+  './gradlew :1.20.6:runClient -Pharness=true -Pdisplay=$DISPLAY -Pxauth=$XAUTHORITY'
 xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
-  './gradlew :1.21.1:runClient -Pharness=true -Pdisplay=$DISPLAY -Pxauth=$XAUTHORITY'
-xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
-  './gradlew :forge:1.21.1:runClient -Pharness=true -Pdisplay=$DISPLAY -Pxauth=$XAUTHORITY'
+  './gradlew :forge:1.20.6:runClient -Pharness=true -PwithTradeCycling=true -Pdisplay=$DISPLAY -Pxauth=$XAUTHORITY'
 ```
 
-`:1.21.11:test` checks the wiki price table, the vanilla roll, and the scrolling-name offset. The same tests run on every node, including `:forge:1.21.1:test`. The client gametest spawns a librarian next to a lectern. Without `-PwithTradeCycling=true` it breaks the lectern. With the property it cycles through Trade Cycling and leaves the lectern in place. The published jars do not bundle Trade Cycling.
+`:1.21.11:test` checks the wiki price table, the vanilla roll, and the scrolling-name offset. The client gametest and the harness spawn a librarian next to a lectern. Without `-PwithTradeCycling=true` the run breaks the lectern. With the property it cycles through Trade Cycling and leaves the lectern in place. The published jars do not bundle Trade Cycling.
 
 The Java package is `dev.quarkos.villagerreroller`. The mod id is `villager_reroller`.

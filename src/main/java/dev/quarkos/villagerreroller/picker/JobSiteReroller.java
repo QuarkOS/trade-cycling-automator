@@ -415,8 +415,12 @@ public final class JobSiteReroller {
             stop(StopReason.TIMEOUT);
             return;
         }
+        // The villager often takes a step while the job block is replaced. Stopping on
+        // that first tick looked like a reach failure even when they were walking back.
         if (!McBridge.withinEntity(player, villager)) {
-            stop(StopReason.OUT_OF_REACH);
+            if (phaseTicks > timeout(40)) {
+                stop(StopReason.OUT_OF_REACH);
+            }
             return;
         }
         if (phaseTicks % 10 == 1) {

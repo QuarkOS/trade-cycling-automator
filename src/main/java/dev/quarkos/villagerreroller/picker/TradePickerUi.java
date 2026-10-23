@@ -52,10 +52,19 @@ public final class TradePickerUi {
     private static final int ROW_HEIGHT = 20;
     private static final int TEXT = 0xFF404040;
     private static final int CURSE = 0xFFAA0000;
-    private static final Identifier CHECKBOX = Identifier.withDefaultNamespace("widget/checkbox");
-    private static final Identifier CHECKBOX_SELECTED = Identifier.withDefaultNamespace("widget/checkbox_selected");
-    private static final Identifier SCROLLER = Identifier.withDefaultNamespace("container/villager/scroller");
-    private static final Identifier SCROLLER_DISABLED = Identifier.withDefaultNamespace("container/villager/scroller_disabled");
+    //? if <1.21 {
+    /*private static Identifier sprite(String path) {
+        return new Identifier("minecraft", path);
+    }
+    *///?} else {
+    private static Identifier sprite(String path) {
+        return Identifier.withDefaultNamespace(path);
+    }
+    //?}
+    private static final Identifier CHECKBOX = sprite("widget/checkbox");
+    private static final Identifier CHECKBOX_SELECTED = sprite("widget/checkbox_selected");
+    private static final Identifier SCROLLER = sprite("container/villager/scroller");
+    private static final Identifier SCROLLER_DISABLED = sprite("container/villager/scroller_disabled");
 
     private static final List<AbstractWidget> panelWidgets = new ArrayList<>();
     private static OfferList list;
@@ -312,10 +321,10 @@ public final class TradePickerUi {
                 //? if >=1.21.6 {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, checkbox, getX() + 1, rowY + 4, 12, 12);
                 //?}
-                //? if >=1.21.4 && <1.21.6 {
+                //? if >=1.21.2 && <1.21.6 {
                 /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, checkbox, getX() + 1, rowY + 4, 12, 12);
                 *///?}
-                //? if <1.21.4 {
+                //? if <1.21.2 {
                 /*graphics.blitSprite(checkbox, getX() + 1, rowY + 4, 12, 12);
                 *///?}
                 ItemStack icon = entry.icon;
@@ -347,10 +356,10 @@ public final class TradePickerUi {
             //? if >=1.21.6 {
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, scroller, getX() + width - 6, scrollerY, 6, 27);
             //?}
-            //? if >=1.21.4 && <1.21.6 {
+            //? if >=1.21.2 && <1.21.6 {
             /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, scroller, getX() + width - 6, scrollerY, 6, 27);
             *///?}
-            //? if <1.21.4 {
+            //? if <1.21.2 {
             /*graphics.blitSprite(scroller, getX() + width - 6, scrollerY, 6, 27);
             *///?}
         }

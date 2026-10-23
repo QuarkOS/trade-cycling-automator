@@ -8,7 +8,8 @@ base.archivesName = "villager_reroller-fabric"
 
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
-    else -> JavaVersion.VERSION_21
+    sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
+    else -> JavaVersion.VERSION_17
 }
 
 repositories {
@@ -63,7 +64,8 @@ loom {
         sc.current.parsed >= "26.3" -> "src/main/resources/accesswidener/26.3/villager_reroller.accesswidener"
         sc.current.parsed >= "26.1" -> "src/main/resources/accesswidener/26.1/villager_reroller.accesswidener"
         sc.current.version == "1.21.11" -> "src/main/resources/villager_reroller.accesswidener"
-        sc.current.parsed >= "1.21.4" -> "src/main/resources/accesswidener/1.21.4/villager_reroller.accesswidener"
+        sc.current.parsed >= "1.21.2" -> "src/main/resources/accesswidener/1.21.4/villager_reroller.accesswidener"
+        sc.current.version == "1.20.6" -> "src/main/resources/accesswidener/1.20.6/villager_reroller.accesswidener"
         else -> "src/main/resources/accesswidener/1.21.1/villager_reroller.accesswidener"
     })
 
@@ -101,7 +103,8 @@ tasks {
             sc.current.parsed >= "26.3" -> "accesswidener/26.3/villager_reroller.accesswidener"
             sc.current.parsed >= "26.1" -> "accesswidener/26.1/villager_reroller.accesswidener"
             minecraftVersion == "1.21.11" -> "villager_reroller.accesswidener"
-            sc.current.parsed >= "1.21.4" -> "accesswidener/1.21.4/villager_reroller.accesswidener"
+            sc.current.parsed >= "1.21.2" -> "accesswidener/1.21.4/villager_reroller.accesswidener"
+            minecraftVersion == "1.20.6" -> "accesswidener/1.20.6/villager_reroller.accesswidener"
             else -> "accesswidener/1.21.1/villager_reroller.accesswidener"
         }
         val props = buildMap {
@@ -109,7 +112,11 @@ tasks {
             register("name", sc.properties["mod.name"])
             register("version", "${sc.properties.get<String>("mod.version")}+$minecraftVersion")
             register("minecraft", sc.properties["mod.mc_compat"])
-            register("java", if (sc.current.parsed >= "26.1") ">=25" else ">=21")
+            register("java", when {
+                sc.current.parsed >= "26.1" -> ">=25"
+                sc.current.parsed >= "1.20.5" -> ">=21"
+                else -> ">=17"
+            })
             register("accessWidener", accessWidener)
         }
 

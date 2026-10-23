@@ -126,7 +126,7 @@ public final class McBridge {
         //? if >=26.2 {
         /*var manager = client.gui.toastManager();
         *///?} else {
-        //? if <1.21.4 {
+        //? if <1.21.2 {
         /*var manager = client.toast;
         *///?} else {
         var manager = client.getToastManager();
@@ -242,7 +242,7 @@ public final class McBridge {
     }
 
     public static void sendLook(LocalPlayer player, float yaw, float pitch) {
-        //? if <1.21.4 {
+        //? if <1.21.2 {
         /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround()));
         *///?} else {
         player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
@@ -259,7 +259,11 @@ public final class McBridge {
 
     public static Optional<Holder<Enchantment>> enchantmentHolder(RegistryAccess access, String id) {
         HolderGetter<Enchantment> lookup = access.lookupOrThrow(Registries.ENCHANTMENT);
+        //? if <1.21 {
+        /*Identifier parsed = new Identifier(id);
+        *///?} else {
         Identifier parsed = Identifier.parse(id);
+        //?}
         ResourceKey<Enchantment> key = ResourceKey.create(Registries.ENCHANTMENT, parsed);
         return lookup.get(key).map(holder -> (Holder<Enchantment>) holder);
     }

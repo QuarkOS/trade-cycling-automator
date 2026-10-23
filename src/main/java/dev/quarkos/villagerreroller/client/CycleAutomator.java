@@ -174,7 +174,13 @@ public final class CycleAutomator {
                 continue;
             }
             ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
-            if (stored != null && stored.getLevel(target) == level) {
+            boolean levelMatches;
+            //? if <1.21 {
+            /*levelMatches = stored != null && stored.getLevel(target.value()) == level;
+            *///?} else {
+            levelMatches = stored != null && stored.getLevel(target) == level;
+            //?}
+            if (levelMatches) {
                 return true;
             }
         }

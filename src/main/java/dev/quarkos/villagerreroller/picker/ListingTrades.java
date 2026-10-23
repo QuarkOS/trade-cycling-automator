@@ -220,6 +220,26 @@ public final class ListingTrades {
     }
 
     private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
+        //? if <1.21 {
+        /*for (Object raw : books.tradeableEnchantments) {
+            Enchantment enchantment = (Enchantment) raw;
+            int low = Math.max(enchantment.getMinLevel(), books.minLevel);
+            int high = Math.min(enchantment.getMaxLevel(), books.maxLevel);
+            if (low > high) {
+                continue;
+            }
+            boolean treasure = enchantment.isTreasureOnly();
+            boolean curse = enchantment.isCurse();
+            for (int level = low; level <= high; level++) {
+                ItemStack icon = net.minecraft.world.item.EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level));
+                String name = Component.translatable(enchantment.getDescriptionId()).getString();
+                if (level != 1 || enchantment.getMaxLevel() != 1) {
+                    name = name + " " + Component.translatable("enchantment.level." + level).getString();
+                }
+                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure)));
+            }
+        }
+        *///?} else {
         TagKey<Enchantment> tag = books.tradeableEnchantments;
         for (Holder<Enchantment> holder : enchantments.getOrThrow(tag)) {
             Enchantment enchantment = holder.value();
@@ -231,7 +251,7 @@ public final class ListingTrades {
             boolean treasure = holder.is(EnchantmentTags.DOUBLE_TRADE_PRICE);
             boolean curse = holder.is(EnchantmentTags.CURSE);
             for (int level = low; level <= high; level++) {
-                //? if <1.21.4 {
+                //? if <1.21.2 {
                 /*ItemStack icon = net.minecraft.world.item.EnchantedBookItem.createForEnchantment(new EnchantmentInstance(holder, level));
                 *///?} else {
                 ItemStack icon = EnchantmentHelper.createBook(new EnchantmentInstance(holder, level));
@@ -243,6 +263,7 @@ public final class ListingTrades {
                 entries.add(TradeEntry.book(holder, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure)));
             }
         }
+        //?}
     }
 }
 //?}

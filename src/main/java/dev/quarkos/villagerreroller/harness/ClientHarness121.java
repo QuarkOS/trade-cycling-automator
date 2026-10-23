@@ -85,7 +85,11 @@ public final class ClientHarness121 {
             armed = true;
             client.options.pauseOnLostFocus = false;
             client.options.onboardAccessibility = false;
+            //? if <1.21 {
+            /*client.options.menuBackgroundBlurriness().set(0.0);
+            *///?} else {
             client.options.menuBackgroundBlurriness().set(0);
+            //?}
             client.options.guiScale().set(2);
             client.options.renderDistance().set(2);
             client.options.simulationDistance().set(5);
@@ -113,7 +117,9 @@ public final class ClientHarness121 {
 
     private static void waitTitle(Minecraft client) {
         if (McBridge.currentScreen(client) instanceof AccessibilityOnboardingScreen) {
+            //? if >=1.21 {
             client.options.onboardingAccessibilityFinished();
+            //?}
             McBridge.setScreen(client, new TitleScreen());
             return;
         }
@@ -375,9 +381,11 @@ public final class ClientHarness121 {
         // Teleporting the villager the player is trading with closes MerchantScreen.
         // 1.21.4 then sits in this state until the deadline, which looked like a reroll timeout.
         boolean running = JobSiteReroller.isRunning() || JobSiteReroller.stopReason() == null;
-        if (running && !(McBridge.currentScreen(client) instanceof MerchantScreen) && ticks % 40 == 0) {
+        if (running && !(McBridge.currentScreen(client) instanceof MerchantScreen) && ticks % 10 == 0) {
             Villager villager = nearestLibrarian(client);
-            if (villager != null && villager.distanceToSqr(villagerX, y, villagerZ) > 4.0) {
+            boolean outOfReach = villager != null && client.player != null && !McBridge.withinEntity(client.player, villager);
+            boolean wandered = villager != null && villager.distanceToSqr(villagerX, y, villagerZ) > 4.0;
+            if (outOfReach || wandered) {
                 command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
             }
         }

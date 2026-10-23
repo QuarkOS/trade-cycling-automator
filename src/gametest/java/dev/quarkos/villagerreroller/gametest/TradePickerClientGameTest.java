@@ -201,12 +201,16 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 // who has walked off the lectern, and never while that screen is open.
                 boolean running = context.computeOnClient(client -> JobSiteReroller.isRunning());
                 boolean trading = context.computeOnClient(client -> client.screen instanceof MerchantScreen);
-                if (running && !trading && tick % 40 == 0) {
-                    boolean wandered = context.computeOnClient(client -> {
+                if (running && !trading && tick % 10 == 0) {
+                    boolean pullBack = context.computeOnClient(client -> {
                         Villager villager = nearestLibrarian(client);
-                        return villager != null && villager.distanceToSqr(villagerX, y, villagerZ) > 4.0;
+                        if (villager == null || client.player == null) {
+                            return false;
+                        }
+                        return !McBridge.withinEntity(client.player, villager)
+                                || villager.distanceToSqr(villagerX, y, villagerZ) > 4.0;
                     });
-                    if (wandered) {
+                    if (pullBack) {
                         world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
                     }
                 }

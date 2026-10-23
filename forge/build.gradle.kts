@@ -75,6 +75,32 @@ val forgeNode = when (minecraftVersion) {
         "forge-1.21.9-1.0.19",
         modernPack(69, 0),
     )
+    // 50.0.8 is the last 1.20.6 build whose payload context still has getDirection().
+    // Trade Cycling 1.0.11 calls that method, so a newer Forge disconnects the client on the first cycle.
+    "1.20.6" -> ForgeNode(
+        "1.20.6-50.0.8",
+        "50.0.8",
+        21,
+        "accesstransformer-1.20.6.cfg",
+        "forge-1.20.6-1.0.11",
+        legacyPack(32),
+    )
+    "1.21" -> ForgeNode(
+        "1.21-51.0.33",
+        "51.0.33",
+        21,
+        "accesstransformer.cfg",
+        "forge-1.21.1-1.0.23",
+        legacyPack(34),
+    )
+    "1.21.3" -> ForgeNode(
+        "1.21.3-53.1.16",
+        "53.1.16",
+        21,
+        "accesstransformer-1.21.3.cfg",
+        "forge-1.21.3-1.0.15",
+        legacyPack(42),
+    )
     "1.21.1" -> ForgeNode(
         "1.21.1-52.1.20",
         "52.1.20",
@@ -197,6 +223,21 @@ if (forgeNode == null) {
         }
     }
 
+    // Forge 1.21 (modlauncher 10.2.1) and Forge 1.20.6-50.0.8 require the module
+    // name jopt.simple. Their poms pull jopt-simple 6.0-alpha-3, whose
+    // Automatic-Module-Name is joptsimple, so the launcher never sees the name
+    // derived from jopt-simple-5.0.4.jar. 5.0.4 is the API those launchers call.
+    if (minecraftVersion == "1.21" || minecraftVersion == "1.20.6") {
+        configurations.configureEach {
+            resolutionStrategy.eachDependency {
+                if (requested.group == "net.sf.jopt-simple" && requested.name == "jopt-simple") {
+                    useVersion("5.0.4")
+                    because("this Forge build's modlauncher requires the jopt.simple module name")
+                }
+            }
+        }
+    }
+
     dependencies {
         add("implementation", forgeMinecraft.dependency("net.minecraftforge:forge:${node.forgeCoordinate}"))
         val tradeCycling = "maven.modrinth:trade-cycling:${node.tradeCycling}"
@@ -226,6 +267,8 @@ if (forgeNode == null) {
             "forge_dep" to node.forgeDep,
             "minecraft" to minecraftVersion,
         )
+        inputs.property("forge_dep", node.forgeDep)
+        inputs.property("minecraft", minecraftVersion)
         filesMatching("META-INF/mods.toml") {
             expand(props)
         }

@@ -60,6 +60,24 @@ public final class TradeEntry {
         return emeraldMin + "\u2013" + emeraldMax;
     }
 
+    //? if <1.21 {
+    /*public static TradeEntry book(Enchantment enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
+        Identifier id = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);
+        String entryId = "enchant:" + id + ":" + level;
+        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, (offer, chosenMax) -> {
+            ItemStack cost = offer.getCostA();
+            if (!cost.is(Items.EMERALD) || cost.getCount() <= 0 || cost.getCount() > chosenMax) {
+                return false;
+            }
+            ItemStack result = offer.getResult();
+            if (!result.is(Items.ENCHANTED_BOOK)) {
+                return false;
+            }
+            ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
+            return stored != null && stored.getLevel(enchantment) == level;
+        });
+    }
+    *///?} else {
     public static TradeEntry book(Holder<Enchantment> enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
         Identifier id = enchantment.unwrapKey().orElseThrow().identifier();
         String entryId = "enchant:" + id + ":" + level;
@@ -76,6 +94,7 @@ public final class TradeEntry {
             return stored != null && stored.getLevel(enchantment) == level;
         });
     }
+    //?}
 
     public static TradeEntry buy(String id, ItemStack icon, String name, int emeraldMin, int emeraldMax, BiPredicate<MerchantOffer, Integer> matcher) {
         return new TradeEntry(id, icon, name, false, emeraldMin, emeraldMax, true, matcher);
