@@ -133,7 +133,11 @@ public final class McBridge {
         //?}
         //?}
         if (manager != null) {
+            //? if <1.20.4 {
+            /*SystemToast.add(manager, SystemToast.SystemToastIds.PERIODIC_NOTIFICATION, title, message);
+            *///?} else {
             SystemToast.add(manager, SystemToast.SystemToastId.PERIODIC_NOTIFICATION, title, message);
+            //?}
         }
     }
 

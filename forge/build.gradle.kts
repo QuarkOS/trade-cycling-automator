@@ -225,6 +225,14 @@ val forgeNode = when (minecraftVersion) {
     )
     // 50.0.8 is the last 1.20.6 build whose payload context still has getDirection().
     // Trade Cycling 1.0.11 calls that method, so a newer Forge disconnects the client on the first cycle.
+    "1.20.2" -> ForgeNode(
+        "1.20.2-48.1.0",
+        "48.1.0",
+        17,
+        "accesstransformer-1.20.2.cfg",
+        "forge-1.20.2-1.0.8",
+        legacyPack(18),
+    )
     "1.20.4" -> ForgeNode(
         "1.20.4-49.2.13",
         "49.2.13",
@@ -469,7 +477,28 @@ if (forgeNode == null) {
         useJUnitPlatform()
     }
 
+    // FML 48 (Forge 1.20.2 and older) skips exploded directories on the module path.
+    // Newer userdev builds discover build/classes/java/main directly.
+    fun forgeBefore1204(version: String): Boolean {
+        val parts = version.split(".").map { it.toIntOrNull() ?: 0 }
+        val major = parts.getOrElse(0) { 0 }
+        val minor = parts.getOrElse(1) { 0 }
+        val patch = parts.getOrElse(2) { 0 }
+        return major < 1 || (major == 1 && (minor < 20 || (minor == 20 && patch < 4)))
+    }
+
     tasks.withType<JavaExec>().configureEach {
+        if (name == "runClient" && forgeBefore1204(minecraftVersion)) {
+            val modsDir = runDir.dir("mods").asFile
+            val builtJar = tasks.named<Jar>("jar").flatMap { it.archiveFile }
+            dependsOn("jar")
+            doFirst {
+                modsDir.mkdirs()
+                modsDir.listFiles()?.filter { it.name.startsWith("villager_reroller") }?.forEach { it.delete() }
+                val built = builtJar.get().asFile
+                built.copyTo(modsDir.resolve(built.name), overwrite = true)
+            }
+        }
         val cycling = providers.gradleProperty("withTradeCycling").orNull == "true"
         val mode = if (cycling) "trade-cycling" else "plain"
         val artifacts = "/opt/cursor/artifacts/forge-$minecraftVersion/$mode"

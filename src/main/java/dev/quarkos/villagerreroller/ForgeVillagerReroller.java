@@ -24,7 +24,15 @@ import net.minecraftforge.eventbus.api.IEventBus;
 public final class ForgeVillagerReroller {
     public ForgeVillagerReroller() {
         VillagerReroller.bootstrap();
+        //? if <1.20.4 {
+        net.minecraftforge.fml.ModLoadingContext.get().registerExtensionPoint(
+                net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
+                () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory(
+                        (minecraft, parent) -> new ForgeConfigScreen(parent)));
+        //?}
+        //? if >=1.20.4 {
         MinecraftForge.registerConfigScreen(ForgeConfigScreen::new);
+        //?}
         //? if <1.21.6 {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         modBus.addListener(this::registerKeys);
