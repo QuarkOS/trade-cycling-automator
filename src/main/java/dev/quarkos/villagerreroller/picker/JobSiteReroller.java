@@ -15,8 +15,13 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+//? if <1.21.11 {
+/*import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerProfession;
+*///?} else {
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
+//?}
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.MerchantMenu;
@@ -54,7 +59,11 @@ public final class JobSiteReroller {
     private static boolean closingForReroll;
     private static BlockPos jobPos;
     private static Block jobBlock;
+    //? if >=1.21.5 {
     private static ResourceKey<VillagerProfession> profession = VillagerProfession.NONE;
+    //?} else {
+    /*private static VillagerProfession profession = VillagerProfession.NONE;
+    *///?}
     private static int villagerId = Integer.MIN_VALUE;
     private static Component status = Component.empty();
     private static String pendingSignature = "";
@@ -184,8 +193,13 @@ public final class JobSiteReroller {
             fail(client, StopReason.NEED_TARGET);
             return;
         }
+        //? if >=1.21.5 {
         var professionHolder = villager.getVillagerData().profession();
         if (professionHolder.is(VillagerProfession.NONE) || professionHolder.is(VillagerProfession.NITWIT)) {
+        //?} else {
+        /*var professionHolder = villager.getVillagerData().getProfession();
+        if (professionHolder == VillagerProfession.NONE || professionHolder == VillagerProfession.NITWIT) {
+        *///?}
             fail(client, StopReason.NO_PROFESSION);
             return;
         }
@@ -202,7 +216,7 @@ public final class JobSiteReroller {
             fail(client, StopReason.NO_JOB_SITE);
             return;
         }
-        if (client.player == null || !client.player.isWithinBlockInteractionRange(pos, 0.0)) {
+        if (client.player == null || !dev.quarkos.villagerreroller.client.McBridge.withinBlock(client.player, pos)) {
             fail(client, StopReason.OUT_OF_REACH);
             return;
         }
@@ -215,7 +229,11 @@ public final class JobSiteReroller {
             fail(client, StopReason.NEED_TOOL);
             return;
         }
+        //? if >=1.21.5 {
         profession = professionHolder.unwrapKey().orElse(VillagerProfession.NONE);
+        //?} else {
+        /*profession = professionHolder;
+        *///?}
         jobPos = pos.immutable();
         jobBlock = state.getBlock();
         villagerId = villager.getId();
@@ -226,7 +244,7 @@ public final class JobSiteReroller {
         client.player.closeContainer();
         enter(Phase.PREPARE_BREAK);
         status = rerolling();
-        LOGGER.info("Trade reroll started at {} for {}", jobPos, profession.identifier());
+        LOGGER.info("Trade reroll started at {} for {}", jobPos, professionOf(villager));
     }
 
     public static void tick(Minecraft client) {
@@ -333,7 +351,11 @@ public final class JobSiteReroller {
     }
 
     private static void waitUnemployed(Villager villager) {
+        //? if >=1.21.5 {
         if (villager.getVillagerData().profession().is(VillagerProfession.NONE)) {
+        //?} else {
+        /*if (villager.getVillagerData().getProfession() == VillagerProfession.NONE) {
+        *///?}
             enter(Phase.PICKUP);
             return;
         }
@@ -387,7 +409,11 @@ public final class JobSiteReroller {
     }
 
     private static void waitEmployed(Villager villager) {
+        //? if >=1.21.5 {
         if (villager.getVillagerData().profession().is(profession)) {
+        //?} else {
+        /*if (villager.getVillagerData().getProfession() == profession) {
+        *///?}
             enter(Phase.OPEN);
             return;
         }
@@ -406,7 +432,7 @@ public final class JobSiteReroller {
             stop(StopReason.TIMEOUT);
             return;
         }
-        if (!player.isWithinEntityInteractionRange(villager, 0.0)) {
+        if (!dev.quarkos.villagerreroller.client.McBridge.withinEntity(player, villager)) {
             stop(StopReason.OUT_OF_REACH);
             return;
         }
@@ -506,7 +532,11 @@ public final class JobSiteReroller {
     }
 
     private static String professionOf(Villager villager) {
-        return villager.getVillagerData().profession().unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
+        //? if >=1.21.5 {
+        return villager.getVillagerData().profession().unwrapKey().map(dev.quarkos.villagerreroller.client.McBridge::keyId).orElse("unknown");
+        //?} else {
+        /*return String.valueOf(villager.getVillagerData().getProfession());
+        *///?}
     }
 
     private static void succeed(Minecraft client) {
@@ -583,7 +613,12 @@ public final class JobSiteReroller {
     private static int blockSlot(LocalPlayer player, Block block) {
         Item item = block.asItem();
         Inventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.getNonEquipmentItems().size(); i++) {
+        //? if >=1.21.5 {
+        int slots = inventory.getNonEquipmentItems().size();
+        //?} else {
+        /*int slots = inventory.items.size();
+        *///?}
+        for (int i = 0; i < slots; i++) {
             ItemStack stack = inventory.getItem(i);
             if (stack.is(item) && stack.getCount() > 0) {
                 return i;
@@ -596,7 +631,12 @@ public final class JobSiteReroller {
         Inventory inventory = player.getInventory();
         int best = -1;
         float bestSpeed = 1.0F;
-        for (int i = 0; i < inventory.getNonEquipmentItems().size(); i++) {
+        //? if >=1.21.5 {
+        int slots = inventory.getNonEquipmentItems().size();
+        //?} else {
+        /*int slots = inventory.items.size();
+        *///?}
+        for (int i = 0; i < slots; i++) {
             ItemStack stack = inventory.getItem(i);
             if (stack.isEmpty()) {
                 continue;
@@ -614,10 +654,18 @@ public final class JobSiteReroller {
         LocalPlayer player = client.player;
         Inventory inventory = player.getInventory();
         if (index < 9) {
+            //? if >=1.21.5 {
             inventory.setSelectedSlot(index);
+            //?} else {
+            /*inventory.selected = index;
+            *///?}
             return;
         }
+        //? if >=1.21.5 {
         int hotbar = inventory.getSelectedSlot();
+        //?} else {
+        /*int hotbar = inventory.selected;
+        *///?}
         client.gameMode.handleInventoryMouseClick(player.inventoryMenu.containerId, index, hotbar, ClickType.SWAP, player);
     }
 

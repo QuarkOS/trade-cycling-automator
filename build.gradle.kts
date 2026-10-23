@@ -3,8 +3,16 @@ plugins {
 }
 
 // Stonecutter nodes share a coordinate space; setting `group` here makes the version nodes collide.
-version = "${property("mod.version")}+${sc.current.version}"
-base.archivesName = property("mod.id") as String
+val mcLabel = when (sc.current.version) {
+    "1.21.9" -> "1.21.9-1.21.10"
+    "1.21.6" -> "1.21.6-1.21.8"
+    else -> sc.current.version
+}
+version = "${property("mod.version")}+$mcLabel"
+// 1.21.1 and 26.x stay on the Trade Cycling packet driver. Every other node, including 1.21.11, builds the trade picker.
+val packetDriverOnly = sc.current.version == "1.21.1" || sc.current.parsed >= "26.1"
+val fullPicker = !packetDriverOnly
+base.archivesName = if (fullPicker && sc.current.version != "1.21.11") "villager_reroller-fabric" else property("mod.id") as String
 
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
@@ -19,7 +27,7 @@ repositories {
     strictMaven("https://api.modrinth.com/maven", "Modrinth", "maven.modrinth")
 }
 
-if (sc.current.version == "1.21.11") {
+if (fullPicker) {
     extensions.configure<net.fabricmc.loom.api.fabricapi.FabricApiExtension>("fabricApi") {
         configureTests {
             createSourceSet.set(true)
@@ -41,7 +49,7 @@ dependencies {
     loomx.applyMojangMappings()
 
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-    if (sc.current.version == "1.21.11") {
+    if (fullPicker) {
         // The client gametest and Mod Menu need the Fabric API mod id, not only the split modules.
         modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties.get<String>("deps.fabric_api")}")
     } else {
@@ -73,12 +81,19 @@ loom {
     fabricModJsonPath = rootProject.file("src/main/resources/fabric.mod.json")
     if (sc.current.version == "1.21.11") {
         accessWidenerPath = rootProject.file("src/main/resources/villager_reroller.accesswidener")
+    } else if (fullPicker) {
+        accessWidenerPath = rootProject.file("src/accesswidener/villager_reroller.pre2111.accesswidener")
     }
 
-    runConfigs.all {
+        runConfigs.all {
         preferGradleTask = true
         generateRunConfig = true
-        runDirectory = rootProject.file("run")
+        // Legacy nodes keep their own run directory so they do not share saves with 1.21.11.
+        runDirectory = if (fullPicker && sc.current.version != "1.21.11") {
+            rootProject.file("run/${sc.current.version}")
+        } else {
+            rootProject.file("run")
+        }
     }
 }
 
@@ -99,7 +114,17 @@ tasks {
             set(key, value)
         }
 
-        val minecraftVersion = sc.current.version
+        val minecraftVersion = mcLabel
+        if (fullPicker && sc.current.version != "1.21.11") {
+            filesMatching("villager_reroller.accesswidener") {
+                filter { line ->
+                    line.replace(
+                        "net/minecraft/world/entity/npc/villager/VillagerTrades",
+                        "net/minecraft/world/entity/npc/VillagerTrades"
+                    )
+                }
+            }
+        }
         val props = buildMap {
             register("id", sc.properties["mod.id"])
             register("name", sc.properties["mod.name"])
@@ -108,17 +133,23 @@ tasks {
             register("java", if (sc.current.parsed >= "26.1") ">=25" else ">=21")
         }
 
-        // 1.21.11 drops the hard Trade Cycling line and keeps suggests. Other versions drop the 1.21.11 access widener.
-        val droppedLine = if (minecraftVersion == "1.21.11") ">=1.0.0" else "accessWidener"
+        // Picker builds drop the hard Trade Cycling line and keep suggests. Packet-driver builds drop the access widener.
+        val droppedLine = if (fullPicker) ">=1.0.0" else "accessWidener"
         filesMatching("fabric.mod.json") {
             expand(props)
             filter(mapOf("needles" to droppedLine), dev.quarkos.gradle.SkipMatchingLines::class.java)
         }
     }
 
-    if (sc.current.version != "1.21.11") {
+    if (packetDriverOnly) {
         named<JavaCompile>("compileJava") {
             exclude("**/picker/**")
+        }
+    }
+
+    if (fullPicker && sc.current.version != "1.21.11") {
+        named<JavaExec>("runClientGameTest") {
+            systemProperty("villagerReroller.artifacts", "/opt/cursor/artifacts/${sc.current.version}")
         }
     }
 

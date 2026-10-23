@@ -32,27 +32,24 @@ public final class VillagerReroller implements ClientModInitializer {
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             McBridge.hookScreenKeys(screen);
-            //? if <1.21.11 {
+            //? if 1.21.1 {
             /*return;
-            *///?} else {
-            //? if >=26.1 {
+            *///?} elif >=26.1 {
             /*return;
             *///?} else {
             if (screen instanceof MerchantScreen merchant) {
                 dev.quarkos.villagerreroller.picker.TradePickerUi.attach(client, merchant);
             }
             //?}
-            //?}
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            //? if <1.21.11 {
+            //? if 1.21.1 {
             /*if (McBridge.currentScreen(client) == null && AutomatorKeys.TOGGLE.consumeClick()) {
                 CycleAutomator.toggle();
             }
             CycleAutomator.tick(client);
-            *///?} else {
-            //? if >=26.1 {
+            *///?} elif >=26.1 {
             /*if (McBridge.currentScreen(client) == null && AutomatorKeys.TOGGLE.consumeClick()) {
                 CycleAutomator.toggle();
             }
@@ -66,7 +63,6 @@ public final class VillagerReroller implements ClientModInitializer {
                 dev.quarkos.villagerreroller.picker.JobSiteReroller.onToggleKey();
             }
             dev.quarkos.villagerreroller.picker.JobSiteReroller.tick(client);
-            //?}
             //?}
         });
     }

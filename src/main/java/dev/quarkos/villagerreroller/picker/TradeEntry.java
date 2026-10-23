@@ -61,7 +61,7 @@ public final class TradeEntry {
     }
 
     public static TradeEntry book(Holder<Enchantment> enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
-        Identifier id = enchantment.unwrapKey().orElseThrow().identifier();
+        String id = dev.quarkos.villagerreroller.client.McBridge.keyId(enchantment.unwrapKey().orElseThrow());
         String entryId = "enchant:" + id + ":" + level;
         return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, (offer, chosenMax) -> {
             ItemStack cost = offer.getCostA();

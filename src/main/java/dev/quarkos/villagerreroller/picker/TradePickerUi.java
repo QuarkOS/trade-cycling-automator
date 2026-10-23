@@ -15,13 +15,20 @@ import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+//? if >=1.21.9 {
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
+//? if >=1.21.6 {
 import net.minecraft.client.renderer.RenderPipelines;
+//?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
-import net.minecraft.util.Util;
+//? if <1.21.11 {
+/*import net.minecraft.world.entity.npc.Villager;
+*///?} else {
 import net.minecraft.world.entity.npc.villager.Villager;
+//?}
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -64,7 +71,7 @@ public final class TradePickerUi {
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
-        Screens.getButtons(screen).add(new ImageButton(
+        addWidget(screen, new ImageButton(
                 left + MERCHANT_WIDTH - 24,
                 top + 4,
                 20,
@@ -107,9 +114,8 @@ public final class TradePickerUi {
         int listW = LIST_WIDTH;
         int listH = LIST_HEIGHT;
 
-        var buttons = Screens.getButtons(screen);
         PanelBackground background = new PanelBackground(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, screen.getMenu().getTraderLevel());
-        buttons.add(background);
+        addWidget(screen, background);
         panelWidgets.add(background);
 
         EditBox search = new EditBox(client.font, panelX + 6, panelY + 20, PANEL_WIDTH - 12, 16, Component.translatable("gui.recipebook.search_hint"));
@@ -121,7 +127,7 @@ public final class TradePickerUi {
                 list.setScroll(0);
             }
         });
-        buttons.add(search);
+        addWidget(screen, search);
         panelWidgets.add(search);
 
         Button action = Button.builder(actionLabel(), button -> {
@@ -132,7 +138,7 @@ public final class TradePickerUi {
             }
             button.setMessage(actionLabel());
         }).bounds(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20).build();
-        buttons.add(action);
+        addWidget(screen, action);
         panelWidgets.add(action);
 
         if (RerollMethod.canChoose()) {
@@ -144,19 +150,39 @@ public final class TradePickerUi {
                 RerollMethod.toggle();
                 pressed.setMessage(RerollMethod.label());
             }).bounds(panelX + PANEL_WIDTH - 6 - buttonWidth, panelY + METHOD_TOP, buttonWidth, 20).build();
-            buttons.add(methodButton);
+            addWidget(screen, methodButton);
             panelWidgets.add(methodButton);
         }
 
         list = new OfferList(listX, listY, listW, listH, action);
-        buttons.add(list);
+        addWidget(screen, list);
         panelWidgets.add(list);
     }
 
+    /**
+     * 1.21.11 keeps Fabric's button list. Older Trade Cycling builds add their
+     * cycle button to the renderable and child lists only, which makes that
+     * button list throw when the panel inserts the next widget.
+     */
+    private static void addWidget(MerchantScreen screen, AbstractWidget widget) {
+        //? if >=1.21.11 {
+        Screens.getButtons(screen).add(widget);
+        //?} else {
+        /*screen.addRenderableWidget(widget);
+        *///?}
+    }
+
+    private static void removePanelWidget(MerchantScreen screen, AbstractWidget widget) {
+        //? if >=1.21.11 {
+        Screens.getButtons(screen).remove(widget);
+        //?} else {
+        /*screen.removeWidget(widget);
+        *///?}
+    }
+
     private static void close(MerchantScreen screen) {
-        var buttons = Screens.getButtons(screen);
         for (AbstractWidget widget : panelWidgets) {
-            buttons.remove(widget);
+            removePanelWidget(screen, widget);
         }
         panelWidgets.clear();
         list = null;
@@ -250,7 +276,11 @@ public final class TradePickerUi {
                 graphics.drawString(font, text, left, top, color, false);
                 return;
             }
-            int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
+            //? if >=1.21.11 {
+            int offset = ScrollingNames.offset(textWidth, available, net.minecraft.util.Util.getMillis());
+            //?} else {
+            /*int offset = ScrollingNames.offset(textWidth, available, net.minecraft.Util.getMillis());
+            *///?}
             // right is exclusive and already stops PRICE_GAP pixels before the price.
             graphics.enableScissor(left, rowTop, right, rowBottom);
             graphics.drawString(font, text, left - offset, top, color, false);
@@ -278,7 +308,11 @@ public final class TradePickerUi {
                     graphics.fill(getX(), rowY, getX() + width - 10, rowY + ROW_HEIGHT - 1, 0xFFB0B0B0);
                 }
                 Identifier checkbox = selected ? CHECKBOX_SELECTED : CHECKBOX;
+                //? if >=1.21.6 {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, checkbox, getX() + 1, rowY + 4, 12, 12);
+                //?} else {
+                /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, checkbox, getX() + 1, rowY + 4, 12, 12);
+                *///?}
                 ItemStack icon = entry.icon;
                 graphics.renderItem(icon, getX() + 16, rowY + 1);
                 graphics.renderItemDecorations(minecraft.font, icon, getX() + 16, rowY + 1);
@@ -296,23 +330,34 @@ public final class TradePickerUi {
             Identifier scroller = maxScroll == 0 ? SCROLLER_DISABLED : SCROLLER;
             int travel = Math.max(1, height - 27);
             int scrollerY = getY() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
+            //? if >=1.21.6 {
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, scroller, getX() + width - 6, scrollerY, 6, 27);
+            //?} else {
+            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, scroller, getX() + width - 6, scrollerY, 6, 27);
+            *///?}
         }
 
         @Override
+        //? if >=1.21.9 {
         public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-            if (!isMouseOver(event.x(), event.y())) {
+            double mouseX = event.x();
+            double mouseY = event.y();
+            int button = event.button();
+        //?} else {
+        /*public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        *///?}
+            if (!isMouseOver(mouseX, mouseY)) {
                 return false;
             }
             List<TradeEntry> rows = TradeSession.visible();
-            int index = scroll + (int) ((event.y() - getY()) / ROW_HEIGHT);
+            int index = scroll + (int) ((mouseY - getY()) / ROW_HEIGHT);
             if (index < 0 || index >= rows.size()) {
                 return true;
             }
             TradeEntry entry = rows.get(index);
             int priceColumn = getX() + width - 52;
-            if (event.x() >= priceColumn) {
-                TradeSession.cyclePrice(entry, event.button() == 1 ? -1 : 1);
+            if (mouseX >= priceColumn) {
+                TradeSession.cyclePrice(entry, button == 1 ? -1 : 1);
             } else {
                 TradeSession.toggle(entry);
             }

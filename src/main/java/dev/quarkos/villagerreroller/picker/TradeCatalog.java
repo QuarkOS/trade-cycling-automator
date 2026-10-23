@@ -12,10 +12,17 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffect;
+//? if <1.21.11 {
+/*import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.entity.npc.VillagerTrades;
+import net.minecraft.world.entity.npc.VillagerType;
+*///?} else {
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.npc.villager.VillagerTrades;
 import net.minecraft.world.entity.npc.villager.VillagerType;
+//?}
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -40,8 +47,12 @@ public final class TradeCatalog {
         if (level == null || villager == null) {
             return List.of();
         }
-        ResourceKey<VillagerProfession> profession = villager.getVillagerData().profession().unwrapKey().orElse(null);
+        Object profession = professionKey(villager);
+        //? if >=1.21.5 {
         if (profession == null || profession.equals(VillagerProfession.NONE) || profession.equals(VillagerProfession.NITWIT)) {
+        //?} else {
+        /*if (profession == VillagerProfession.NONE || profession == VillagerProfession.NITWIT) {
+        *///?}
             return List.of();
         }
         int tradeLevel = Math.max(1, Math.min(5, villagerLevel));
@@ -60,7 +71,7 @@ public final class TradeCatalog {
         if (listings == null || listings.length == 0) {
             return List.of();
         }
-        ResourceKey<VillagerType> type = villager.getVillagerData().type().unwrapKey().orElse(null);
+        Object type = villagerTypeKey(villager);
         HolderLookup.RegistryLookup<Enchantment> enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         List<TradeEntry> entries = new ArrayList<>();
         for (VillagerTrades.ItemListing listing : listings) {
@@ -72,7 +83,7 @@ public final class TradeCatalog {
         return List.copyOf(entries);
     }
 
-    private static void expand(VillagerTrades.ItemListing listing, ResourceKey<VillagerType> type, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
+    private static void expand(VillagerTrades.ItemListing listing, Object type, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
         if (listing == null || listing.getClass().getSimpleName().equals("FailureItemListing")) {
             return;
         }
@@ -163,7 +174,7 @@ public final class TradeCatalog {
                 Holder<MobEffect> mobEffect = effect.effect();
                 ItemStack icon = new ItemStack(Items.SUSPICIOUS_STEW);
                 icon.set(DataComponents.SUSPICIOUS_STEW_EFFECTS, stew.effects);
-                String effectId = mobEffect.unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
+                String effectId = mobEffect.unwrapKey().map(dev.quarkos.villagerreroller.client.McBridge::keyId).orElse("unknown");
                 String name = icon.getHoverName().getString() + " (" + mobEffect.value().getDisplayName().getString() + ")";
                 String id = "stew:" + effectId;
                 entries.add(TradeEntry.buy(id, icon, name, 1, 1, (offer, chosenMax) ->
@@ -182,12 +193,34 @@ public final class TradeCatalog {
                 return;
             }
             ItemStack icon = new ItemStack(item, typed.cost);
-            String id = "typed:" + type.identifier() + ":" + TradeEntry.itemId(item);
+            String typeId;
+            //? if >=1.21.5 {
+            typeId = dev.quarkos.villagerreroller.client.McBridge.keyId((ResourceKey<?>) type);
+            //?} else {
+            /*typeId = String.valueOf(type);
+            *///?}
+            String id = "typed:" + typeId + ":" + TradeEntry.itemId(item);
             entries.add(TradeEntry.sell(id, icon, icon.getHoverName().getString(), 1, (offer, chosenMax) ->
                     offer.getResult().is(Items.EMERALD)
                             && offer.getResult().getCount() == 1
                             && offer.getCostA().is(item)));
         }
+    }
+
+    private static Object professionKey(Villager villager) {
+        //? if >=1.21.5 {
+        return villager.getVillagerData().profession().unwrapKey().orElse(null);
+        //?} else {
+        /*return villager.getVillagerData().getProfession();
+        *///?}
+    }
+
+    private static Object villagerTypeKey(Villager villager) {
+        //? if >=1.21.5 {
+        return villager.getVillagerData().type().unwrapKey().orElse(null);
+        //?} else {
+        /*return villager.getVillagerData().getType();
+        *///?}
     }
 
     private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {

@@ -40,14 +40,13 @@ public final class CycleAutomator {
     }
 
     public static void toggle() {
-        //? if <1.21.11 {
+        //? if 1.21.1 {
         /*if (running) {
             stop(StopReason.KEYBIND);
         } else {
             start();
         }
-        *///?} else {
-        //? if >=26.1 {
+        *///?} elif >=26.1 {
         /*if (running) {
             stop(StopReason.KEYBIND);
         } else {
@@ -55,7 +54,6 @@ public final class CycleAutomator {
         }
         *///?} else {
         dev.quarkos.villagerreroller.picker.JobSiteReroller.onToggleKey();
-        //?}
         //?}
     }
 
@@ -84,10 +82,9 @@ public final class CycleAutomator {
     }
 
     public static void stop(StopReason reason) {
-        //? if <1.21.11 {
+        //? if 1.21.1 {
         /*stopLegacy(reason);
-        *///?} else {
-        //? if >=26.1 {
+        *///?} elif >=26.1 {
         /*stopLegacy(reason);
         *///?} else {
         dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(switch (reason) {
@@ -97,7 +94,6 @@ public final class CycleAutomator {
             case KEYBIND -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED;
             default -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED;
         });
-        //?}
         //?}
     }
 

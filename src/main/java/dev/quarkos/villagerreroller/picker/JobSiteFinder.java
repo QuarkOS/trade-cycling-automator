@@ -3,7 +3,11 @@ package dev.quarkos.villagerreroller.picker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+//? if <1.21.11 {
+/*import net.minecraft.world.entity.npc.Villager;
+*///?} else {
 import net.minecraft.world.entity.npc.villager.Villager;
+//?}
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -36,10 +40,10 @@ public final class JobSiteFinder {
                     BlockPos pos = origin.offset(dx, dy, dz);
                     BlockState state = client.level.getBlockState(pos);
                     Optional<Holder<PoiType>> poi = PoiTypes.forState(state);
-                    if (poi.isEmpty() || !villager.getVillagerData().profession().value().heldJobSite().test(poi.get())) {
+                    if (poi.isEmpty() || !holdsJobSite(villager, poi.get())) {
                         continue;
                     }
-                    boolean inReach = player != null && player.isWithinBlockInteractionRange(pos, 0.0);
+                    boolean inReach = player != null && dev.quarkos.villagerreroller.client.McBridge.withinBlock(player, pos);
                     double distance = villager.distanceToSqr(Vec3.atCenterOf(pos));
                     boolean better = best == null
                             || (inReach && !bestInReach)
@@ -53,5 +57,13 @@ public final class JobSiteFinder {
             }
         }
         return best;
+    }
+
+    private static boolean holdsJobSite(Villager villager, Holder<PoiType> poi) {
+        //? if >=1.21.5 {
+        return villager.getVillagerData().profession().value().heldJobSite().test(poi);
+        //?} else {
+        /*return villager.getVillagerData().getProfession().heldJobSite().test(poi);
+        *///?}
     }
 }

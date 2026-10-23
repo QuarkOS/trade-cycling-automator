@@ -27,11 +27,14 @@ Break, place, and reopen each send the same packets vanilla uses, at most once p
 
 ## Versions
 
-Built with [Stonecutter](https://stonecutter.kikugie.dev/). The sources in `src/` are the 1.21.11 tree. The job-site reroller and its client gametest are compiled for 1.21.11. The other nodes keep the Trade Cycling packet driver.
+Built with [Stonecutter](https://stonecutter.kikugie.dev/). The sources in `src/` are the 1.21.11 tree. The job-site reroller and its client gametest are compiled for 1.21.11 and for the 1.21.5 through 1.21.10 nodes below. 1.21.1 and the 26.x nodes keep the Trade Cycling packet driver. 1.21.4 compiles, and its Trade Cycling path completed in-game, but the job-site path did not finish a launch on this machine (the integrated server fell behind by more than 200 ticks), so that jar is not published.
 
 | Minecraft | This addon's range | Reroll |
 | --- | --- | --- |
 | 1.21 and 1.21.1 | `>=1.21 <=1.21.1` | Trade Cycling `fabric-1.21.1-1.0.22` |
+| 1.21.5 | `1.21.5` | Break and replace the job site. Optional Trade Cycling `fabric-1.21.5-1.0.20` |
+| 1.21.6, 1.21.7, 1.21.8 | `>=1.21.6 <=1.21.8` | Break and replace the job site. Optional Trade Cycling for that Minecraft version |
+| 1.21.9 and 1.21.10 | `>=1.21.9 <=1.21.10` | Break and replace the job site. Optional Trade Cycling `fabric-1.21.9-1.0.19` / `fabric-1.21.10-1.0.20` |
 | 1.21.11 | `1.21.11` | Break and replace the job site. Optional Trade Cycling `fabric-1.21.11-1.0.23` |
 | 26.1, 26.1.1, 26.1.2 | `>=26.1 <26.2` | Trade Cycling `fabric-1.0.22+26.1.2` |
 | 26.2 | `~26.2` | Trade Cycling `fabric-1.0.22+26.2` |
@@ -39,7 +42,7 @@ Built with [Stonecutter](https://stonecutter.kikugie.dev/). The sources in `src/
 
 The 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
 
-Also required: Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Trade Cycling is required on the packet-driver versions. On 1.21.11 it is optional: [Trade Cycling](https://modrinth.com/mod/trade-cycling) by Max Henkel, Fabric file `1.21.11-1.0.23` ([CurseForge](https://www.curseforge.com/minecraft/mc-mods/trade-cycling)).
+Also required: Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Trade Cycling is required on the packet-driver versions. On 1.21.5 through 1.21.11 it is optional: [Trade Cycling](https://modrinth.com/mod/trade-cycling) by Max Henkel. There is no Forge jar for these nodes. Cloth Config's Forge builds stop at 1.21.3 (`17.0.144+forge`), and 1.21.4+ Forge releases of Trade Cycling are Lex Forge, which cannot use the NeoForge Cloth Config artifacts.
 
 ## How to use
 

@@ -1,6 +1,10 @@
 package dev.quarkos.villagerreroller.picker;
 
+//? if <1.21.11 {
+/*import net.minecraft.world.entity.npc.Villager;
+*///?} else {
 import net.minecraft.world.entity.npc.villager.Villager;
+//?}
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
