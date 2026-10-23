@@ -63,6 +63,7 @@ loom {
         sc.current.parsed >= "26.3" -> "src/main/resources/accesswidener/26.3/villager_reroller.accesswidener"
         sc.current.parsed >= "26.1" -> "src/main/resources/accesswidener/26.1/villager_reroller.accesswidener"
         sc.current.version == "1.21.11" -> "src/main/resources/villager_reroller.accesswidener"
+        sc.current.parsed >= "1.21.4" -> "src/main/resources/accesswidener/1.21.4/villager_reroller.accesswidener"
         else -> "src/main/resources/accesswidener/1.21.1/villager_reroller.accesswidener"
     })
 
@@ -100,6 +101,7 @@ tasks {
             sc.current.parsed >= "26.3" -> "accesswidener/26.3/villager_reroller.accesswidener"
             sc.current.parsed >= "26.1" -> "accesswidener/26.1/villager_reroller.accesswidener"
             minecraftVersion == "1.21.11" -> "villager_reroller.accesswidener"
+            sc.current.parsed >= "1.21.4" -> "accesswidener/1.21.4/villager_reroller.accesswidener"
             else -> "accesswidener/1.21.1/villager_reroller.accesswidener"
         }
         val props = buildMap {
