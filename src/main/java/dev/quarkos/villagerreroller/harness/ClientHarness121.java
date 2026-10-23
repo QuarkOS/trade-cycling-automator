@@ -191,10 +191,17 @@ public final class ClientHarness121 {
         z = feet.getZ();
         villagerX = x + 1.15;
         villagerZ = z + 0.5;
+        //? if >=26.2 {
+        /*command(client, "gamerule send_command_feedback false");
+        command(client, "gamerule advance_time false");
+        command(client, "gamerule spawn_mobs false");
+        command(client, "gamerule immediate_respawn true");
+        *///?} else {
         command(client, "gamerule sendCommandFeedback false");
         command(client, "gamerule doDaylightCycle false");
         command(client, "gamerule doMobSpawning false");
         command(client, "gamerule doImmediateRespawn true");
+        //?}
         command(client, "time set day");
         command(client, "fill " + (x - 2) + " " + (y - 1) + " " + (z - 2) + " " + (x + 3) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
         command(client, "fill " + (x - 2) + " " + y + " " + (z - 2) + " " + (x + 3) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
@@ -234,6 +241,15 @@ public final class ClientHarness121 {
 
     private static void waitMerchant(Minecraft client) {
         if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
+            // 26.3 drops the first interact if the villager is still walking onto the lectern.
+            // Keep them in range and try again until the trade screen opens.
+            Villager villager = nearestLibrarian(client);
+            if (villager != null && ticks % 20 == 10 && villager.distanceToSqr(villagerX, y, villagerZ) > 4.0) {
+                command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+            }
+            if (villager != null && ticks > 0 && ticks % 20 == 0) {
+                McBridge.interact(client.gameMode, client.player, villager, InteractionHand.MAIN_HAND);
+            }
             if (ticks > timeout(20 * 20)) {
                 fail("merchant screen did not open");
             }
