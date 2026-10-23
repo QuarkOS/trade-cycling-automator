@@ -85,9 +85,10 @@ public final class ClientHarness121 {
             armed = true;
             client.options.pauseOnLostFocus = false;
             client.options.onboardAccessibility = false;
-            //? if <1.21 {
+            //? if >=1.20.5 && <1.21 {
             /*client.options.menuBackgroundBlurriness().set(0.0);
-            *///?} else {
+            *///?}
+            //? if >=1.21 {
             client.options.menuBackgroundBlurriness().set(0);
             //?}
             client.options.guiScale().set(2);
@@ -170,7 +171,11 @@ public final class ClientHarness121 {
         }
         WorldCreationUiState ui = create.getUiState();
         ui.setGameMode(WorldCreationUiState.SelectedGameMode.SURVIVAL);
+        //? if <1.20.5 {
+        /*ui.setAllowCheats(true);
+        *///?} else {
         ui.setAllowCommands(true);
+        //?}
         ui.setName("reroll");
         presets.stream()
                 .filter(entry -> entry.preset().is(WorldPresets.FLAT))

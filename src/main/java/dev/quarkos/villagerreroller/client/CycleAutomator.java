@@ -5,16 +5,21 @@ import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
+import dev.quarkos.villagerreroller.picker.TradeEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.core.Holder;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+//? if >=1.20.5 {
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+//?}
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 
@@ -173,12 +178,16 @@ public final class CycleAutomator {
             if (!result.is(Items.ENCHANTED_BOOK)) {
                 continue;
             }
+            //? if <1.20.5 {
+            /*boolean levelMatches = TradeEntry.storedBookMatches(result, target.value(), level);
+            *///?}
+            //? if >=1.20.5 && <1.21 {
+            /*ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
+            boolean levelMatches = stored != null && stored.getLevel(target.value()) == level;
+            *///?}
+            //? if >=1.21 {
             ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
-            boolean levelMatches;
-            //? if <1.21 {
-            /*levelMatches = stored != null && stored.getLevel(target.value()) == level;
-            *///?} else {
-            levelMatches = stored != null && stored.getLevel(target) == level;
+            boolean levelMatches = stored != null && stored.getLevel(target) == level;
             //?}
             if (levelMatches) {
                 return true;
@@ -195,7 +204,7 @@ public final class CycleAutomator {
                     .append(':')
                     .append(result.getCount())
                     .append(':')
-                    .append(result.getComponents())
+                    .append(TradeEntry.stackKey(result))
                     .append(';');
         }
         return builder.toString();

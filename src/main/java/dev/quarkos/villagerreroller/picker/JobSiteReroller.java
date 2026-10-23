@@ -512,7 +512,7 @@ public final class JobSiteReroller {
                     .append(':')
                     .append(result.getCount())
                     .append(':')
-                    .append(result.getComponents())
+                    .append(TradeEntry.stackKey(result))
                     .append(';');
         }
         return builder.toString();
@@ -609,7 +609,11 @@ public final class JobSiteReroller {
                 continue;
             }
             float speed = stack.getItem().getDestroySpeed(stack, state);
+            //? if <1.20.5 {
+            /*if (speed > bestSpeed && stack.getItem().isCorrectToolForDrops(state)) {
+            *///?} else {
             if (speed > bestSpeed && stack.getItem().isCorrectToolForDrops(stack, state)) {
+            //?}
                 bestSpeed = speed;
                 best = i;
             }

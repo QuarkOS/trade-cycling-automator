@@ -1,7 +1,9 @@
 package dev.quarkos.villagerreroller.picker;
 
 import net.minecraft.core.Holder;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -9,9 +11,11 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+//? if >=1.20.5 {
 import net.minecraft.world.item.alchemy.PotionContents;
-import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+//?}
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.trading.MerchantOffer;
 
 import java.util.function.BiPredicate;
@@ -73,8 +77,7 @@ public final class TradeEntry {
             if (!result.is(Items.ENCHANTED_BOOK)) {
                 return false;
             }
-            ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
-            return stored != null && stored.getLevel(enchantment) == level;
+            return storedBookMatches(result, enchantment, level);
         });
     }
     *///?} else {
@@ -118,6 +121,55 @@ public final class TradeEntry {
         return id == null ? "minecraft:air" : id.toString();
     }
 
+    //? if <1.20.5 {
+    /*public static boolean storedBookMatches(ItemStack result, Enchantment enchantment, int level) {
+        net.minecraft.nbt.ListTag list = net.minecraft.world.item.EnchantedBookItem.getEnchantments(result);
+        Identifier id = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);
+        String wanted = id == null ? "" : id.toString();
+        for (int i = 0; i < list.size(); i++) {
+            net.minecraft.nbt.CompoundTag tag = list.getCompound(i);
+            if (wanted.equals(tag.getString("id")) && tag.getInt("lvl") == level) {
+                return true;
+            }
+        }
+        return false;
+    }
+    *///?}
+    //? if >=1.20.5 && <1.21 {
+    /*public static boolean storedBookMatches(ItemStack result, Enchantment enchantment, int level) {
+        ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
+        return stored != null && stored.getLevel(enchantment) == level;
+    }
+    *///?}
+
+    public static String stackKey(ItemStack stack) {
+        //? if <1.20.5 {
+        /*return String.valueOf(stack.getTag());
+        *///?} else {
+        return String.valueOf(stack.getComponents());
+        //?}
+    }
+
+    //? if <1.20.5 {
+    /*public static boolean stewHas(ItemStack stack, MobEffect effect) {
+        net.minecraft.nbt.CompoundTag tag = stack.getTag();
+        if (tag == null || !tag.contains("effects", 9)) {
+            return false;
+        }
+        Identifier id = BuiltInRegistries.MOB_EFFECT.getKey(effect);
+        if (id == null) {
+            return false;
+        }
+        String wanted = id.toString();
+        net.minecraft.nbt.ListTag list = tag.getList("effects", 10);
+        for (int i = 0; i < list.size(); i++) {
+            if (wanted.equals(list.getCompound(i).getString("id"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+    *///?} else {
     public static boolean stewHas(ItemStack stack, Holder<MobEffect> effect) {
         var effects = stack.get(DataComponents.SUSPICIOUS_STEW_EFFECTS);
         if (effects == null) {
@@ -130,21 +182,33 @@ public final class TradeEntry {
         }
         return false;
     }
+    //?}
 
     public static boolean potionMatches(ItemStack stack, ItemStack expected) {
+        //? if <1.20.5 {
+        /*if (net.minecraft.world.item.alchemy.PotionUtils.getPotion(stack) != net.minecraft.world.item.alchemy.PotionUtils.getPotion(expected)) {
+            return false;
+        }
+        return net.minecraft.world.item.alchemy.PotionUtils.getCustomEffects(expected).equals(net.minecraft.world.item.alchemy.PotionUtils.getCustomEffects(stack));
+        *///?} else {
         PotionContents wanted = expected.get(DataComponents.POTION_CONTENTS);
         PotionContents found = stack.get(DataComponents.POTION_CONTENTS);
         if (wanted == null || found == null) {
             return wanted == null && found == null;
         }
         return wanted.equals(found);
+        //?}
     }
 
     public static boolean named(ItemStack stack, String translationKey) {
+        //? if <1.20.5 {
+        /*return stack.getHoverName().getString().equals(Component.translatable(translationKey).getString());
+        *///?} else {
         Component custom = stack.get(DataComponents.ITEM_NAME);
         if (custom == null) {
             return false;
         }
         return custom.getString().equals(Component.translatable(translationKey).getString());
+        //?}
     }
 }

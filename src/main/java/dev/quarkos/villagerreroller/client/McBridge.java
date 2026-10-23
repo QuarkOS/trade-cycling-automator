@@ -186,17 +186,25 @@ public final class McBridge {
     }
 
     public static boolean withinBlock(Player player, BlockPos pos) {
-        //? if <1.21.11 {
+        //? if <1.20.5 {
+        /*return player.getEyePosition().distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(pos)) < 20.25;
+        *///?}
+        //? if >=1.20.5 && <1.21.11 {
         /*return player.canInteractWithBlock(pos, 0.0);
-        *///?} else {
+        *///?}
+        //? if >=1.21.11 {
         return player.isWithinBlockInteractionRange(pos, 0.0);
         //?}
     }
 
     public static boolean withinEntity(Player player, Entity entity) {
-        //? if <1.21.11 {
+        //? if <1.20.5 {
+        /*return entity.getBoundingBox().distanceToSqr(player.getEyePosition()) < 9.0;
+        *///?}
+        //? if >=1.20.5 && <1.21.11 {
         /*return player.canInteractWithEntity(entity, 0.0);
-        *///?} else {
+        *///?}
+        //? if >=1.21.11 {
         return player.isWithinEntityInteractionRange(entity, 0.0);
         //?}
     }

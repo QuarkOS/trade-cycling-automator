@@ -1,4 +1,152 @@
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+import java.util.jar.JarOutputStream
+import java.util.zip.GZIPInputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import javax.inject.Inject
+
+/**
+ * Forge's official-mapped userdev runs Minecraft under mojmap names. Trade Cycling
+ * jars built for 1.20.4 and older still contain SRG bytecode plus an SRG refmap.
+ * Mixin then looks for f_/m_ members the runtime already renamed. This task remaps
+ * that jar to mojmap and drops the refmap so the mojmap mixin annotations apply.
+ * Production installs keep using the original Modrinth jar.
+ */
+abstract class TradeCyclingDevRuntimeTask : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val tradeCyclingJars: ConfigurableFileCollection
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val fartJars: ConfigurableFileCollection
+
+    @get:Optional
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val forgeJar: RegularFileProperty
+
+    @get:Optional
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val officialToSrg: RegularFileProperty
+
+    @get:OutputFile
+    abstract val outputJar: RegularFileProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun remap() {
+        val input = tradeCyclingJars.singleFile
+        val output = outputJar.get().asFile
+        output.parentFile.mkdirs()
+        if (!srgRefmap(input)) {
+            input.copyTo(output, overwrite = true)
+            return
+        }
+        if (!officialToSrg.isPresent || !forgeJar.isPresent) {
+            throw GradleException("Trade Cycling ${input.name} uses an SRG refmap, but no official-to-SRG mapping is cached for this Forge version.")
+        }
+        val work = temporaryDir
+        val reversed = work.resolve("srg-to-official.tsrg")
+        val srgLibrary = work.resolve("forge-srg.jar")
+        val remapped = work.resolve("remapped.jar")
+        reverseTsrg(officialToSrg.get().asFile, reversed)
+        fart(
+            "--input", forgeJar.get().asFile.absolutePath,
+            "--output", srgLibrary.absolutePath,
+            "--map", officialToSrg.get().asFile.absolutePath,
+            "--threads", "2",
+        )
+        fart(
+            "--input", input.absolutePath,
+            "--output", remapped.absolutePath,
+            "--map", reversed.absolutePath,
+            "--lib", srgLibrary.absolutePath,
+            "--threads", "2",
+        )
+        stripRefmap(remapped, output)
+    }
+
+    private fun fart(vararg args: String) {
+        execOperations.javaexec {
+            classpath = fartJars
+            mainClass.set("net.minecraftforge.fart.Main")
+            this.args(args.toList())
+        }
+    }
+
+    private fun srgRefmap(jar: File): Boolean {
+        ZipFile(jar).use { zip ->
+            val entry = zip.getEntry("trade_cycling.refmap.json") ?: return false
+            val text = zip.getInputStream(entry).readBytes().toString(Charsets.UTF_8)
+            return Regex("""\b[fm]_\d+_""").containsMatchIn(text)
+        }
+    }
+
+    private fun stripRefmap(input: File, output: File) {
+        ZipFile(input).use { zip ->
+            JarOutputStream(output.outputStream()).use { out ->
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    if (entry.isDirectory || entry.name == "trade_cycling.refmap.json") {
+                        continue
+                    }
+                    var bytes = zip.getInputStream(entry).readBytes()
+                    if (entry.name == "trade_cycling.mixins.json") {
+                        bytes = bytes.toString(Charsets.UTF_8)
+                            .replace(Regex(""""refmap"\s*:\s*"trade_cycling\.refmap\.json"\s*,\s*"""), "")
+                            .toByteArray()
+                    }
+                    out.putNextEntry(ZipEntry(entry.name))
+                    out.write(bytes)
+                    out.closeEntry()
+                }
+            }
+        }
+    }
+
+    private fun reverseTsrg(gzipped: File, dest: File) {
+        GZIPInputStream(gzipped.inputStream()).bufferedReader().use { reader ->
+            dest.bufferedWriter().use { writer ->
+                reader.lineSequence().forEachIndexed { index, line ->
+                    if (index == 0) {
+                        writer.appendLine(line)
+                        return@forEachIndexed
+                    }
+                    val tabs = line.takeWhile { it == '\t' }.length
+                    val rest = line.trim()
+                    if (rest.isEmpty() || rest == "static") {
+                        writer.appendLine(line)
+                        return@forEachIndexed
+                    }
+                    val parts = rest.split(' ')
+                    val reversed = when {
+                        tabs == 0 && parts.size == 2 -> "${parts[1]} ${parts[0]}"
+                        tabs == 1 && parts.size == 2 -> "${parts[1]} ${parts[0]}"
+                        tabs == 1 && parts.size == 3 -> "${parts[2]} ${parts[1]} ${parts[0]}"
+                        tabs > 1 && parts.size >= 3 && parts[0].all { it.isDigit() } ->
+                            "${parts[0]} ${parts[2]} ${parts[1]}"
+                        else -> rest
+                    }
+                    writer.append("\t".repeat(tabs))
+                    writer.appendLine(reversed)
+                }
+            }
+        }
+    }
+}
 
 buildscript {
     repositories {
@@ -77,6 +225,14 @@ val forgeNode = when (minecraftVersion) {
     )
     // 50.0.8 is the last 1.20.6 build whose payload context still has getDirection().
     // Trade Cycling 1.0.11 calls that method, so a newer Forge disconnects the client on the first cycle.
+    "1.20.4" -> ForgeNode(
+        "1.20.4-49.2.13",
+        "49.2.13",
+        17,
+        "accesstransformer-1.20.4.cfg",
+        "forge-1.20.4-1.0.11",
+        legacyPack(22),
+    )
     "1.20.6" -> ForgeNode(
         "1.20.6-50.0.8",
         "50.0.8",
@@ -216,6 +372,7 @@ if (forgeNode == null) {
         forgeMinecraft.mavenizer(this)
         maven((fg as net.minecraftforge.gradle.ForgeGradleExtension).forgeMaven)
         maven((fg as net.minecraftforge.gradle.ForgeGradleExtension).minecraftLibsMaven)
+        maven("https://maven.minecraftforge.net/")
         mavenCentral()
         exclusiveContent {
             forRepository { maven("https://api.modrinth.com/maven") { name = "Modrinth" } }
@@ -238,12 +395,36 @@ if (forgeNode == null) {
         }
     }
 
+    val tradeCycling = "maven.modrinth:trade-cycling:${node.tradeCycling}"
+    val tradeCyclingJars = configurations.create("tradeCyclingJars") {
+        isCanBeConsumed = false
+        isTransitive = false
+    }
+    val fartTool = configurations.create("fartTool") {
+        isCanBeConsumed = false
+        isTransitive = true
+    }
+    val tradeCyclingDevJar = layout.buildDirectory.file("generated/trade-cycling-devruntime.jar")
+    val officialToSrg = File(System.getProperty("user.home"), ".gradle/caches/minecraftforge/forgegradle/mavenizer/caches/mcp")
+        .walkTopDown()
+        .firstOrNull { it.isFile && it.name == "official-$minecraftVersion-obf.tsrg.gz" }
+    val tradeCyclingDevRuntime = tasks.register<TradeCyclingDevRuntimeTask>("tradeCyclingDevRuntime") {
+        this.tradeCyclingJars.from(tradeCyclingJars)
+        fartJars.from(fartTool)
+        if (officialToSrg != null) {
+            forgeJar.set(rootProject.file(".gradle/mavenizer/repo/net/minecraftforge/forge/${node.forgeCoordinate}/forge-${node.forgeCoordinate}.jar"))
+            this.officialToSrg.set(officialToSrg)
+        }
+        outputJar.set(tradeCyclingDevJar)
+    }
+
     dependencies {
         add("implementation", forgeMinecraft.dependency("net.minecraftforge:forge:${node.forgeCoordinate}"))
-        val tradeCycling = "maven.modrinth:trade-cycling:${node.tradeCycling}"
         add("compileOnly", tradeCycling)
+        add("tradeCyclingJars", tradeCycling)
+        add("fartTool", "net.minecraftforge:ForgeAutoRenamingTool:1.1.2")
         if (providers.gradleProperty("withTradeCycling").orNull == "true") {
-            add("runtimeOnly", tradeCycling)
+            add("runtimeOnly", files(tradeCyclingDevJar).builtBy(tradeCyclingDevRuntime))
         }
         add("testImplementation", platform("org.junit:junit-bom:5.13.4"))
         add("testImplementation", "org.junit.jupiter:junit-jupiter")

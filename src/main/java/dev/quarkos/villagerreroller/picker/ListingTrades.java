@@ -5,12 +5,16 @@ import dev.quarkos.villagerreroller.price.VanillaBookPrices;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+//? if >=1.21 {
 import net.minecraft.tags.EnchantmentTags;
+//?}
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.npc.villager.Villager;
@@ -118,7 +122,11 @@ public final class ListingTrades {
             return;
         }
         if (listing instanceof VillagerTrades.EmeraldForItems purchase) {
+            //? if <1.20.5 {
+            /*ItemStack stack = purchase.itemStack.copy();
+            *///?} else {
             ItemStack stack = purchase.itemStack.itemStack().copy();
+            //?}
             int payout = purchase.emeraldAmount;
             String id = "sell:" + TradeEntry.itemId(stack.getItem()) + ":" + stack.getCount() + ":" + payout;
             entries.add(TradeEntry.sell(id, stack, stack.getHoverName().getString(), payout, (offer, chosenMax) ->
@@ -142,7 +150,11 @@ public final class ListingTrades {
         if (listing instanceof VillagerTrades.ItemsAndEmeraldsToItems conversion) {
             ItemStack result = conversion.toItem.copy();
             int cost = conversion.emeraldCost;
+            //? if <1.20.5 {
+            /*Item extra = conversion.fromItem.getItem();
+            *///?} else {
             Item extra = conversion.fromItem.item().value();
+            //?}
             String id = "convert:" + TradeEntry.itemId(result.getItem()) + ":" + cost + ":" + TradeEntry.itemId(extra);
             entries.add(TradeEntry.buy(id, result, result.getHoverName().getString(), cost, cost, (offer, chosenMax) ->
                     TradeEntry.emeraldCostAtMost(offer, chosenMax)
@@ -172,13 +184,35 @@ public final class ListingTrades {
         if (listing instanceof VillagerTrades.TreasureMapForEmeralds map) {
             int cost = map.emeraldCost;
             ItemStack icon = new ItemStack(Items.FILLED_MAP);
+            //? if <1.20.5 {
+            /*icon.setHoverName(Component.translatable(map.displayName));
+            *///?} else {
             icon.set(DataComponents.ITEM_NAME, Component.translatable(map.displayName));
+            //?}
             String id = "map:" + map.displayName + ":" + cost;
             entries.add(TradeEntry.buy(id, icon, icon.getHoverName().getString(), cost, cost, (offer, chosenMax) ->
                     TradeEntry.emeraldCostAtMost(offer, chosenMax) && TradeEntry.named(offer.getResult(), map.displayName)));
             return;
         }
         if (listing instanceof VillagerTrades.SuspiciousStewForEmerald stew) {
+            //? if <1.20.5 {
+            /*for (Object raw : stew.effects) {
+                if (!(raw instanceof net.minecraft.world.level.block.SuspiciousEffectHolder.EffectEntry entry)) {
+                    continue;
+                }
+                MobEffect mobEffect = entry.effect();
+                ItemStack icon = new ItemStack(Items.SUSPICIOUS_STEW);
+                net.minecraft.world.item.SuspiciousStewItem.saveMobEffects(icon, java.util.List.of(entry));
+                net.minecraft.resources.Identifier effectKey = BuiltInRegistries.MOB_EFFECT.getKey(mobEffect);
+                String effectId = effectKey == null ? "unknown" : effectKey.toString();
+                String name = icon.getHoverName().getString() + " (" + mobEffect.getDisplayName().getString() + ")";
+                String id = "stew:" + effectId;
+                entries.add(TradeEntry.buy(id, icon, name, 1, 1, (offer, chosenMax) ->
+                        TradeEntry.emeraldCostAtMost(offer, chosenMax)
+                                && offer.getResult().is(Items.SUSPICIOUS_STEW)
+                                && TradeEntry.stewHas(offer.getResult(), mobEffect)));
+            }
+            *///?} else {
             for (var effect : stew.effects.effects()) {
                 Holder<MobEffect> mobEffect = effect.effect();
                 ItemStack icon = new ItemStack(Items.SUSPICIOUS_STEW);
@@ -191,6 +225,7 @@ public final class ListingTrades {
                                 && offer.getResult().is(Items.SUSPICIOUS_STEW)
                                 && TradeEntry.stewHas(offer.getResult(), mobEffect)));
             }
+            //?}
             return;
         }
         if (listing instanceof VillagerTrades.EmeraldsForVillagerTypeItem typed) {
