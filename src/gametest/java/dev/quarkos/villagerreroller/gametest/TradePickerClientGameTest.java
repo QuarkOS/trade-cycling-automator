@@ -207,7 +207,6 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 if (air) {
                     sawAir = true;
                 }
-                boolean running = context.computeOnClient(client -> JobSiteReroller.isRunning());
                 JobSiteReroller.StopReason stop = context.computeOnClient(client -> JobSiteReroller.stopReason());
                 if (!running && stop != null) {
                     reason = stop.name();
