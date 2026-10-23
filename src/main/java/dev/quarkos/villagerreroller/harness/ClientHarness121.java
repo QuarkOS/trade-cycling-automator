@@ -66,6 +66,11 @@ public final class ClientHarness121 {
     private static double villagerZ;
     private static boolean cycling;
     private static boolean sawAir;
+    private static boolean midShot;
+    private static boolean maxShot;
+    private static boolean jobSiteShot;
+    private static boolean cyclingPanelShot;
+    private static boolean rerollShot;
     private static int lecternsBefore;
     private static String stopReason = "running";
 
@@ -276,10 +281,9 @@ public final class ClientHarness121 {
 
     private static void waitScroll(Minecraft client) {
         ScrollSpot spot = scrollSpot(client);
-        if (!cycling && spot == ScrollSpot.MID && !Files.exists(artifacts().resolve("name-scroll-mid.png"))) {
-            shot(client, "name-scroll-mid");
-            copy("name-scroll-mid", "name-scroll");
-            copy("name-scroll-mid", "trade-panel");
+        if (!cycling && spot == ScrollSpot.MID && !midShot) {
+            midShot = true;
+            shot(client, "name-scroll-mid", "name-scroll", "trade-panel");
         }
         if (spot != ScrollSpot.MAX) {
             if (ticks > timeout(20 * 40)) {
@@ -288,15 +292,18 @@ public final class ClientHarness121 {
             return;
         }
         if (!cycling) {
-            shot(client, "name-scroll-max");
-            copy("name-scroll-max", "panel-job-site");
+            if (!maxShot) {
+                maxShot = true;
+                shot(client, "name-scroll-max", "panel-job-site");
+            }
             assertNameClearsThePrice(client);
             selectAndRemember(client);
             state = State.START_REROLL;
             ticks = 0;
             return;
         }
-        if (!Files.exists(artifacts().resolve("panel-job-site.png"))) {
+        if (!jobSiteShot) {
+            jobSiteShot = true;
             shot(client, "panel-job-site");
             if (!press(McBridge.currentScreen(client), "text.villager_reroller.method.job_site")) {
                 fail("method button missing");
@@ -310,7 +317,10 @@ public final class ClientHarness121 {
             }
             return;
         }
-        shot(client, "panel-trade-cycling");
+        if (!cyclingPanelShot) {
+            cyclingPanelShot = true;
+            shot(client, "panel-trade-cycling");
+        }
         assertNameClearsThePrice(client);
         selectAndRemember(client);
         state = State.START_REROLL;
@@ -383,7 +393,11 @@ public final class ClientHarness121 {
         if (ticks < 5) {
             return;
         }
-        shot(client, cycling ? "reroll-cycling" : "reroll-found");
+        String shotName = cycling ? "reroll-cycling" : "reroll-found";
+        if (!rerollShot) {
+            rerollShot = true;
+            shot(client, shotName);
+        }
         boolean stillLectern = client.level.getBlockState(new BlockPos(x, y, z)).is(Blocks.LECTERN);
         int lecternsAfter = lecternCount(client);
         int attempts = JobSiteReroller.attempts();
@@ -398,6 +412,12 @@ public final class ClientHarness121 {
             }
         } else if (!sawAir) {
             fail("job-block path never broke the lectern");
+            return;
+        }
+        if (!Files.exists(artifacts().resolve(shotName + ".png"))) {
+            if (ticks > timeout(20 * 20)) {
+                fail("reroll screenshot was not written");
+            }
             return;
         }
         LOGGER.info("1.21.1 client harness passed (cycling={})", cycling);
@@ -516,21 +536,22 @@ public final class ClientHarness121 {
         return count;
     }
 
-    private static void shot(Minecraft client, String name) {
+    private static void shot(Minecraft client, String name, String... aliases) {
         try {
             Path dir = artifacts();
             Files.createDirectories(dir);
             //? if <1.21.5 {
             /*NativeImage image = Screenshot.takeScreenshot(mainTarget(client));
             try {
-                image.writeToFile(dir.resolve(name + ".png"));
+                writeShot(dir, name, image, aliases);
             } finally {
                 image.close();
             }
             *///?} else {
+            // The GPU read finishes after this returns, so aliases are copied in the callback.
             Screenshot.takeScreenshot(mainTarget(client), image -> {
                 try {
-                    image.writeToFile(dir.resolve(name + ".png"));
+                    writeShot(dir, name, image, aliases);
                 } catch (IOException e) {
                     fail("screenshot " + name + " failed: " + e.getMessage());
                 } finally {
@@ -543,12 +564,10 @@ public final class ClientHarness121 {
         }
     }
 
-    private static void copy(String from, String to) {
-        try {
-            Path dir = artifacts();
-            Files.copy(dir.resolve(from + ".png"), dir.resolve(to + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            fail("copy " + from + " failed: " + e.getMessage());
+    private static void writeShot(Path dir, String name, NativeImage image, String[] aliases) throws IOException {
+        image.writeToFile(dir.resolve(name + ".png"));
+        for (String alias : aliases) {
+            Files.copy(dir.resolve(name + ".png"), dir.resolve(alias + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
