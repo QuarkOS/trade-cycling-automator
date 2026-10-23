@@ -328,13 +328,19 @@ public final class ClientHarness121 {
     }
 
     private static void waitFound(Minecraft client) {
-        if (ticks % 40 == 0) {
-            command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+        // Teleporting the villager the player is trading with closes MerchantScreen.
+        // 1.21.4 then sits in this state until the deadline, which looked like a reroll timeout.
+        boolean running = JobSiteReroller.isRunning() || JobSiteReroller.stopReason() == null;
+        if (running && !(client.screen instanceof MerchantScreen) && ticks % 40 == 0) {
+            Villager villager = nearestLibrarian(client);
+            if (villager != null && villager.distanceToSqr(villagerX, y, villagerZ) > 4.0) {
+                command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+            }
         }
         if (client.level.getBlockState(new BlockPos(x, y, z)).isAir()) {
             sawAir = true;
         }
-        if (JobSiteReroller.isRunning() || JobSiteReroller.stopReason() == null) {
+        if (running) {
             if (ticks > timeout(20 * 300)) {
                 fail("reroll still running after the deadline");
             }

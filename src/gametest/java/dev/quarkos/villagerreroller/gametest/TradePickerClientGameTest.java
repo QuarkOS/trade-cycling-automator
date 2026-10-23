@@ -20,7 +20,11 @@ import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
+//? if <1.21.11 {
+/*import net.minecraft.Util;
+*///?} else {
 import net.minecraft.util.Util;
+//?}
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
@@ -186,8 +190,18 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             boolean sawAir = false;
             for (int tick = 0; tick < 20 * 300; tick++) {
                 context.waitTick();
-                if (tick % 40 == 0) {
-                    world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+                // A villager teleport closes an open merchant screen. Only pull a villager
+                // who has walked off the lectern, and never while that screen is open.
+                boolean running = context.computeOnClient(client -> JobSiteReroller.isRunning());
+                boolean trading = context.computeOnClient(client -> client.screen instanceof MerchantScreen);
+                if (running && !trading && tick % 40 == 0) {
+                    boolean wandered = context.computeOnClient(client -> {
+                        Villager villager = nearestLibrarian(client);
+                        return villager != null && villager.distanceToSqr(villagerX, y, villagerZ) > 4.0;
+                    });
+                    if (wandered) {
+                        world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+                    }
                 }
                 boolean air = context.computeOnClient(client -> client.level.getBlockState(lecternPos).isAir());
                 if (air) {
