@@ -13,16 +13,80 @@ buildscript {
     }
 }
 
-// Cloth Config publishes a Forge jar for 1.21.1 only. The other nodes stay in the
-// tree so a later backport can fill them in, and they fail the build instead of
-// writing a jar that pretends the dependency exists.
-val minecraftVersion = project.name
-val forgeSupported = minecraftVersion == "1.21.1"
+data class ForgeNode(
+    val forgeCoordinate: String,
+    val forgeDep: String,
+    val javaVersion: Int,
+    val accessTransformer: String,
+    val tradeCycling: String,
+    val packMeta: String,
+)
 
-if (!forgeSupported) {
-    // Stonecutter still creates a Java project for the node. Do not compile it:
-    // there is no ForgeGradle classpath, and the active 1.21.11 node would compile
-    // the Fabric sources. Fail the lifecycle task with the dependency reason.
+fun legacyPack(format: Int): String = """
+{
+  "pack": {
+    "description": "Villager Reroller",
+    "pack_format": $format
+  }
+}
+""".trimIndent() + "\n"
+
+fun modernPack(major: Int, minor: Int): String = """
+{
+  "pack": {
+    "description": "Villager Reroller",
+    "min_format": [$major, $minor],
+    "max_format": [$major, $minor]
+  }
+}
+""".trimIndent() + "\n"
+
+val minecraftVersion = project.name
+val forgeNode = when (minecraftVersion) {
+    "1.21.1" -> ForgeNode(
+        "1.21.1-52.1.20",
+        "52.1.20",
+        21,
+        "accesstransformer.cfg",
+        "forge-1.21.1-1.0.23",
+        legacyPack(34),
+    )
+    "1.21.11" -> ForgeNode(
+        "1.21.11-61.2.4",
+        "61.2.4",
+        21,
+        "accesstransformer-1.21.11.cfg",
+        "forge-1.21.11-1.0.23",
+        modernPack(75, 0),
+    )
+    "26.1.2" -> ForgeNode(
+        "26.1.2-64.1.5",
+        "64.1.5",
+        25,
+        "accesstransformer-26.1.cfg",
+        "forge-1.0.23+26.1.2",
+        modernPack(84, 0),
+    )
+    "26.2" -> ForgeNode(
+        "26.2-65.1.5",
+        "65.1.5",
+        25,
+        "accesstransformer-26.1.cfg",
+        "forge-1.0.23+26.2",
+        modernPack(88, 0),
+    )
+    "26.3" -> ForgeNode(
+        "26.3-66.1.0",
+        "66.1.0",
+        25,
+        "accesstransformer-26.3.cfg",
+        "forge-1.0.23+26.3",
+        modernPack(97, 1),
+    )
+    else -> null
+}
+
+if (forgeNode == null) {
     tasks.configureEach {
         if (name != "build") {
             enabled = false
@@ -30,18 +94,17 @@ if (!forgeSupported) {
     }
     tasks.named("build") {
         group = "build"
-        description = "Refuses to ship a Forge jar without a real Cloth Config Forge build."
-        notCompatibleWithConfigurationCache(
-            "Refuses a Forge jar when Cloth Config has no Forge build for this Minecraft version."
-        )
+        description = "This Forge node has no Minecraft Forge build yet."
+        notCompatibleWithConfigurationCache("Refuses a Forge jar for an unmapped Minecraft version.")
         setDependsOn(emptyList<Any>())
         enabled = true
-        val reason = missingCloth(minecraftVersion)
+        val reason = "No Forge coordinate is configured for Minecraft $minecraftVersion."
         doFirst {
             throw GradleException(reason)
         }
     }
 } else {
+    val node = forgeNode
     apply(plugin = "java")
     apply(plugin = "net.minecraftforge.gradle")
 
@@ -51,7 +114,7 @@ if (!forgeSupported) {
 
     java {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(21))
+            languageVersion.set(JavaLanguageVersion.of(node.javaVersion))
         }
     }
 
@@ -61,9 +124,8 @@ if (!forgeSupported) {
     forgeMinecraft.mappings("official", minecraftVersion)
     // Stonecutter's chiseled tree does not contain this file at configuration time.
     // Point at the checked-in cfg so ForgeGradle's mavenizer actually applies it.
-    forgeMinecraft.accessTransformers.from(
-        rootProject.file("src/main/resources/META-INF/accesstransformer.cfg")
-    )
+    val accessTransformer = rootProject.file("src/main/resources/META-INF/${node.accessTransformer}")
+    forgeMinecraft.accessTransformers.from(accessTransformer)
     val runs = (minecraftExt as groovy.lang.GroovyObject).getProperty("runs")
         as org.gradle.api.NamedDomainObjectContainer<net.minecraftforge.gradle.SlimeLauncherOptions>
     val runDir = rootProject.layout.projectDirectory.dir("run/forge/$minecraftVersion")
@@ -71,12 +133,19 @@ if (!forgeSupported) {
         workingDir.set(runDir)
         systemProperty("forge.logging.console.level", "info")
     }
-    val mainSource = extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java).named("main")
-    // FML scans each classpath entry on its own. Classes and mods.toml have to share one directory.
+    val sourceSets = extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java)
+    val mainSource = sourceSets.named("main")
+    // The Forge branch's 1.21.11 node is Stonecutter's active project, so it would
+    // compile the shared Fabric sources. Every Forge node compiles the chiseled tree.
+    val chiseledMain = layout.buildDirectory.dir("generated/stonecutter/main")
     gradle.projectsEvaluated {
         val main = mainSource.get()
+        main.java.setSrcDirs(listOf(chiseledMain.get().dir("java").asFile))
+        main.resources.setSrcDirs(listOf(chiseledMain.get().dir("resources").asFile))
         main.output.setResourcesDir(main.java.destinationDirectory)
     }
+    tasks.named("compileJava") { dependsOn("stonecutterGenerate") }
+    tasks.named("processResources") { dependsOn("stonecutterGenerate") }
     runs.register("client") {
         mods {
             register("villager_reroller") {
@@ -97,9 +166,8 @@ if (!forgeSupported) {
     }
 
     dependencies {
-        add("implementation", forgeMinecraft.dependency("net.minecraftforge:forge:1.21.1-52.1.20"))
-        add("implementation", "maven.modrinth:cloth-config:15.0.140+forge")
-        val tradeCycling = "maven.modrinth:trade-cycling:forge-1.21.1-1.0.23"
+        add("implementation", forgeMinecraft.dependency("net.minecraftforge:forge:${node.forgeCoordinate}"))
+        val tradeCycling = "maven.modrinth:trade-cycling:${node.tradeCycling}"
         add("compileOnly", tradeCycling)
         if (providers.gradleProperty("withTradeCycling").orNull == "true") {
             add("runtimeOnly", tradeCycling)
@@ -109,37 +177,35 @@ if (!forgeSupported) {
         add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher")
     }
 
-    // Forge treats a mod resource pack without pack.mcmeta as a loading error and
-    // skips the pack, so language and the icon never load. Fabric does not read this file.
     val forgePack = layout.buildDirectory.dir("generated/forge-pack")
     val writeForgePack = tasks.register("writeForgePack") {
         outputs.dir(forgePack)
         doLast {
             val file = forgePack.get().asFile.resolve("pack.mcmeta")
             file.parentFile.mkdirs()
-            // pack_format 34 is Minecraft 1.21 / 1.21.1.
-            file.writeText(
-                """
-                {
-                  "pack": {
-                    "description": "Villager Reroller",
-                    "pack_format": 34
-                  }
-                }
-                """.trimIndent() + "\n"
-            )
+            file.writeText(node.packMeta)
         }
     }
 
     tasks.named<ProcessResources>("processResources") {
         dependsOn(writeForgePack)
-        val props = mapOf("version" to "1.0.0+$minecraftVersion")
+        val props = mapOf(
+            "version" to "1.0.0+$minecraftVersion",
+            "forge_dep" to node.forgeDep,
+            "minecraft" to minecraftVersion,
+        )
         filesMatching("META-INF/mods.toml") {
             expand(props)
         }
         exclude("fabric.mod.json")
         exclude("**/*.accesswidener")
         exclude("accesswidener/**")
+        exclude("META-INF/accesstransformer.cfg")
+        exclude("META-INF/accesstransformer-*.cfg")
+        from(accessTransformer) {
+            rename { "accesstransformer.cfg" }
+            into("META-INF")
+        }
         from(forgePack)
     }
 
@@ -156,6 +222,11 @@ if (!forgeSupported) {
         systemProperty("villager_reroller.timeoutScale", "8")
         if (providers.gradleProperty("harness").orNull == "true") {
             systemProperty("villager_reroller.harness", "true")
+        }
+        val glShim = rootProject.file("/tmp/libglx-srgb.so")
+        if (minecraftVersion == "26.3" && glShim.exists()) {
+            environment("LD_PRELOAD", glShim.absolutePath)
+            environment("LIBGL_ALWAYS_SOFTWARE", "1")
         }
         val display = providers.gradleProperty("display").orNull
         val xauth = providers.gradleProperty("xauth").orNull
@@ -174,11 +245,3 @@ if (!forgeSupported) {
         }
     }
 }
-
-fun missingCloth(version: String): String = """
-Cloth Config publishes no Forge build for Minecraft $version.
-Modrinth queries for loader=forge and game version $version return no files.
-shedaniel cloth-config-forge stops at 17.0.144, which targets 1.21.2/1.21.3.
-NeoForge cloth builds exist for this Minecraft version, and this project targets Minecraft Forge.
-Refusing to produce villager_reroller-forge-1.0.0+$version.jar.
-""".trim()

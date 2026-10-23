@@ -1,5 +1,5 @@
 modLoader = "javafml"
-loaderVersion = "[51,)"
+loaderVersion = "[1,)"
 license = "MIT"
 issueTrackerURL = "https://github.com/QuarkOS/trade-cycling-automator/issues"
 
@@ -14,22 +14,15 @@ displayTest = "IGNORE_ALL_VERSION"
 [[dependencies.villager_reroller]]
 modId = "forge"
 mandatory = true
-versionRange = "[52.1.20,)"
+versionRange = "[${forge_dep},)"
 ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.villager_reroller]]
 modId = "minecraft"
 mandatory = true
-versionRange = "[1.21.1]"
+versionRange = "[${minecraft}]"
 ordering = "NONE"
-side = "CLIENT"
-
-[[dependencies.villager_reroller]]
-modId = "cloth_config"
-mandatory = true
-versionRange = "[15,)"
-ordering = "AFTER"
 side = "CLIENT"
 
 [[dependencies.villager_reroller]]

@@ -1,3 +1,4 @@
+//? if fabric {
 package dev.quarkos.villagerreroller.config;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
@@ -113,3 +114,4 @@ public final class AutomatorConfigScreen {
         return Math.max(min, Math.min(max, value));
     }
 }
+//?}

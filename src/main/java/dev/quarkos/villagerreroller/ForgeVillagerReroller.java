@@ -1,41 +1,60 @@
 //? if forge {
-/*package dev.quarkos.villagerreroller;
+/*
+package dev.quarkos.villagerreroller;
 
 import dev.quarkos.villagerreroller.client.AutomatorKeys;
 import dev.quarkos.villagerreroller.client.CycleAutomator;
-import dev.quarkos.villagerreroller.config.AutomatorConfigScreen;
+import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
-import net.minecraftforge.client.ConfigScreenHandler;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
+//? if <26.1 {
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+//?}
+//? if <1.21.6 {
+import net.minecraftforge.eventbus.api.IEventBus;
+//?}
 
 @Mod(VillagerReroller.MOD_ID)
 public final class ForgeVillagerReroller {
     public ForgeVillagerReroller() {
+        VillagerReroller.bootstrap();
+        MinecraftForge.registerConfigScreen(ForgeConfigScreen::new);
+        //? if <1.21.6 {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         modBus.addListener(this::registerKeys);
-        VillagerReroller.bootstrap();
-        ModLoadingContext.get().registerExtensionPoint(
-                ConfigScreenHandler.ConfigScreenFactory.class,
-                () -> new ConfigScreenHandler.ConfigScreenFactory(this::configScreen)
-        );
         MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(this::onScreenInit);
         MinecraftForge.EVENT_BUS.addListener(this::onKey);
         MinecraftForge.EVENT_BUS.addListener(this::onEntity);
-    }
-
-    private Screen configScreen(Minecraft client, Screen parent) {
-        return AutomatorConfigScreen.create(parent);
+        //?}
+        //? if >=1.21.6 && <26.1 {
+        RegisterKeyMappingsEvent.getBus(FMLJavaModLoadingContext.get().getModBusGroup()).addListener(this::registerKeys);
+        TickEvent.ClientTickEvent.Post.BUS.addListener(event -> VillagerReroller.onClientTick(Minecraft.getInstance()));
+        ScreenEvent.Init.Post.BUS.addListener(event -> VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
+        ScreenEvent.KeyPressed.Pre.BUS.addListener(this::onKeyBus);
+        PlayerInteractEvent.EntityInteract.BUS.addListener(event -> {
+            if (event.getLevel().isClientSide()) {
+                VillagerReroller.remember(event.getTarget());
+            }
+        });
+        //?}
+        //? if >=26.1 {
+        RegisterKeyMappingsEvent.BUS.addListener(this::registerKeys);
+        TickEvent.ClientTickEvent.Post.BUS.addListener(event -> VillagerReroller.onClientTick(Minecraft.getInstance()));
+        ScreenEvent.Init.Post.BUS.addListener(event -> VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
+        ScreenEvent.KeyPressed.Pre.BUS.addListener(this::onKeyBus);
+        PlayerInteractEvent.EntityInteractSpecific.BUS.addListener(event -> {
+            if (event.getLevel().isClientSide()) {
+                VillagerReroller.remember(event.getTarget());
+            }
+        });
+        //?}
     }
 
     private void registerKeys(RegisterKeyMappingsEvent event) {
@@ -44,6 +63,7 @@ public final class ForgeVillagerReroller {
         }
     }
 
+    //? if <1.21.6 {
     private void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) {
             return;
@@ -70,5 +90,25 @@ public final class ForgeVillagerReroller {
             VillagerReroller.remember(event.getTarget());
         }
     }
+    //?}
+
+    //? if >=1.21.6 {
+    private boolean onKeyBus(ScreenEvent.KeyPressed.Pre event) {
+        if (!(event.getScreen() instanceof MerchantScreen) || AutomatorKeys.TOGGLE == null) {
+            return false;
+        }
+        boolean matches;
+        //? if >=1.21.9 {
+        matches = AutomatorKeys.TOGGLE.matches(event.getInfo());
+        //?} else {
+        matches = AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode());
+        //?}
+        if (!matches) {
+            return false;
+        }
+        CycleAutomator.toggle();
+        return true;
+    }
+    //?}
 }
 *///?}

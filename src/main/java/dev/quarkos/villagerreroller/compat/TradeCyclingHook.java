@@ -20,7 +20,11 @@ public final class TradeCyclingHook {
 
     public static boolean installed() {
         //? if forge {
-        /*return ModList.get().isLoaded(MOD_ID);
+        /*//? if >=26.1 {
+        return ModList.isLoaded(MOD_ID);
+        //?} else {
+        return ModList.get().isLoaded(MOD_ID);
+        //?}
         *///?} else {
         return FabricLoader.getInstance().isModLoaded(MOD_ID);
         //?}
