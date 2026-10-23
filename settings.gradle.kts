@@ -19,11 +19,11 @@ plugins {
 stonecutter {
     create(rootProject) {
         // Mirrors the Fabric builds of the current Trade Cycling release (1.0.22).
-        versions("1.21.1", "1.21.11", "26.1.2", "26.2", "26.3")
+        versions("1.21.1", "1.21.4", "1.21.5", "1.21.6", "1.21.9", "1.21.11", "26.1.2", "26.2", "26.3")
         vcsVersion = "1.21.11"
         // Sibling branch. Fabric project paths stay :1.21.11 so the existing tasks keep working.
         branch("forge") {
-            versions("1.21.1", "1.21.11", "26.1.2", "26.2", "26.3")
+            versions("1.21.1", "1.21.4", "1.21.5", "1.21.6", "1.21.9", "1.21.11", "26.1.2", "26.2", "26.3")
         }
     }
 }

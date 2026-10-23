@@ -43,6 +43,38 @@ fun modernPack(major: Int, minor: Int): String = """
 
 val minecraftVersion = project.name
 val forgeNode = when (minecraftVersion) {
+    "1.21.4" -> ForgeNode(
+        "1.21.4-54.1.22",
+        "54.1.22",
+        21,
+        "accesstransformer.cfg",
+        "forge-1.21.4-1.0.18",
+        legacyPack(46),
+    )
+    "1.21.5" -> ForgeNode(
+        "1.21.5-55.1.18",
+        "55.1.18",
+        21,
+        "accesstransformer.cfg",
+        "forge-1.21.5-1.0.18",
+        legacyPack(55),
+    )
+    "1.21.6" -> ForgeNode(
+        "1.21.6-56.0.9",
+        "56.0.9",
+        21,
+        "accesstransformer.cfg",
+        "forge-1.21.6-1.0.19",
+        legacyPack(63),
+    )
+    "1.21.9" -> ForgeNode(
+        "1.21.9-59.0.5",
+        "59.0.5",
+        21,
+        "accesstransformer.cfg",
+        "forge-1.21.9-1.0.19",
+        modernPack(69, 0),
+    )
     "1.21.1" -> ForgeNode(
         "1.21.1-52.1.20",
         "52.1.20",

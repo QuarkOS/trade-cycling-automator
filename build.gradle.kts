@@ -19,8 +19,8 @@ repositories {
     strictMaven("https://api.modrinth.com/maven", "Modrinth", "maven.modrinth")
 }
 
-// 1.21.1's Fabric API has server gametests only. Client gametests exist from 1.21.11 onward.
-if (sc.current.version != "1.21.1") {
+// Client gametests ship in Fabric API from 1.21.5. Older nodes use the tick harness.
+if (sc.current.parsed >= "1.21.5") {
     extensions.configure<net.fabricmc.loom.api.fabricapi.FabricApiExtension>("fabricApi") {
         configureTests {
             createSourceSet.set(true)
@@ -60,10 +60,10 @@ loom {
     fabricModJsonPath = rootProject.file("src/main/resources/fabric.mod.json")
     // 1.21.11 keeps the widener next to fabric.mod.json. Other nodes swap in a file Loom can validate.
     accessWidenerPath = rootProject.file(when {
-        sc.current.version == "1.21.1" -> "src/main/resources/accesswidener/1.21.1/villager_reroller.accesswidener"
         sc.current.parsed >= "26.3" -> "src/main/resources/accesswidener/26.3/villager_reroller.accesswidener"
         sc.current.parsed >= "26.1" -> "src/main/resources/accesswidener/26.1/villager_reroller.accesswidener"
-        else -> "src/main/resources/villager_reroller.accesswidener"
+        sc.current.version == "1.21.11" -> "src/main/resources/villager_reroller.accesswidener"
+        else -> "src/main/resources/accesswidener/1.21.1/villager_reroller.accesswidener"
     })
 
     runConfigs.all {
@@ -97,10 +97,10 @@ tasks {
 
         val minecraftVersion = sc.current.version
         val accessWidener = when {
-            minecraftVersion == "1.21.1" -> "accesswidener/1.21.1/villager_reroller.accesswidener"
             sc.current.parsed >= "26.3" -> "accesswidener/26.3/villager_reroller.accesswidener"
             sc.current.parsed >= "26.1" -> "accesswidener/26.1/villager_reroller.accesswidener"
-            else -> "villager_reroller.accesswidener"
+            minecraftVersion == "1.21.11" -> "villager_reroller.accesswidener"
+            else -> "accesswidener/1.21.1/villager_reroller.accesswidener"
         }
         val props = buildMap {
             register("id", sc.properties["mod.id"])

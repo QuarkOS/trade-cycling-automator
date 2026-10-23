@@ -67,7 +67,7 @@ public final class McBridge {
         KeyMapping mapping = new KeyMapping(
                 "key." + VillagerReroller.MOD_ID + ".toggle",
                 75, // GLFW_KEY_K. 26.3 does not expose org.lwjgl.glfw on the compile classpath.
-                //? if <1.21.11 {
+                //? if <1.21.9 {
                 /*"key.categories." + VillagerReroller.MOD_ID
                 *///?} else {
                 KeyMapping.Category.MISC
@@ -84,7 +84,7 @@ public final class McBridge {
         //? if forge {
         /*return;
         *///?} else {
-        //? if <1.21.11 {
+        //? if <1.21.9 {
         /*ScreenKeyboardEvents.afterKeyPress(screen).register((current, key, scancode, modifiers) -> {
             if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(key, scancode)) {
                 CycleAutomator.toggle();
@@ -132,7 +132,7 @@ public final class McBridge {
         //? if >=26.2 {
         /*var manager = client.gui.toastManager();
         *///?} else {
-        //? if <1.21.11 {
+        //? if <1.21.4 {
         /*var manager = client.toast;
         *///?} else {
         var manager = client.getToastManager();
@@ -159,7 +159,7 @@ public final class McBridge {
     }
 
     public static boolean unemployed(Villager villager) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*return villager.getVillagerData().getProfession() == VillagerProfession.NONE;
         *///?} else {
         return villager.getVillagerData().profession().is(VillagerProfession.NONE);
@@ -167,7 +167,7 @@ public final class McBridge {
     }
 
     public static boolean nitwit(Villager villager) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*return villager.getVillagerData().getProfession() == VillagerProfession.NITWIT;
         *///?} else {
         return villager.getVillagerData().profession().is(VillagerProfession.NITWIT);
@@ -175,7 +175,7 @@ public final class McBridge {
     }
 
     public static String professionId(Villager villager) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*Identifier id = BuiltInRegistries.VILLAGER_PROFESSION.getKey(villager.getVillagerData().getProfession());
         return id == null ? "unknown" : id.toString();
         *///?} else {
@@ -184,7 +184,7 @@ public final class McBridge {
     }
 
     public static boolean isJobSite(Villager villager, Holder<PoiType> poi) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*return villager.getVillagerData().getProfession().heldJobSite().test(poi);
         *///?} else {
         return villager.getVillagerData().profession().value().heldJobSite().test(poi);
@@ -216,7 +216,7 @@ public final class McBridge {
     }
 
     public static int storageSize(Inventory inventory) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*return inventory.items.size();
         *///?} else {
         return inventory.getNonEquipmentItems().size();
@@ -224,7 +224,7 @@ public final class McBridge {
     }
 
     public static void selectHotbar(Inventory inventory, int slot) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*inventory.selected = slot;
         *///?} else {
         inventory.setSelectedSlot(slot);
@@ -232,7 +232,7 @@ public final class McBridge {
     }
 
     public static int selectedHotbar(Inventory inventory) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*return inventory.selected;
         *///?} else {
         return inventory.getSelectedSlot();
@@ -248,7 +248,7 @@ public final class McBridge {
     }
 
     public static void sendLook(LocalPlayer player, float yaw, float pitch) {
-        //? if <1.21.11 {
+        //? if <1.21.4 {
         /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround()));
         *///?} else {
         player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));

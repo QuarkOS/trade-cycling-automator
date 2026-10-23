@@ -45,7 +45,7 @@ public final class ListingTrades {
         boolean rebalance = level.enabledFeatures().contains(FeatureFlags.TRADE_REBALANCE);
         Int2ObjectMap<VillagerTrades.ItemListing[]> table = null;
         Object villagerType;
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*VillagerProfession profession = villager.getVillagerData().getProfession();
         if (profession == VillagerProfession.NONE || profession == VillagerProfession.NITWIT) {
             return List.of();
@@ -96,7 +96,7 @@ public final class ListingTrades {
             if (type == null) {
                 return;
             }
-            //? if <1.21.11 {
+            //? if <1.21.5 {
             /*expand(specific.trades().get((VillagerType) type), type, enchantments, entries);
             *///?} else {
             expand(specific.trades().get((ResourceKey<VillagerType>) type), type, enchantments, entries);
@@ -197,7 +197,7 @@ public final class ListingTrades {
             if (type == null) {
                 return;
             }
-            //? if <1.21.11 {
+            //? if <1.21.5 {
             /*Item item = (Item) typed.trades.get(type);
             *///?} else {
             Item item = typed.trades.get((ResourceKey<VillagerType>) type);
@@ -206,7 +206,7 @@ public final class ListingTrades {
                 return;
             }
             ItemStack icon = new ItemStack(item, typed.cost);
-            //? if <1.21.11 {
+            //? if <1.21.5 {
             /*String typeId = String.valueOf(BuiltInRegistries.VILLAGER_TYPE.getKey((VillagerType) type));
             *///?} else {
             String typeId = ((ResourceKey<VillagerType>) type).identifier().toString();
@@ -231,7 +231,7 @@ public final class ListingTrades {
             boolean treasure = holder.is(EnchantmentTags.DOUBLE_TRADE_PRICE);
             boolean curse = holder.is(EnchantmentTags.CURSE);
             for (int level = low; level <= high; level++) {
-                //? if <1.21.11 {
+                //? if <1.21.4 {
                 /*ItemStack icon = net.minecraft.world.item.EnchantedBookItem.createForEnchantment(new EnchantmentInstance(holder, level));
                 *///?} else {
                 ItemStack icon = EnchantmentHelper.createBook(new EnchantmentInstance(holder, level));

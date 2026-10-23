@@ -51,7 +51,7 @@ public final class VillagerReroller implements ClientModInitializer {
     //?}
 
     public static void onClientTick(Minecraft client) {
-        //? if <1.21.11 {
+        //? if <1.21.5 {
         /*dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
         *///?}
         if (McBridge.currentScreen(client) instanceof PauseScreen && dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()) {

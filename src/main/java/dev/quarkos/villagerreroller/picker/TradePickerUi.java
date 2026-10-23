@@ -14,8 +14,10 @@ import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
-//? if >=1.21.11 {
+//? if >=1.21.9 {
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
+//? if >=1.21.6 {
 import net.minecraft.client.renderer.RenderPipelines;
 //?}
 import net.minecraft.network.chat.Component;
@@ -307,11 +309,15 @@ public final class TradePickerUi {
                     graphics.fill(getX(), rowY, getX() + width - 10, rowY + ROW_HEIGHT - 1, 0xFFB0B0B0);
                 }
                 Identifier checkbox = selected ? CHECKBOX_SELECTED : CHECKBOX;
-                //? if <1.21.11 {
-                /*graphics.blitSprite(checkbox, getX() + 1, rowY + 4, 12, 12);
-                *///?} else {
+                //? if >=1.21.6 {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, checkbox, getX() + 1, rowY + 4, 12, 12);
                 //?}
+                //? if >=1.21.4 && <1.21.6 {
+                /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, checkbox, getX() + 1, rowY + 4, 12, 12);
+                *///?}
+                //? if <1.21.4 {
+                /*graphics.blitSprite(checkbox, getX() + 1, rowY + 4, 12, 12);
+                *///?}
                 ItemStack icon = entry.icon;
                 //? if >=26.1 {
                 /*graphics.item(icon, getX() + 16, rowY + 1);
@@ -338,14 +344,18 @@ public final class TradePickerUi {
             Identifier scroller = maxScroll == 0 ? SCROLLER_DISABLED : SCROLLER;
             int travel = Math.max(1, height - 27);
             int scrollerY = getY() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
-            //? if <1.21.11 {
-            /*graphics.blitSprite(scroller, getX() + width - 6, scrollerY, 6, 27);
-            *///?} else {
+            //? if >=1.21.6 {
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, scroller, getX() + width - 6, scrollerY, 6, 27);
             //?}
+            //? if >=1.21.4 && <1.21.6 {
+            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, scroller, getX() + width - 6, scrollerY, 6, 27);
+            *///?}
+            //? if <1.21.4 {
+            /*graphics.blitSprite(scroller, getX() + width - 6, scrollerY, 6, 27);
+            *///?}
         }
 
-        //? if <1.21.11 {
+        //? if <1.21.9 {
         /*@Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             return clickRow(mouseX, mouseY, button);
