@@ -15,7 +15,7 @@
   "license": "MIT",
   "icon": "assets/${id}/icon.png",
   "environment": "client",
-  "accessWidener": "villager_reroller.accesswidener",
+  "accessWidener": "${accessWidener}",
   "entrypoints": {
     "client": [
       "dev.quarkos.villagerreroller.VillagerReroller"

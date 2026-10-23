@@ -5,9 +5,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+//? if forge {
+/*import net.minecraftforge.fml.loading.FMLLoader;
+*///?} else {
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.VersionParsingException;
 import net.fabricmc.loader.api.metadata.version.VersionPredicate;
+//?}
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,6 +39,10 @@ public final class LibrarianBookPrices {
 
     public static LibrarianBookPrices get() {
         if (instance == null) {
+            //? if forge {
+            /*String version = FMLLoader.versionInfo().mcVersion();
+            instance = load(predicate -> versionMatches(version, predicate));
+            *///?} else {
             var version = FabricLoader.getInstance().getModContainer("minecraft").orElseThrow().getMetadata().getVersion();
             instance = load(predicate -> {
                 try {
@@ -43,6 +51,7 @@ public final class LibrarianBookPrices {
                     throw new IllegalArgumentException("Bad enchantment version predicate " + predicate, e);
                 }
             });
+            //?}
         }
         return instance;
     }
@@ -86,6 +95,57 @@ public final class LibrarianBookPrices {
     /**
      * @param minecraftVersionMatches tests an enchantment's {@code minecraft} version predicate against the running game
      */
+    static boolean versionMatches(String version, String predicate) {
+        String operator = "";
+        String bound = predicate.trim();
+        if (bound.startsWith(">=")) {
+            operator = ">=";
+            bound = bound.substring(2).trim();
+        } else if (bound.startsWith("<=")) {
+            operator = "<=";
+            bound = bound.substring(2).trim();
+        } else if (bound.startsWith(">")) {
+            operator = ">";
+            bound = bound.substring(1).trim();
+        } else if (bound.startsWith("<")) {
+            operator = "<";
+            bound = bound.substring(1).trim();
+        }
+        int compared = compareVersions(version, bound);
+        return switch (operator) {
+            case ">=" -> compared >= 0;
+            case ">" -> compared > 0;
+            case "<=" -> compared <= 0;
+            case "<" -> compared < 0;
+            default -> compared == 0;
+        };
+    }
+
+    private static int compareVersions(String left, String right) {
+        String[] a = left.split("\\.");
+        String[] b = right.split("\\.");
+        int length = Math.max(a.length, b.length);
+        for (int i = 0; i < length; i++) {
+            int av = i < a.length ? number(a[i]) : 0;
+            int bv = i < b.length ? number(b[i]) : 0;
+            if (av != bv) {
+                return Integer.compare(av, bv);
+            }
+        }
+        return 0;
+    }
+
+    private static int number(String part) {
+        int end = 0;
+        while (end < part.length() && Character.isDigit(part.charAt(end))) {
+            end++;
+        }
+        if (end == 0) {
+            return 0;
+        }
+        return Integer.parseInt(part.substring(0, end));
+    }
+
     public static LibrarianBookPrices load(Predicate<String> minecraftVersionMatches) {
         try (InputStream in = LibrarianBookPrices.class.getResourceAsStream(RESOURCE)) {
             if (in == null) {

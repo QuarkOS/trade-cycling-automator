@@ -1,0 +1,7 @@
+accessWidener v2 official
+
+accessible field net/minecraft/world/item/trading/VillagerTrade wants Lnet/minecraft/world/item/trading/TradeCost;
+accessible field net/minecraft/world/item/trading/VillagerTrade gives Lnet/minecraft/world/item/ItemStackTemplate;
+accessible field net/minecraft/world/item/trading/VillagerTrade givenItemModifier Ljava/util/Optional;
+accessible field net/minecraft/world/level/storage/loot/functions/EnchantRandomlyFunction options Ljava/util/Optional;
+accessible field net/minecraft/world/level/storage/loot/functions/SequenceFunction functions Lnet/minecraft/core/HolderSet;

@@ -1,5 +1,6 @@
 package dev.quarkos.villagerreroller.gametest;
 
+import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
@@ -11,7 +12,11 @@ import dev.quarkos.villagerreroller.text.TradeNameLayout;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
+//? if <1.21.11 {
+/*import net.minecraft.client.gui.components.AbstractWidget;
+*///?} else {
 import net.minecraft.client.gui.ActiveTextCollector;
+//?}
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
@@ -21,6 +26,7 @@ import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.phys.AABB;
 
 import java.io.IOException;
@@ -41,12 +47,23 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> client.options.pauseOnLostFocus = false);
         context.getInput().resizeWindow(1280, 720);
-        context.runOnClient(client -> client.options.guiScale().set(2));
+        context.runOnClient(client -> {
+            client.options.guiScale().set(2);
+            client.options.renderDistance().set(2);
+            client.options.simulationDistance().set(5);
+            client.options.framerateLimit().set(20);
+        });
 
         try (TestSingleplayerContext world = context.worldBuilder()
-                .adjustSettings(settings -> settings.setGameMode(WorldCreationUiState.SelectedGameMode.SURVIVAL))
+                .adjustSettings(settings -> {
+                    settings.setGameMode(WorldCreationUiState.SelectedGameMode.SURVIVAL);
+                    settings.getNormalPresetList().stream()
+                            .filter(entry -> entry.preset().is(WorldPresets.FLAT))
+                            .findFirst()
+                            .ifPresent(settings::setWorldType);
+                })
                 .create()) {
-            world.getClientWorld().waitForChunksRender();
+            waitForChunks(world);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 6;
             int y = feet.getY();
@@ -69,20 +86,20 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             double villagerX = x + 1.15;
             double villagerZ = z + 0.5;
             world.getServer().runCommand("summon minecraft:villager " + villagerX + " " + y + " " + villagerZ + " {PersistenceRequired:1b}");
-            world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 2.2) + " facing " + (x + 0.5) + " " + (y + 1) + " " + z);
+            world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + (x + 1.0) + " " + (y + 1) + " " + z);
             context.waitTicks(5);
             world.getServer().runCommand("gamemode survival @p");
             world.getServer().runCommand("clear @p");
             world.getServer().runCommand("give @p minecraft:diamond_axe");
             world.getServer().runCommand("give @p minecraft:lectern 16");
-            world.getClientWorld().waitForChunksRender();
+            waitForChunks(world);
 
             context.waitFor(client -> {
                 if (client.level == null || client.player == null) {
                     return false;
                 }
                 AABB box = client.player.getBoundingBox().inflate(24.0);
-                for (Villager villager : client.level.getEntitiesOfClass(Villager.class, box)) {
+                for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
                     if (villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)) {
                         return true;
                     }
@@ -96,7 +113,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("librarian disappeared before the trade screen opened");
                 }
                 dev.quarkos.villagerreroller.client.LibrarianTracker.remember(villager);
-                client.gameMode.interact(client.player, villager, net.minecraft.world.InteractionHand.MAIN_HAND);
+                McBridge.interact(client.gameMode, client.player, villager, net.minecraft.world.InteractionHand.MAIN_HAND);
             });
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(10);
@@ -108,8 +125,13 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             context.clickScreenButton("text.villager_reroller.button.offers");
             context.waitTicks(5);
             context.runOnClient(client -> {
+                //? if <1.21.11 {
+                /*if (ScrollingNames.PERIOD_PER_PIXEL != AbstractWidget.PERIOD_PER_SCROLLED_PIXEL
+                        || ScrollingNames.MIN_PERIOD_SECONDS != AbstractWidget.MIN_SCROLL_PERIOD) {
+                *///?} else {
                 if (ScrollingNames.PERIOD_PER_PIXEL != ActiveTextCollector.PERIOD_PER_SCROLLED_PIXEL
                         || ScrollingNames.MIN_PERIOD_SECONDS != ActiveTextCollector.MIN_SCROLL_PERIOD) {
+                //?}
                     throw new AssertionError("name scroll period does not match vanilla");
                 }
                 boolean ranged = TradeSession.entries().stream().anyMatch(entry -> entry.paysEmeralds && entry.emeraldMin != entry.emeraldMax);
@@ -117,7 +139,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 if (!ranged || !fixed) {
                     throw new AssertionError("panel catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
                 }
-                if (!(client.screen instanceof MerchantScreen)) {
+                if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
                     throw new AssertionError("offers button did not leave the merchant screen open");
                 }
             });
@@ -144,7 +166,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             }
             context.runOnClient(client -> assertNameClearsThePrice(client));
             context.runOnClient(client -> {
-                if (!(client.screen instanceof MerchantScreen screen)) {
+                if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
                     throw new AssertionError("offers button did not leave the merchant screen open");
                 }
                 int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
@@ -162,10 +184,10 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             context.clickScreenButton("text.villager_reroller.button.start");
             String reason = "running";
             boolean sawAir = false;
-            for (int tick = 0; tick < 20 * 180; tick++) {
+            for (int tick = 0; tick < 20 * 300; tick++) {
                 context.waitTick();
-                if (tick % 20 == 0) {
-                    world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+                if (tick % 40 == 0) {
+                    world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
                 }
                 boolean air = context.computeOnClient(client -> client.level.getBlockState(lecternPos).isAir());
                 if (air) {
@@ -178,13 +200,13 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     break;
                 }
             }
-            context.waitForScreen(MerchantScreen.class);
-            context.waitTicks(5);
-            saveShot(context, cycling ? "reroll-cycling" : "reroll-found");
             if (!"FOUND".equals(reason)) {
                 int attempts = context.computeOnClient(client -> JobSiteReroller.attempts());
                 throw new AssertionError("reroll stopped with " + reason + " after " + attempts + " attempts");
             }
+            context.waitForScreen(MerchantScreen.class);
+            context.waitTicks(5);
+            saveShot(context, cycling ? "reroll-cycling" : "reroll-found");
             int attempts = context.computeOnClient(client -> JobSiteReroller.attempts());
             boolean stillLectern = context.computeOnClient(client -> client.level.getBlockState(lecternPos).is(Blocks.LECTERN));
             int lecternsAfter = context.computeOnClient(TradePickerClientGameTest::lecternCount);
@@ -265,7 +287,9 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
 
     private static int lecternCount(net.minecraft.client.Minecraft client) {
         int count = 0;
-        for (ItemStack stack : client.player.getInventory().getNonEquipmentItems()) {
+        var inventory = client.player.getInventory();
+        for (int slot = 0; slot < McBridge.storageSize(inventory); slot++) {
+            ItemStack stack = inventory.getItem(slot);
             if (stack.is(Items.LECTERN)) {
                 count += stack.getCount();
             }
@@ -277,7 +301,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
         AABB box = client.player.getBoundingBox().inflate(24.0);
         Villager nearest = null;
         double best = Double.MAX_VALUE;
-        for (Villager villager : client.level.getEntitiesOfClass(Villager.class, box)) {
+        for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
             if (!villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)) {
                 continue;
             }
@@ -290,19 +314,41 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
         return nearest;
     }
 
+    private static Path artifactsDir() {
+        String configured = System.getProperty("villager_reroller.artifacts");
+        if (configured == null || configured.isBlank()) {
+            return ARTIFACTS;
+        }
+        return Path.of(configured);
+    }
+
     private static void saveShot(ClientGameTestContext context, String name) {
         Path shot = context.takeScreenshot(name);
         try {
-            Files.createDirectories(ARTIFACTS);
-            Files.copy(shot, ARTIFACTS.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
+            Path dir = artifactsDir();
+            Files.createDirectories(dir);
+            Files.copy(shot, dir.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
+    private static void waitForChunks(TestSingleplayerContext world) {
+        //? if >=26.2 {
+        /*world.getConnection().waitForChunksRender();
+        *///?} else {
+        //? if >=26.1 {
+        /*world.getClientLevel().waitForChunksRender();
+        *///?} else {
+        world.getClientWorld().waitForChunksRender();
+        //?}
+        //?}
+    }
+
     private static void copyArtifact(String from, String to) {
         try {
-            Files.copy(ARTIFACTS.resolve(from + ".png"), ARTIFACTS.resolve(to + ".png"), StandardCopyOption.REPLACE_EXISTING);
+            Path dir = artifactsDir();
+            Files.copy(dir.resolve(from + ".png"), dir.resolve(to + ".png"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

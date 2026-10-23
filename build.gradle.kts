@@ -4,7 +4,7 @@ plugins {
 
 // Stonecutter nodes share a coordinate space; setting `group` here makes the version nodes collide.
 version = "${property("mod.version")}+${sc.current.version}"
-base.archivesName = property("mod.id") as String
+base.archivesName = "villager_reroller-fabric"
 
 val requiredJava: JavaVersion = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
@@ -19,7 +19,8 @@ repositories {
     strictMaven("https://api.modrinth.com/maven", "Modrinth", "maven.modrinth")
 }
 
-if (sc.current.version == "1.21.11") {
+// 1.21.1's Fabric API has server gametests only. Client gametests exist from 1.21.11 onward.
+if (sc.current.version != "1.21.1") {
     extensions.configure<net.fabricmc.loom.api.fabricapi.FabricApiExtension>("fabricApi") {
         configureTests {
             createSourceSet.set(true)
@@ -33,26 +34,12 @@ if (sc.current.version == "1.21.11") {
 }
 
 dependencies {
-    fun fapi(vararg modules: String) {
-        for (it in modules) modImplementation(fabricApi.module(it, sc.properties["deps.fabric_api"]))
-    }
-
     minecraft("com.mojang:minecraft:${sc.current.version}")
     loomx.applyMojangMappings()
 
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-    if (sc.current.version == "1.21.11") {
-        // The client gametest and Mod Menu need the Fabric API mod id, not only the split modules.
-        modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties.get<String>("deps.fabric_api")}")
-    } else {
-        fapi(
-            "fabric-api-base",
-            if (sc.current.parsed >= "26.1") "fabric-key-mapping-api-v1" else "fabric-key-binding-api-v1",
-            "fabric-lifecycle-events-v1",
-            "fabric-screen-api-v1",
-            "fabric-events-interaction-v0",
-        )
-    }
+    // The client gametest and Mod Menu need the Fabric API mod id, not only the split modules.
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties.get<String>("deps.fabric_api")}")
 
     modImplementation("maven.modrinth:cloth-config:${property("deps.cloth_config")}")
     modImplementation("maven.modrinth:modmenu:${property("deps.modmenu")}")
@@ -71,14 +58,23 @@ dependencies {
 
 loom {
     fabricModJsonPath = rootProject.file("src/main/resources/fabric.mod.json")
-    if (sc.current.version == "1.21.11") {
-        accessWidenerPath = rootProject.file("src/main/resources/villager_reroller.accesswidener")
-    }
+    // 1.21.11 keeps the widener next to fabric.mod.json. Other nodes swap in a file Loom can validate.
+    accessWidenerPath = rootProject.file(when {
+        sc.current.version == "1.21.1" -> "src/main/resources/accesswidener/1.21.1/villager_reroller.accesswidener"
+        sc.current.parsed >= "26.3" -> "src/main/resources/accesswidener/26.3/villager_reroller.accesswidener"
+        sc.current.parsed >= "26.1" -> "src/main/resources/accesswidener/26.1/villager_reroller.accesswidener"
+        else -> "src/main/resources/villager_reroller.accesswidener"
+    })
 
     runConfigs.all {
         preferGradleTask = true
         generateRunConfig = true
-        runDirectory = rootProject.file("run")
+        // 1.21.11 keeps the shared run/ directory this project already uses.
+        runDirectory = if (sc.current.version == "1.21.11") {
+            rootProject.file("run")
+        } else {
+            rootProject.file("run/${sc.current.version}")
+        }
     }
 }
 
@@ -100,30 +96,85 @@ tasks {
         }
 
         val minecraftVersion = sc.current.version
+        val accessWidener = when {
+            minecraftVersion == "1.21.1" -> "accesswidener/1.21.1/villager_reroller.accesswidener"
+            sc.current.parsed >= "26.3" -> "accesswidener/26.3/villager_reroller.accesswidener"
+            sc.current.parsed >= "26.1" -> "accesswidener/26.1/villager_reroller.accesswidener"
+            else -> "villager_reroller.accesswidener"
+        }
         val props = buildMap {
             register("id", sc.properties["mod.id"])
             register("name", sc.properties["mod.name"])
             register("version", "${sc.properties.get<String>("mod.version")}+$minecraftVersion")
             register("minecraft", sc.properties["mod.mc_compat"])
             register("java", if (sc.current.parsed >= "26.1") ">=25" else ">=21")
+            register("accessWidener", accessWidener)
         }
 
-        // 1.21.11 drops the hard Trade Cycling line and keeps suggests. Other versions drop the 1.21.11 access widener.
-        val droppedLine = if (minecraftVersion == "1.21.11") ">=1.0.0" else "accessWidener"
+        // Every version breaks and replaces the job site itself, so Trade Cycling stays a suggestion.
+        // 1.21.11 keeps this same filter: the depends line contains ">=1.0.0", suggests does not.
+        exclude("META-INF/mods.toml")
+        exclude("META-INF/accesstransformer.cfg")
         filesMatching("fabric.mod.json") {
             expand(props)
-            filter(mapOf("needles" to droppedLine), dev.quarkos.gradle.SkipMatchingLines::class.java)
+            filter(mapOf("needles" to ">=1.0.0"), dev.quarkos.gradle.SkipMatchingLines::class.java)
+        }
+        // Drop every widener except the one this node declares. relativePath is the jar path.
+        eachFile {
+            val path = relativePath.pathString
+            val keepRoot = accessWidener == "villager_reroller.accesswidener"
+            if (path.startsWith("accesswidener/") && path != accessWidener) {
+                exclude()
+            }
+            if (!keepRoot && path == "villager_reroller.accesswidener") {
+                exclude()
+            }
+            if (keepRoot && path.startsWith("accesswidener/")) {
+                exclude()
+            }
         }
     }
 
-    if (sc.current.version != "1.21.11") {
-        named<JavaCompile>("compileJava") {
-            exclude("**/picker/**")
+    withType<JavaExec>().configureEach {
+        val cycling = providers.gradleProperty("withTradeCycling").orNull == "true"
+        val mode = if (cycling) "trade-cycling" else "plain"
+        val artifacts = "/opt/cursor/artifacts/${sc.current.version}/$mode"
+        inputs.property("villager_reroller.artifacts", artifacts)
+        systemProperty("villager_reroller.artifacts", artifacts)
+        systemProperty("villager_reroller.loader", "fabric")
+        if (providers.gradleProperty("harness").orNull == "true") {
+            systemProperty("villager_reroller.harness", "true")
+        }
+        // Integrated servers in this VM fall behind the client. Normal jars leave the property unset.
+        systemProperty("villager_reroller.timeoutScale", "8")
+        val glShim = rootProject.file("/tmp/libglx-srgb.so")
+        if (sc.current.parsed >= "26.3" && glShim.exists()) {
+            // 26.3's SDL3 asks for an sRGB GLX visual. Xvfb's llvmpipe visuals are sRGB=N.
+            // 26.2 and earlier use GLFW, and this shim segfaults inside glXGetProcAddress there.
+            environment("LD_PRELOAD", glShim.absolutePath)
+            environment("LIBGL_ALWAYS_SOFTWARE", "1")
+        }
+        // The Gradle daemon does not see xvfb-run's DISPLAY. Pass -Pdisplay and -Pxauth from that shell.
+        val display = providers.gradleProperty("display").orNull
+        val xauth = providers.gradleProperty("xauth").orNull
+        if (!display.isNullOrBlank()) {
+            environment("DISPLAY", display)
+        }
+        if (!xauth.isNullOrBlank()) {
+            environment("XAUTHORITY", xauth)
         }
     }
 
     test {
         useJUnitPlatform()
+    }
+
+    named<JavaExec>("runClient") {
+        doFirst {
+            val eula = workingDir.resolve("eula.txt")
+            eula.parentFile?.mkdirs()
+            eula.writeText("eula=true\n")
+        }
     }
 
     withType<Jar> {

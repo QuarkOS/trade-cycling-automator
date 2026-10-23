@@ -1,7 +1,7 @@
 package dev.quarkos.villagerreroller.client;
 
-import de.maxhenkel.tradecycling.FabricTradeCyclingClientMod;
 import de.maxhenkel.tradecycling.gui.CycleTradesButton;
+import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
@@ -19,7 +19,7 @@ import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 
 /**
- * Drives Trade Cycling by calling {@link FabricTradeCyclingClientMod#sendCycleTradesPacket()}.
+ * Drives Trade Cycling through {@link TradeCyclingHook#cycle}.
  * Never clicks a trade slot and never moves emeralds.
  */
 public final class CycleAutomator {
@@ -40,23 +40,7 @@ public final class CycleAutomator {
     }
 
     public static void toggle() {
-        //? if <1.21.11 {
-        /*if (running) {
-            stop(StopReason.KEYBIND);
-        } else {
-            start();
-        }
-        *///?} else {
-        //? if >=26.1 {
-        /*if (running) {
-            stop(StopReason.KEYBIND);
-        } else {
-            start();
-        }
-        *///?} else {
         dev.quarkos.villagerreroller.picker.JobSiteReroller.onToggleKey();
-        //?}
-        //?}
     }
 
     public static void start() {
@@ -84,12 +68,6 @@ public final class CycleAutomator {
     }
 
     public static void stop(StopReason reason) {
-        //? if <1.21.11 {
-        /*stopLegacy(reason);
-        *///?} else {
-        //? if >=26.1 {
-        /*stopLegacy(reason);
-        *///?} else {
         dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(switch (reason) {
             case DISABLED -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.DISABLED;
             case PANIC -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.PANIC;
@@ -97,8 +75,6 @@ public final class CycleAutomator {
             case KEYBIND -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED;
             default -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED;
         });
-        //?}
-        //?}
     }
 
     private static void stopLegacy(StopReason reason) {
@@ -171,15 +147,13 @@ public final class CycleAutomator {
             return;
         }
 
-        FabricTradeCyclingClientMod tradeCycling = FabricTradeCyclingClientMod.instance();
-        if (tradeCycling == null) {
-            stop(StopReason.MISSING_TRADE_CYCLING);
+        if (!TradeCyclingHook.cycle(menu)) {
+            stop(TradeCyclingHook.installed() ? StopReason.CANNOT_CYCLE : StopReason.MISSING_TRADE_CYCLING);
             return;
         }
         attempts++;
         pendingSignature = signature;
         ticksSinceSend = 0;
-        tradeCycling.sendCycleTradesPacket();
     }
 
     static boolean containsTarget(MerchantOffers offers, Holder<Enchantment> target, int level, int maxPrice) {

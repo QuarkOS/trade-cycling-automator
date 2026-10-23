@@ -4,7 +4,6 @@ import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.text.ScrollingNames;
 import dev.quarkos.villagerreroller.text.TradeNameLayout;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -15,12 +14,18 @@ import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+//? if >=1.21.11 {
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+//?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+//? if <1.21.11 {
+/*import net.minecraft.Util;
+*///?} else {
 import net.minecraft.util.Util;
+//?}
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
 
@@ -64,7 +69,7 @@ public final class TradePickerUi {
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
-        Screens.getButtons(screen).add(new ImageButton(
+        dev.quarkos.villagerreroller.client.McBridge.buttons(screen).add(new ImageButton(
                 left + MERCHANT_WIDTH - 24,
                 top + 4,
                 20,
@@ -107,7 +112,7 @@ public final class TradePickerUi {
         int listW = LIST_WIDTH;
         int listH = LIST_HEIGHT;
 
-        var buttons = Screens.getButtons(screen);
+        var buttons = dev.quarkos.villagerreroller.client.McBridge.buttons(screen);
         PanelBackground background = new PanelBackground(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, screen.getMenu().getTraderLevel());
         buttons.add(background);
         panelWidgets.add(background);
@@ -154,7 +159,7 @@ public final class TradePickerUi {
     }
 
     private static void close(MerchantScreen screen) {
-        var buttons = Screens.getButtons(screen);
+        var buttons = dev.quarkos.villagerreroller.client.McBridge.buttons(screen);
         for (AbstractWidget widget : panelWidgets) {
             buttons.remove(widget);
         }
@@ -202,12 +207,23 @@ public final class TradePickerUi {
                     "text." + VillagerReroller.MOD_ID + ".panel.title",
                     Component.translatable("merchant.level." + villagerLevel)
             );
+            //? if >=26.1 {
+            /*graphics.text(minecraft.font, title, getX() + 6, getY() + 6, TEXT, false);
+            *///?} else {
             graphics.drawString(minecraft.font, title, getX() + 6, getY() + 6, TEXT, false);
+            //?}
             Component status = JobSiteReroller.status();
             if (status != null && !status.getString().isEmpty()) {
                 String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
+                //? if >=26.1 {
+                /*graphics.text(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
+                *///?} else {
                 graphics.drawString(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
+                //?}
             }
+            //? if >=26.1 {
+            /*graphics.text(minecraft.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), getX() + 6, getY() + METHOD_TOP + 6, TEXT, false);
+            *///?} else {
             graphics.drawString(
                     minecraft.font,
                     Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"),
@@ -216,8 +232,13 @@ public final class TradePickerUi {
                     TEXT,
                     false
             );
+            //?}
             if (methodButton == null) {
+                //? if >=26.1 {
+                /*graphics.text(minecraft.font, RerollMethod.label(), getX() + 48, getY() + METHOD_TOP + 6, TEXT, false);
+                *///?} else {
                 graphics.drawString(minecraft.font, RerollMethod.label(), getX() + 48, getY() + METHOD_TOP + 6, TEXT, false);
+                //?}
             }
         }
 
@@ -247,13 +268,21 @@ public final class TradePickerUi {
             int textWidth = font.width(text);
             int top = rowTop + 6;
             if (textWidth <= available) {
+                //? if >=26.1 {
+                /*graphics.text(font, text, left, top, color, false);
+                *///?} else {
                 graphics.drawString(font, text, left, top, color, false);
+                //?}
                 return;
             }
             int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
             // right is exclusive and already stops PRICE_GAP pixels before the price.
             graphics.enableScissor(left, rowTop, right, rowBottom);
+            //? if >=26.1 {
+            /*graphics.text(font, text, left - offset, top, color, false);
+            *///?} else {
             graphics.drawString(font, text, left - offset, top, color, false);
+            //?}
             graphics.disableScissor();
         }
 
@@ -278,10 +307,19 @@ public final class TradePickerUi {
                     graphics.fill(getX(), rowY, getX() + width - 10, rowY + ROW_HEIGHT - 1, 0xFFB0B0B0);
                 }
                 Identifier checkbox = selected ? CHECKBOX_SELECTED : CHECKBOX;
+                //? if <1.21.11 {
+                /*graphics.blitSprite(checkbox, getX() + 1, rowY + 4, 12, 12);
+                *///?} else {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, checkbox, getX() + 1, rowY + 4, 12, 12);
+                //?}
                 ItemStack icon = entry.icon;
+                //? if >=26.1 {
+                /*graphics.item(icon, getX() + 16, rowY + 1);
+                graphics.itemDecorations(minecraft.font, icon, getX() + 16, rowY + 1);
+                *///?} else {
                 graphics.renderItem(icon, getX() + 16, rowY + 1);
                 graphics.renderItemDecorations(minecraft.font, icon, getX() + 16, rowY + 1);
+                //?}
                 String price = selected && entry.paysEmeralds
                         ? (TradeSession.anyPrice(entry.id) ? Component.translatable("text." + VillagerReroller.MOD_ID + ".any").getString() : "\u2264" + TradeSession.chosenMax(entry.id))
                         : entry.priceLabel();
@@ -290,29 +328,48 @@ public final class TradePickerUi {
                 int nameLeft = TradeNameLayout.nameLeft(getX());
                 int nameRight = TradeNameLayout.nameRight(priceX);
                 drawName(graphics, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
+                //? if >=26.1 {
+                /*graphics.text(minecraft.font, price, priceX, rowY + 6, TEXT, false);
+                *///?} else {
                 graphics.drawString(minecraft.font, price, priceX, rowY + 6, TEXT, false);
+                //?}
             }
             graphics.disableScissor();
             Identifier scroller = maxScroll == 0 ? SCROLLER_DISABLED : SCROLLER;
             int travel = Math.max(1, height - 27);
             int scrollerY = getY() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
+            //? if <1.21.11 {
+            /*graphics.blitSprite(scroller, getX() + width - 6, scrollerY, 6, 27);
+            *///?} else {
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, scroller, getX() + width - 6, scrollerY, 6, 27);
+            //?}
         }
 
+        //? if <1.21.11 {
+        /*@Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            return clickRow(mouseX, mouseY, button);
+        }
+        *///?} else {
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-            if (!isMouseOver(event.x(), event.y())) {
+            return clickRow(event.x(), event.y(), event.button());
+        }
+        //?}
+
+        private boolean clickRow(double mouseX, double mouseY, int button) {
+            if (!isMouseOver(mouseX, mouseY)) {
                 return false;
             }
             List<TradeEntry> rows = TradeSession.visible();
-            int index = scroll + (int) ((event.y() - getY()) / ROW_HEIGHT);
+            int index = scroll + (int) ((mouseY - getY()) / ROW_HEIGHT);
             if (index < 0 || index >= rows.size()) {
                 return true;
             }
             TradeEntry entry = rows.get(index);
             int priceColumn = getX() + width - 52;
-            if (event.x() >= priceColumn) {
-                TradeSession.cyclePrice(entry, event.button() == 1 ? -1 : 1);
+            if (mouseX >= priceColumn) {
+                TradeSession.cyclePrice(entry, button == 1 ? -1 : 1);
             } else {
                 TradeSession.toggle(entry);
             }

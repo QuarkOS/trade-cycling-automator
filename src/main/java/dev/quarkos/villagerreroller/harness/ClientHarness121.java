@@ -1,0 +1,549 @@
+//? if <1.21.11 {
+/*package dev.quarkos.villagerreroller.harness;
+
+import com.mojang.blaze3d.platform.NativeImage;
+import dev.quarkos.villagerreroller.client.LibrarianTracker;
+import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
+import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.RerollMethod;
+import dev.quarkos.villagerreroller.picker.TradeEntry;
+import dev.quarkos.villagerreroller.picker.TradePickerUi;
+import dev.quarkos.villagerreroller.picker.TradeSession;
+import dev.quarkos.villagerreroller.text.ScrollingNames;
+import dev.quarkos.villagerreroller.text.TradeNameLayout;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
+import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.inventory.MerchantScreen;
+import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
+import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.Util;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.presets.WorldPresets;
+import net.minecraft.world.phys.AABB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+// 1.21.1 has no Fabric client gametest entrypoint. This tick harness opens a
+// flat world and drives the same trade-screen checks when
+// -Dvillager_reroller.harness=true is set. Normal launches ignore it.
+public final class ClientHarness121 {
+    private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
+    private static final int SCALE = Integer.getInteger("villager_reroller.timeoutScale", 1);
+
+    private static boolean armed;
+    private static State state = State.WAIT_TITLE;
+    private static int ticks;
+    private static int x;
+    private static int y;
+    private static int z;
+    private static double villagerX;
+    private static double villagerZ;
+    private static boolean cycling;
+    private static boolean sawAir;
+    private static int lecternsBefore;
+    private static String stopReason = "running";
+
+    private ClientHarness121() {
+    }
+
+    public static void start(Minecraft client) {
+        if (!Boolean.getBoolean("villager_reroller.harness")) {
+            return;
+        }
+        if (!armed) {
+            armed = true;
+            client.options.pauseOnLostFocus = false;
+            client.options.onboardAccessibility = false;
+            client.options.menuBackgroundBlurriness().set(0);
+            client.options.guiScale().set(2);
+            client.options.renderDistance().set(2);
+            client.options.simulationDistance().set(5);
+            client.options.framerateLimit().set(20);
+            LOGGER.info("1.21.1 client harness armed");
+        }
+        ticks++;
+        try {
+            switch (state) {
+                case WAIT_TITLE -> waitTitle(client);
+                case WAIT_PRESETS -> waitPresets(client);
+                case WAIT_PLAYER -> waitPlayer(client);
+                case WAIT_LIBRARIAN -> waitLibrarian(client);
+                case WAIT_MERCHANT -> waitMerchant(client);
+                case PANEL -> openPanel(client);
+                case WAIT_SCROLL -> waitScroll(client);
+                case START_REROLL -> startReroll(client);
+                case WAIT_FOUND -> waitFound(client);
+                case DONE -> finish(client);
+            }
+        } catch (RuntimeException e) {
+            fail(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    private static void waitTitle(Minecraft client) {
+        if (client.screen instanceof AccessibilityOnboardingScreen) {
+            client.options.onboardingAccessibilityFinished();
+            client.setScreen(new TitleScreen());
+            return;
+        }
+        if (client.screen instanceof NoticeWithLinkScreen notice) {
+            notice.onClose();
+            return;
+        }
+        //? if forge {
+        if (client.screen instanceof net.minecraftforge.client.gui.LoadingErrorScreen) {
+            for (AbstractWidget widget : McBridge.buttons(client.screen)) {
+                if (widget instanceof Button button
+                        && button.getMessage().getString().toLowerCase(java.util.Locale.ROOT).contains("continue")) {
+                    button.onPress();
+                    client.setScreen(new TitleScreen());
+                    return;
+                }
+            }
+        }
+        //?}
+        if (!(client.screen instanceof TitleScreen)) {
+            if (ticks > timeout(20 * 45)) {
+                fail("title screen did not open, screen=" + client.screen);
+            }
+            return;
+        }
+        CreateWorldScreen.openFresh(client, client.screen);
+        state = State.WAIT_PRESETS;
+        ticks = 0;
+    }
+
+    private static void waitPresets(Minecraft client) {
+        if (!(client.screen instanceof CreateWorldScreen create)) {
+            if (ticks > timeout(20 * 60)) {
+                fail("create-world screen did not open");
+            }
+            return;
+        }
+        var presets = create.getUiState().getNormalPresetList();
+        if (presets.isEmpty()) {
+            if (ticks > timeout(20 * 60)) {
+                fail("world presets never loaded");
+            }
+            return;
+        }
+        WorldCreationUiState ui = create.getUiState();
+        ui.setGameMode(WorldCreationUiState.SelectedGameMode.SURVIVAL);
+        ui.setAllowCommands(true);
+        ui.setName("reroll");
+        presets.stream()
+                .filter(entry -> entry.preset().is(WorldPresets.FLAT))
+                .findFirst()
+                .ifPresent(ui::setWorldType);
+        create.onCreate();
+        state = State.WAIT_PLAYER;
+        ticks = 0;
+    }
+
+    private static void waitPlayer(Minecraft client) {
+        if (client.player == null || client.level == null || client.getSingleplayerServer() == null) {
+            if (ticks > timeout(20 * 180)) {
+                fail("world did not load, screen=" + client.screen);
+            }
+            return;
+        }
+        if (ticks < 40) {
+            return;
+        }
+        BlockPos feet = client.player.blockPosition();
+        x = feet.getX() + 6;
+        y = feet.getY();
+        z = feet.getZ();
+        villagerX = x + 1.15;
+        villagerZ = z + 0.5;
+        command(client, "gamerule sendCommandFeedback false");
+        command(client, "gamerule doDaylightCycle false");
+        command(client, "gamerule doMobSpawning false");
+        command(client, "gamerule doImmediateRespawn true");
+        command(client, "time set day");
+        command(client, "fill " + (x - 2) + " " + (y - 1) + " " + (z - 2) + " " + (x + 3) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
+        command(client, "fill " + (x - 2) + " " + y + " " + (z - 2) + " " + (x + 3) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
+        command(client, "setblock " + x + " " + y + " " + z + " minecraft:lectern");
+        command(client, "setblock " + (x - 1) + " " + y + " " + z + " minecraft:oak_fence");
+        command(client, "setblock " + (x + 2) + " " + y + " " + z + " minecraft:oak_fence");
+        command(client, "setblock " + x + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+        command(client, "setblock " + (x + 1) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+        command(client, "setblock " + (x - 1) + " " + y + " " + (z - 1) + " minecraft:oak_fence");
+        command(client, "setblock " + (x + 2) + " " + y + " " + (z - 1) + " minecraft:oak_fence");
+        command(client, "summon minecraft:villager " + villagerX + " " + y + " " + villagerZ + " {PersistenceRequired:1b}");
+        command(client, "tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + (x + 1.0) + " " + (y + 1) + " " + z);
+        command(client, "gamemode survival @p");
+        command(client, "clear @p");
+        command(client, "give @p minecraft:diamond_axe");
+        command(client, "give @p minecraft:lectern 16");
+        state = State.WAIT_LIBRARIAN;
+        ticks = 0;
+    }
+
+    private static void waitLibrarian(Minecraft client) {
+        if (ticks % 40 == 0) {
+            command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+        }
+        Villager villager = nearestLibrarian(client);
+        if (villager == null) {
+            if (ticks > timeout(20 * 40)) {
+                fail("librarian did not claim the lectern");
+            }
+            return;
+        }
+        LibrarianTracker.remember(villager);
+        McBridge.interact(client.gameMode, client.player, villager, InteractionHand.MAIN_HAND);
+        state = State.WAIT_MERCHANT;
+        ticks = 0;
+    }
+
+    private static void waitMerchant(Minecraft client) {
+        if (!(client.screen instanceof MerchantScreen)) {
+            if (ticks > timeout(20 * 20)) {
+                fail("merchant screen did not open");
+            }
+            return;
+        }
+        if (ticks < 10) {
+            return;
+        }
+        RerollMethod.reset();
+        cycling = TradeCyclingHook.installed();
+        if (!cycling) {
+            shot(client, "merchant-button");
+        }
+        if (!press(client.screen, "text.villager_reroller.button.offers")) {
+            fail("offers button missing");
+            return;
+        }
+        state = State.PANEL;
+        ticks = 0;
+    }
+
+    private static void openPanel(Minecraft client) {
+        if (ticks < 5) {
+            return;
+        }
+        if (ScrollingNames.PERIOD_PER_PIXEL != AbstractWidget.PERIOD_PER_SCROLLED_PIXEL
+                || ScrollingNames.MIN_PERIOD_SECONDS != AbstractWidget.MIN_SCROLL_PERIOD) {
+            fail("name scroll period does not match vanilla");
+            return;
+        }
+        boolean ranged = TradeSession.entries().stream().anyMatch(entry -> entry.paysEmeralds && entry.emeraldMin != entry.emeraldMax);
+        boolean fixed = TradeSession.entries().stream().anyMatch(entry -> entry.emeraldMin == entry.emeraldMax && entry.emeraldMin > 0);
+        if (!ranged || !fixed) {
+            fail("panel catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
+            return;
+        }
+        state = State.WAIT_SCROLL;
+        ticks = 0;
+    }
+
+    private static void waitScroll(Minecraft client) {
+        ScrollSpot spot = scrollSpot(client);
+        if (!cycling && spot == ScrollSpot.MID && !Files.exists(artifacts().resolve("name-scroll-mid.png"))) {
+            shot(client, "name-scroll-mid");
+            copy("name-scroll-mid", "name-scroll");
+            copy("name-scroll-mid", "trade-panel");
+        }
+        if (spot != ScrollSpot.MAX) {
+            if (ticks > timeout(20 * 40)) {
+                fail("name scroll did not reach the far end");
+            }
+            return;
+        }
+        if (!cycling) {
+            shot(client, "name-scroll-max");
+            copy("name-scroll-max", "panel-job-site");
+            assertNameClearsThePrice(client);
+            selectAndRemember(client);
+            state = State.START_REROLL;
+            ticks = 0;
+            return;
+        }
+        if (!Files.exists(artifacts().resolve("panel-job-site.png"))) {
+            shot(client, "panel-job-site");
+            if (!press(client.screen, "text.villager_reroller.method.job_site")) {
+                fail("method button missing");
+                return;
+            }
+            return;
+        }
+        if (!RerollMethod.usesTradeCycling()) {
+            if (ticks > timeout(20 * 10)) {
+                fail("method toggle did not select Trade Cycling");
+            }
+            return;
+        }
+        shot(client, "panel-trade-cycling");
+        assertNameClearsThePrice(client);
+        selectAndRemember(client);
+        state = State.START_REROLL;
+        ticks = 0;
+    }
+
+    private static void selectAndRemember(Minecraft client) {
+        if (!(client.screen instanceof MerchantScreen screen)) {
+            fail("offers button did not leave the merchant screen open");
+            return;
+        }
+        int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
+        if (selected <= 0) {
+            fail("every catalog row was already on the counter");
+            return;
+        }
+        if (!client.level.getBlockState(new BlockPos(x, y, z)).is(Blocks.LECTERN)) {
+            fail("lectern missing before the reroll");
+            return;
+        }
+        lecternsBefore = lecternCount(client);
+    }
+
+    private static void startReroll(Minecraft client) {
+        if (!press(client.screen, "text.villager_reroller.button.start")) {
+            fail("start button missing");
+            return;
+        }
+        sawAir = false;
+        stopReason = "running";
+        state = State.WAIT_FOUND;
+        ticks = 0;
+    }
+
+    private static void waitFound(Minecraft client) {
+        if (ticks % 40 == 0) {
+            command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+        }
+        if (client.level.getBlockState(new BlockPos(x, y, z)).isAir()) {
+            sawAir = true;
+        }
+        if (JobSiteReroller.isRunning() || JobSiteReroller.stopReason() == null) {
+            if (ticks > timeout(20 * 300)) {
+                fail("reroll still running after the deadline");
+            }
+            return;
+        }
+        stopReason = JobSiteReroller.stopReason().name();
+        if (!"FOUND".equals(stopReason)) {
+            fail("reroll stopped with " + stopReason + " after " + JobSiteReroller.attempts() + " attempts");
+            return;
+        }
+        state = State.DONE;
+        ticks = 0;
+    }
+
+    private static void finish(Minecraft client) {
+        if (!(client.screen instanceof MerchantScreen)) {
+            if (ticks > timeout(20 * 20)) {
+                fail("merchant screen did not reopen after a found trade");
+            }
+            return;
+        }
+        if (ticks < 5) {
+            return;
+        }
+        shot(client, cycling ? "reroll-cycling" : "reroll-found");
+        boolean stillLectern = client.level.getBlockState(new BlockPos(x, y, z)).is(Blocks.LECTERN);
+        int lecternsAfter = lecternCount(client);
+        int attempts = JobSiteReroller.attempts();
+        if (cycling) {
+            if (sawAir || !stillLectern || lecternsAfter != lecternsBefore) {
+                fail("Trade Cycling path broke the lectern: air=" + sawAir + " still=" + stillLectern + " items " + lecternsBefore + "->" + lecternsAfter);
+                return;
+            }
+            if (attempts < 1) {
+                fail("Trade Cycling path matched without sending a cycle");
+                return;
+            }
+        } else if (!sawAir) {
+            fail("job-block path never broke the lectern");
+            return;
+        }
+        LOGGER.info("1.21.1 client harness passed (cycling={})", cycling);
+        client.stop();
+    }
+
+    private static void command(Minecraft client, String command) {
+        client.player.connection.sendCommand(command);
+    }
+
+    private static Villager nearestLibrarian(Minecraft client) {
+        if (client.player == null || client.level == null) {
+            return null;
+        }
+        AABB box = client.player.getBoundingBox().inflate(24.0);
+        Villager nearest = null;
+        double best = Double.MAX_VALUE;
+        for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
+            if (!McBridge.isLibrarian(villager)) {
+                continue;
+            }
+            double distance = villager.distanceToSqr(client.player);
+            if (distance < best) {
+                best = distance;
+                nearest = villager;
+            }
+        }
+        return nearest;
+    }
+
+    private static boolean press(Screen screen, String key) {
+        if (screen == null) {
+            return false;
+        }
+        String wanted = Component.translatable(key).getString();
+        for (AbstractWidget widget : McBridge.buttons(screen)) {
+            if (widget.getMessage().getString().equals(wanted) && widget instanceof Button button) {
+                button.onPress();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private enum ScrollSpot {
+        NONE,
+        MID,
+        MAX
+    }
+
+    private static ScrollSpot scrollSpot(Minecraft client) {
+        TradeEntry bane = bane(client);
+        if (bane == null || client.font == null) {
+            return ScrollSpot.NONE;
+        }
+        int available = TradePickerUi.nameBudget(client.font.width(bane.priceLabel()));
+        int textWidth = client.font.width(bane.name);
+        int overflow = textWidth - available;
+        if (overflow < 8) {
+            return ScrollSpot.NONE;
+        }
+        int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
+        if (offset >= overflow - 1) {
+            return ScrollSpot.MAX;
+        }
+        if (offset >= overflow * 2 / 5 && offset <= overflow * 3 / 5) {
+            return ScrollSpot.MID;
+        }
+        return ScrollSpot.NONE;
+    }
+
+    private static void assertNameClearsThePrice(Minecraft client) {
+        TradeEntry bane = bane(client);
+        if (bane == null) {
+            fail("Bane of Arthropods was not in the catalog");
+            return;
+        }
+        int priceWidth = client.font.width(bane.priceLabel());
+        int textWidth = client.font.width(bane.name);
+        int available = TradePickerUi.nameBudget(priceWidth);
+        int nameLeft = TradeNameLayout.NAME_LEFT;
+        int nameRight = nameLeft + available;
+        int priceX = nameRight + TradeNameLayout.PRICE_GAP;
+        int overflow = textWidth - available;
+        if (overflow < 8) {
+            fail("Bane of Arthropods does not overflow the name box");
+            return;
+        }
+        for (int offset = 0; offset <= overflow; offset++) {
+            int visibleRight = TradeNameLayout.clippedRight(nameLeft, nameRight, textWidth, offset);
+            if (visibleRight > priceX - TradeNameLayout.PRICE_GAP) {
+                fail("name reaches the price at offset " + offset);
+                return;
+            }
+        }
+    }
+
+    private static TradeEntry bane(Minecraft client) {
+        for (TradeEntry entry : TradeSession.entries()) {
+            if (entry.name.startsWith("Bane of Arthropods")) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    private static int lecternCount(Minecraft client) {
+        int count = 0;
+        var inventory = client.player.getInventory();
+        for (int slot = 0; slot < McBridge.storageSize(inventory); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.is(Items.LECTERN)) {
+                count += stack.getCount();
+            }
+        }
+        return count;
+    }
+
+    private static void shot(Minecraft client, String name) {
+        try {
+            Path dir = artifacts();
+            Files.createDirectories(dir);
+            NativeImage image = Screenshot.takeScreenshot(client.getMainRenderTarget());
+            try {
+                image.writeToFile(dir.resolve(name + ".png"));
+            } finally {
+                image.close();
+            }
+        } catch (IOException e) {
+            fail("screenshot " + name + " failed: " + e.getMessage());
+        }
+    }
+
+    private static void copy(String from, String to) {
+        try {
+            Path dir = artifacts();
+            Files.copy(dir.resolve(from + ".png"), dir.resolve(to + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            fail("copy " + from + " failed: " + e.getMessage());
+        }
+    }
+
+    private static Path artifacts() {
+        String configured = System.getProperty("villager_reroller.artifacts");
+        if (configured == null || configured.isBlank()) {
+            return Path.of("/opt/cursor/artifacts/1.21.1/plain");
+        }
+        return Path.of(configured);
+    }
+
+    private static int timeout(int ticks) {
+        return Math.max(1, ticks) * Math.max(1, SCALE);
+    }
+
+    private static void fail(String message) {
+        LOGGER.error("1.21.1 client harness failed: {}", message);
+        System.exit(1);
+    }
+
+    private enum State {
+        WAIT_TITLE,
+        WAIT_PRESETS,
+        WAIT_PLAYER,
+        WAIT_LIBRARIAN,
+        WAIT_MERCHANT,
+        PANEL,
+        WAIT_SCROLL,
+        START_REROLL,
+        WAIT_FOUND,
+        DONE
+    }
+}
+*///?}
