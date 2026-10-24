@@ -36,10 +36,10 @@ public final class JobSiteFinder {
                     BlockPos pos = origin.offset(dx, dy, dz);
                     BlockState state = client.level.getBlockState(pos);
                     Optional<Holder<PoiType>> poi = PoiTypes.forState(state);
-                    if (poi.isEmpty() || !villager.getVillagerData().profession().value().heldJobSite().test(poi.get())) {
+                    if (poi.isEmpty() || !dev.quarkos.villagerreroller.client.McBridge.isJobSite(villager, poi.get())) {
                         continue;
                     }
-                    boolean inReach = player != null && player.isWithinBlockInteractionRange(pos, 0.0);
+                    boolean inReach = player != null && dev.quarkos.villagerreroller.client.McBridge.withinBlock(player, pos);
                     double distance = villager.distanceToSqr(Vec3.atCenterOf(pos));
                     boolean better = best == null
                             || (inReach && !bestInReach)

@@ -1,3 +1,4 @@
+//? if fabric {
 package dev.quarkos.villagerreroller.config;
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
@@ -9,3 +10,4 @@ public final class ModMenuIntegration implements ModMenuApi {
         return AutomatorConfigScreen::create;
     }
 }
+//?}

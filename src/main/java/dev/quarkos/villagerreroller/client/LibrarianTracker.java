@@ -35,7 +35,7 @@ public final class LibrarianTracker {
         AABB box = client.player.getBoundingBox().inflate(8.0);
         Villager nearest = null;
         double best = Double.MAX_VALUE;
-        for (Villager villager : client.level.getEntitiesOfClass(Villager.class, box)) {
+        for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
             if (!villager.isAlive()) {
                 continue;
             }

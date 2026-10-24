@@ -1,6 +1,10 @@
 package dev.quarkos.villagerreroller.compat;
 
+//? if forge {
+/*import net.minecraftforge.fml.ModList;
+*///?} else {
 import net.fabricmc.loader.api.FabricLoader;
+//?}
 import net.minecraft.world.inventory.MerchantMenu;
 
 /**
@@ -15,7 +19,15 @@ public final class TradeCyclingHook {
     }
 
     public static boolean installed() {
+        //? if forge {
+        /*//? if >=26.1 {
+        return ModList.isLoaded(MOD_ID);
+        //?} else {
+        return ModList.get().isLoaded(MOD_ID);
+        //?}
+        *///?} else {
         return FabricLoader.getInstance().isModLoaded(MOD_ID);
+        //?}
     }
 
     public static boolean canCycle(MerchantMenu menu) {

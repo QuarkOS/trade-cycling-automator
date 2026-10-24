@@ -1,0 +1,33 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/QuarkOS/trade-cycling-automator/issues"
+
+[[mods]]
+modId = "villager_reroller"
+version = "${version}"
+displayName = "Villager Reroller"
+authors = "Emilio Schwaiger"
+description = '''Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If Trade Cycling is installed, the list can use that mod's cycle action instead.'''
+displayTest = "IGNORE_ALL_VERSION"
+
+[[dependencies.villager_reroller]]
+modId = "forge"
+mandatory = true
+versionRange = "[${forge_dep},)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.villager_reroller]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[${minecraft}]"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.villager_reroller]]
+modId = "trade_cycling"
+mandatory = false
+versionRange = "[1.0.0,)"
+ordering = "NONE"
+side = "CLIENT"

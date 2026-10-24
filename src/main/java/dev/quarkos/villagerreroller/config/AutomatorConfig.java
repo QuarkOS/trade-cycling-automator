@@ -3,7 +3,11 @@ package dev.quarkos.villagerreroller.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
+//? if forge {
+/*import net.minecraftforge.fml.loading.FMLPaths;
+*///?} else {
 import net.fabricmc.loader.api.FabricLoader;
+//?}
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +68,11 @@ public final class AutomatorConfig {
     }
 
     private static Path path() {
+        //? if forge {
+        /*return FMLPaths.CONFIGDIR.get().resolve("villager_reroller.json");
+        *///?} else {
         return FabricLoader.getInstance().getConfigDir().resolve("villager_reroller.json");
+        //?}
     }
 
     public boolean enabled() {

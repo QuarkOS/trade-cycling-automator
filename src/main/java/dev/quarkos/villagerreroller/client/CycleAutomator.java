@@ -1,25 +1,30 @@
 package dev.quarkos.villagerreroller.client;
 
-import de.maxhenkel.tradecycling.FabricTradeCyclingClientMod;
 import de.maxhenkel.tradecycling.gui.CycleTradesButton;
+import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
+import dev.quarkos.villagerreroller.picker.TradeEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.core.Holder;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+//? if >=1.20.5 {
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+//?}
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 
 /**
- * Drives Trade Cycling by calling {@link FabricTradeCyclingClientMod#sendCycleTradesPacket()}.
+ * Drives Trade Cycling through {@link TradeCyclingHook#cycle}.
  * Never clicks a trade slot and never moves emeralds.
  */
 public final class CycleAutomator {
@@ -40,23 +45,7 @@ public final class CycleAutomator {
     }
 
     public static void toggle() {
-        //? if <1.21.11 {
-        /*if (running) {
-            stop(StopReason.KEYBIND);
-        } else {
-            start();
-        }
-        *///?} else {
-        //? if >=26.1 {
-        /*if (running) {
-            stop(StopReason.KEYBIND);
-        } else {
-            start();
-        }
-        *///?} else {
         dev.quarkos.villagerreroller.picker.JobSiteReroller.onToggleKey();
-        //?}
-        //?}
     }
 
     public static void start() {
@@ -84,12 +73,6 @@ public final class CycleAutomator {
     }
 
     public static void stop(StopReason reason) {
-        //? if <1.21.11 {
-        /*stopLegacy(reason);
-        *///?} else {
-        //? if >=26.1 {
-        /*stopLegacy(reason);
-        *///?} else {
         dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(switch (reason) {
             case DISABLED -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.DISABLED;
             case PANIC -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.PANIC;
@@ -97,8 +80,6 @@ public final class CycleAutomator {
             case KEYBIND -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED;
             default -> dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED;
         });
-        //?}
-        //?}
     }
 
     private static void stopLegacy(StopReason reason) {
@@ -145,7 +126,12 @@ public final class CycleAutomator {
         }
         emptyTicks = 0;
 
+        //? if <1.19.3 {
+        /*Enchantment target = McBridge.enchantment(config.enchantment());
+        *///?}
+        //? if >=1.19.3 {
         Holder<Enchantment> target = McBridge.enchantmentHolder(client.level.registryAccess(), config.enchantment()).orElse(null);
+        //?}
         if (target == null) {
             stop(StopReason.INVALID);
             return;
@@ -171,17 +157,41 @@ public final class CycleAutomator {
             return;
         }
 
-        FabricTradeCyclingClientMod tradeCycling = FabricTradeCyclingClientMod.instance();
-        if (tradeCycling == null) {
-            stop(StopReason.MISSING_TRADE_CYCLING);
+        if (!TradeCyclingHook.cycle(menu)) {
+            stop(TradeCyclingHook.installed() ? StopReason.CANNOT_CYCLE : StopReason.MISSING_TRADE_CYCLING);
             return;
         }
         attempts++;
         pendingSignature = signature;
         ticksSinceSend = 0;
-        tradeCycling.sendCycleTradesPacket();
     }
 
+    //? if <1.19.3 {
+    /*static boolean containsTarget(MerchantOffers offers, Enchantment target, int level, int maxPrice) {
+        for (MerchantOffer offer : offers) {
+            if (offer.isOutOfStock()) {
+                continue;
+            }
+            ItemStack cost = offer.getCostA();
+            if (!cost.is(Items.EMERALD)) {
+                continue;
+            }
+            int price = cost.getCount();
+            if (price <= 0 || price > maxPrice) {
+                continue;
+            }
+            ItemStack result = offer.getResult();
+            if (!result.is(Items.ENCHANTED_BOOK)) {
+                continue;
+            }
+            if (TradeEntry.storedBookMatches(result, target, level)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    *///?}
+    //? if >=1.19.3 {
     static boolean containsTarget(MerchantOffers offers, Holder<Enchantment> target, int level, int maxPrice) {
         for (MerchantOffer offer : offers) {
             if (offer.isOutOfStock()) {
@@ -199,13 +209,24 @@ public final class CycleAutomator {
             if (!result.is(Items.ENCHANTED_BOOK)) {
                 continue;
             }
+            //? if <1.20.5 {
+            /*boolean levelMatches = TradeEntry.storedBookMatches(result, target.value(), level);
+            *///?}
+            //? if >=1.20.5 && <1.21 {
+            /*ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
+            boolean levelMatches = stored != null && stored.getLevel(target.value()) == level;
+            *///?}
+            //? if >=1.21 {
             ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
-            if (stored != null && stored.getLevel(target) == level) {
+            boolean levelMatches = stored != null && stored.getLevel(target) == level;
+            //?}
+            if (levelMatches) {
                 return true;
             }
         }
         return false;
     }
+    //?}
 
     private static String signature(MerchantOffers offers) {
         StringBuilder builder = new StringBuilder();
@@ -215,7 +236,7 @@ public final class CycleAutomator {
                     .append(':')
                     .append(result.getCount())
                     .append(':')
-                    .append(result.getComponents())
+                    .append(TradeEntry.stackKey(result))
                     .append(';');
         }
         return builder.toString();

@@ -31,6 +31,7 @@ bin/
 # fabric
 
 run/
+eula.txt
 
 # java
 
@@ -44,3 +45,6 @@ replay_*.log
 
 # verification skill copies JUnit XML here; cleanup must leave it, git should not
 .cursor/skills/verify-trade-cycling-automator/evidence/
+
+# compiled by tools/validate for the 26.3 Xvfb sRGB shim
+tools/*.so

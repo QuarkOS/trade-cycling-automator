@@ -2,23 +2,19 @@ package dev.quarkos.villagerreroller.picker;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
+import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.villager.Villager;
-import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -44,6 +40,19 @@ public final class JobSiteReroller {
     private static final int EMPLOYED_TIMEOUT = 300;
     private static final int OPEN_TIMEOUT = 120;
     private static final int OFFER_TIMEOUT = 40;
+
+    /** Headless clients stretch these when the integrated server falls behind. Unset for normal play. */
+    private static int timeout(int ticks) {
+        String scale = System.getProperty("villager_reroller.timeoutScale");
+        if (scale == null || scale.isBlank()) {
+            return ticks;
+        }
+        try {
+            return Math.max(ticks, ticks * Integer.parseInt(scale));
+        } catch (NumberFormatException ignored) {
+            return ticks;
+        }
+    }
     private static final int TICKS_BETWEEN_CYCLES = 8;
 
     private static Phase phase = Phase.IDLE;
@@ -54,7 +63,7 @@ public final class JobSiteReroller {
     private static boolean closingForReroll;
     private static BlockPos jobPos;
     private static Block jobBlock;
-    private static ResourceKey<VillagerProfession> profession = VillagerProfession.NONE;
+    private static String professionId = "";
     private static int villagerId = Integer.MIN_VALUE;
     private static Component status = Component.empty();
     private static String pendingSignature = "";
@@ -143,6 +152,7 @@ public final class JobSiteReroller {
         if (phase == Phase.BREAK && client.gameMode != null) {
             client.gameMode.stopDestroyBlock();
         }
+        Phase stoppedDuring = phase;
         phase = Phase.IDLE;
         closingForReroll = false;
         breakStarted = false;
@@ -153,7 +163,7 @@ public final class JobSiteReroller {
         if (reason != StopReason.FOUND) {
             announce(client, status);
         }
-        LOGGER.info("Trade reroll stopped: {} after {} attempts", reason, attempts);
+        LOGGER.info("Trade reroll stopped: {} during {} after {} attempts", reason, stoppedDuring, attempts);
     }
 
     public static void start(Minecraft client) {
@@ -166,7 +176,7 @@ public final class JobSiteReroller {
             fail(client, StopReason.DISABLED);
             return;
         }
-        if (!(client.screen instanceof MerchantScreen screen)) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
             fail(client, StopReason.NEED_SCREEN);
             return;
         }
@@ -184,8 +194,7 @@ public final class JobSiteReroller {
             fail(client, StopReason.NEED_TARGET);
             return;
         }
-        var professionHolder = villager.getVillagerData().profession();
-        if (professionHolder.is(VillagerProfession.NONE) || professionHolder.is(VillagerProfession.NITWIT)) {
+        if (McBridge.unemployed(villager) || McBridge.nitwit(villager)) {
             fail(client, StopReason.NO_PROFESSION);
             return;
         }
@@ -202,7 +211,7 @@ public final class JobSiteReroller {
             fail(client, StopReason.NO_JOB_SITE);
             return;
         }
-        if (client.player == null || !client.player.isWithinBlockInteractionRange(pos, 0.0)) {
+        if (client.player == null || !McBridge.withinBlock(client.player, pos)) {
             fail(client, StopReason.OUT_OF_REACH);
             return;
         }
@@ -215,7 +224,7 @@ public final class JobSiteReroller {
             fail(client, StopReason.NEED_TOOL);
             return;
         }
-        profession = professionHolder.unwrapKey().orElse(VillagerProfession.NONE);
+        professionId = McBridge.professionId(villager);
         jobPos = pos.immutable();
         jobBlock = state.getBlock();
         villagerId = villager.getId();
@@ -226,7 +235,7 @@ public final class JobSiteReroller {
         client.player.closeContainer();
         enter(Phase.PREPARE_BREAK);
         status = rerolling();
-        LOGGER.info("Trade reroll started at {} for {}", jobPos, profession.identifier());
+        LOGGER.info("Trade reroll started at {} for {}", jobPos, professionId);
     }
 
     public static void tick(Minecraft client) {
@@ -282,7 +291,7 @@ public final class JobSiteReroller {
         TradeSession.setPanelOpen(true);
         enter(Phase.CYCLE);
         status = rerolling();
-        LOGGER.info("Trade cycling reroll started for {}", professionOf(villager));
+        LOGGER.info("Trade cycling reroll started for {}", McBridge.professionId(villager));
     }
 
     private static void prepareBreak(Minecraft client, LocalPlayer player) {
@@ -316,7 +325,7 @@ public final class JobSiteReroller {
             enter(Phase.WAIT_UNEMPLOYED);
             return;
         }
-        if (phaseTicks > BREAK_TIMEOUT) {
+        if (phaseTicks > timeout(BREAK_TIMEOUT)) {
             client.gameMode.stopDestroyBlock();
             stop(StopReason.TIMEOUT);
             return;
@@ -325,19 +334,19 @@ public final class JobSiteReroller {
         if (!breakStarted) {
             breakStarted = true;
             client.gameMode.startDestroyBlock(jobPos, Direction.UP);
-            player.swing(InteractionHand.MAIN_HAND);
+            McBridge.swing(player, InteractionHand.MAIN_HAND);
             return;
         }
         client.gameMode.continueDestroyBlock(jobPos, Direction.UP);
-        player.swing(InteractionHand.MAIN_HAND);
+        McBridge.swing(player, InteractionHand.MAIN_HAND);
     }
 
     private static void waitUnemployed(Villager villager) {
-        if (villager.getVillagerData().profession().is(VillagerProfession.NONE)) {
+        if (McBridge.unemployed(villager)) {
             enter(Phase.PICKUP);
             return;
         }
-        if (phaseTicks > UNEMPLOYED_TIMEOUT) {
+        if (phaseTicks > timeout(UNEMPLOYED_TIMEOUT)) {
             stop(StopReason.TIMEOUT);
         }
     }
@@ -347,7 +356,7 @@ public final class JobSiteReroller {
             enter(Phase.PREPARE_PLACE);
             return;
         }
-        if (phaseTicks > PICKUP_TIMEOUT) {
+        if (phaseTicks > timeout(PICKUP_TIMEOUT)) {
             stop(StopReason.NEED_BLOCK);
         }
     }
@@ -371,7 +380,7 @@ public final class JobSiteReroller {
             enter(Phase.WAIT_EMPLOYED);
             return;
         }
-        if (phaseTicks > PLACE_TIMEOUT) {
+        if (phaseTicks > timeout(PLACE_TIMEOUT)) {
             stop(StopReason.TIMEOUT);
             return;
         }
@@ -383,41 +392,45 @@ public final class JobSiteReroller {
         lookAt(player, hit);
         BlockHitResult result = new BlockHitResult(hit, Direction.UP, below, false);
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, result);
-        player.swing(InteractionHand.MAIN_HAND);
+        McBridge.swing(player, InteractionHand.MAIN_HAND);
     }
 
     private static void waitEmployed(Villager villager) {
-        if (villager.getVillagerData().profession().is(profession)) {
+        if (McBridge.professionId(villager).equals(professionId)) {
             enter(Phase.OPEN);
             return;
         }
-        if (phaseTicks > EMPLOYED_TIMEOUT) {
+        if (phaseTicks > timeout(EMPLOYED_TIMEOUT)) {
             stop(StopReason.TIMEOUT);
         }
     }
 
     private static void open(Minecraft client, LocalPlayer player, Villager villager) {
-        if (client.screen instanceof MerchantScreen) {
+        if (McBridge.currentScreen(client) instanceof MerchantScreen) {
             closingForReroll = false;
             enter(Phase.CHECK);
             return;
         }
-        if (phaseTicks > OPEN_TIMEOUT) {
+        if (phaseTicks > timeout(OPEN_TIMEOUT)) {
             stop(StopReason.TIMEOUT);
             return;
         }
-        if (!player.isWithinEntityInteractionRange(villager, 0.0)) {
-            stop(StopReason.OUT_OF_REACH);
+        // The villager often takes a step while the job block is replaced. Stopping on
+        // that first tick looked like a reach failure even when they were walking back.
+        if (!McBridge.withinEntity(player, villager)) {
+            if (phaseTicks > timeout(40)) {
+                stop(StopReason.OUT_OF_REACH);
+            }
             return;
         }
         if (phaseTicks % 10 == 1) {
             lookAt(player, villager.getEyePosition());
-            client.gameMode.interact(player, villager, InteractionHand.MAIN_HAND);
+            McBridge.interact(client.gameMode, player, villager, InteractionHand.MAIN_HAND);
         }
     }
 
     private static void check(Minecraft client, LocalPlayer player) {
-        if (!(client.screen instanceof MerchantScreen screen)) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
             if (!closingForReroll) {
                 stop(StopReason.GUI_CLOSED);
             }
@@ -425,7 +438,7 @@ public final class JobSiteReroller {
         }
         MerchantMenu menu = screen.getMenu();
         if (menu.getOffers().isEmpty()) {
-            if (phaseTicks > OFFER_TIMEOUT) {
+            if (phaseTicks > timeout(OFFER_TIMEOUT)) {
                 stop(StopReason.NO_OFFERS);
             }
             return;
@@ -450,14 +463,14 @@ public final class JobSiteReroller {
     }
 
     private static void cycle(Minecraft client) {
-        if (!(client.screen instanceof MerchantScreen screen)) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
             stop(StopReason.GUI_CLOSED);
             return;
         }
         MerchantMenu menu = screen.getMenu();
         MerchantOffers offers = menu.getOffers();
         if (offers.isEmpty()) {
-            if (phaseTicks > OFFER_TIMEOUT) {
+            if (phaseTicks > timeout(OFFER_TIMEOUT)) {
                 stop(StopReason.NO_OFFERS);
             }
             return;
@@ -499,14 +512,10 @@ public final class JobSiteReroller {
                     .append(':')
                     .append(result.getCount())
                     .append(':')
-                    .append(result.getComponents())
+                    .append(TradeEntry.stackKey(result))
                     .append(';');
         }
         return builder.toString();
-    }
-
-    private static String professionOf(Villager villager) {
-        return villager.getVillagerData().profession().unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
     }
 
     private static void succeed(Minecraft client) {
@@ -546,11 +555,9 @@ public final class JobSiteReroller {
 
     private static void announce(Minecraft client, Component component) {
         if (client.player != null) {
-            client.player.displayClientMessage(component, false);
+            McBridge.chat(client.player, component);
         }
-        if (client.getToastManager() != null) {
-            SystemToast.add(client.getToastManager(), SystemToast.SystemToastId.PERIODIC_NOTIFICATION, Component.translatable("text." + VillagerReroller.MOD_ID + ".toast"), component);
-        }
+        McBridge.toast(client, Component.translatable("text." + VillagerReroller.MOD_ID + ".toast"), component);
     }
 
     private static boolean locked(MerchantMenu menu) {
@@ -583,7 +590,7 @@ public final class JobSiteReroller {
     private static int blockSlot(LocalPlayer player, Block block) {
         Item item = block.asItem();
         Inventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.getNonEquipmentItems().size(); i++) {
+        for (int i = 0; i < McBridge.storageSize(inventory); i++) {
             ItemStack stack = inventory.getItem(i);
             if (stack.is(item) && stack.getCount() > 0) {
                 return i;
@@ -596,13 +603,17 @@ public final class JobSiteReroller {
         Inventory inventory = player.getInventory();
         int best = -1;
         float bestSpeed = 1.0F;
-        for (int i = 0; i < inventory.getNonEquipmentItems().size(); i++) {
+        for (int i = 0; i < McBridge.storageSize(inventory); i++) {
             ItemStack stack = inventory.getItem(i);
             if (stack.isEmpty()) {
                 continue;
             }
             float speed = stack.getItem().getDestroySpeed(stack, state);
+            //? if <1.20.5 {
+            /*if (speed > bestSpeed && stack.getItem().isCorrectToolForDrops(state)) {
+            *///?} else {
             if (speed > bestSpeed && stack.getItem().isCorrectToolForDrops(stack, state)) {
+            //?}
                 bestSpeed = speed;
                 best = i;
             }
@@ -614,11 +625,11 @@ public final class JobSiteReroller {
         LocalPlayer player = client.player;
         Inventory inventory = player.getInventory();
         if (index < 9) {
-            inventory.setSelectedSlot(index);
+            McBridge.selectHotbar(inventory, index);
             return;
         }
-        int hotbar = inventory.getSelectedSlot();
-        client.gameMode.handleInventoryMouseClick(player.inventoryMenu.containerId, index, hotbar, ClickType.SWAP, player);
+        int hotbar = McBridge.selectedHotbar(inventory);
+        McBridge.swapWithHotbar(client, player, index, hotbar);
     }
 
     private static void lookAt(LocalPlayer player, Vec3 target) {
@@ -632,6 +643,6 @@ public final class JobSiteReroller {
         player.setYRot(yaw);
         player.setXRot(pitch);
         player.setYHeadRot(yaw);
-        player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
+        McBridge.sendLook(player, yaw, pitch);
     }
 }
