@@ -21,7 +21,10 @@ import net.minecraft.client.gui.ActiveTextCollector;
 //? if >=1.21.9 {
 import net.minecraft.client.input.InputWithModifiers;
 //?}
+//? if >=1.19.4 {
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
+import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
+//?}
 //? if >=1.20.2 {
 import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
 //?}
@@ -29,7 +32,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
-import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 //? if <1.21.11 {
@@ -86,7 +88,9 @@ public final class ClientHarness121 {
         if (!armed) {
             armed = true;
             client.options.pauseOnLostFocus = false;
+            //? if >=1.19.4 {
             client.options.onboardAccessibility = false;
+            //?}
             //? if >=1.20.5 && <1.21 {
             /*client.options.menuBackgroundBlurriness().set(0.0);
             *///?}
@@ -119,6 +123,7 @@ public final class ClientHarness121 {
     }
 
     private static void waitTitle(Minecraft client) {
+        //? if >=1.19.4 {
         if (McBridge.currentScreen(client) instanceof AccessibilityOnboardingScreen) {
             //? if >=1.21 {
             client.options.onboardingAccessibilityFinished();
@@ -126,6 +131,7 @@ public final class ClientHarness121 {
             McBridge.setScreen(client, new TitleScreen());
             return;
         }
+        //?}
         //? if >=1.20.2 {
         if (McBridge.currentScreen(client) instanceof NoticeWithLinkScreen notice) {
             notice.onClose();
@@ -166,6 +172,29 @@ public final class ClientHarness121 {
             }
             return;
         }
+        //? if <1.19.4 {
+        /*if (ticks < 5) {
+            return;
+        }
+        create.setGameMode(CreateWorldScreen.SelectedGameMode.SURVIVAL);
+        create.commands = true;
+        var access = create.worldGenSettingsComponent.registryHolder();
+        //? if <1.19.3 {
+        create.worldGenSettingsComponent.updateSettings(net.minecraft.client.gui.screens.worldselection.PresetEditor.flatWorldConfigurator(
+                net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings.getDefault(
+                        access.registryOrThrow(net.minecraft.core.Registry.BIOME_REGISTRY),
+                        access.registryOrThrow(net.minecraft.core.Registry.STRUCTURE_SET_REGISTRY))));
+        //?}
+        //? if >=1.19.3 {
+        create.worldGenSettingsComponent.updateSettings(net.minecraft.client.gui.screens.worldselection.PresetEditor.flatWorldConfigurator(
+                net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings.getDefault(
+                        access.registryOrThrow(net.minecraft.core.registries.Registries.BIOME).asLookup(),
+                        access.registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET).asLookup(),
+                        access.registryOrThrow(net.minecraft.core.registries.Registries.PLACED_FEATURE).asLookup())));
+        //?}
+        create.onCreate();
+        *///?}
+        //? if >=1.19.4 {
         var presets = create.getUiState().getNormalPresetList();
         if (presets.isEmpty()) {
             if (ticks > timeout(20 * 60)) {
@@ -186,6 +215,7 @@ public final class ClientHarness121 {
                 .findFirst()
                 .ifPresent(ui::setWorldType);
         create.onCreate();
+        //?}
         state = State.WAIT_PLAYER;
         ticks = 0;
     }
@@ -290,10 +320,14 @@ public final class ClientHarness121 {
         if (ticks < 5) {
             return;
         }
-        //? if <1.21.11 {
+        //? if <1.19.4 {
+        /*if (false) {
+        *///?}
+        //? if >=1.19.4 && <1.21.11 {
         /*if (ScrollingNames.PERIOD_PER_PIXEL != AbstractWidget.PERIOD_PER_SCROLLED_PIXEL
                 || ScrollingNames.MIN_PERIOD_SECONDS != AbstractWidget.MIN_SCROLL_PERIOD) {
-        *///?} else {
+        *///?}
+        //? if >=1.21.11 {
         if (ScrollingNames.PERIOD_PER_PIXEL != ActiveTextCollector.PERIOD_PER_SCROLLED_PIXEL
                 || ScrollingNames.MIN_PERIOD_SECONDS != ActiveTextCollector.MIN_SCROLL_PERIOD) {
         //?}
@@ -458,7 +492,15 @@ public final class ClientHarness121 {
     }
 
     private static void command(Minecraft client, String command) {
+        //? if <1.19.1 {
+        /*client.player.command(command);
+        *///?}
+        //? if >=1.19.1 && <1.19.3 {
+        /*client.player.commandSigned(command, null);
+        *///?}
+        //? if >=1.19.3 {
         client.player.connection.sendCommand(command);
+        //?}
     }
 
     private static Villager nearestLibrarian(Minecraft client) {

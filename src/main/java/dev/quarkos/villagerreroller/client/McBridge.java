@@ -17,14 +17,21 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+//? if >=1.19.3 {
 import net.minecraft.core.HolderGetter;
+//?}
 import net.minecraft.core.RegistryAccess;
+//? if <1.19.3 {
+/*import net.minecraft.core.Registry;
+*///?}
+//? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+//?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.village.poi.PoiType;
@@ -173,10 +180,15 @@ public final class McBridge {
     }
 
     public static String professionId(Villager villager) {
-        //? if <1.21.5 {
+        //? if <1.19.3 {
+        /*Identifier id = Registry.VILLAGER_PROFESSION.getKey(villager.getVillagerData().getProfession());
+        return id == null ? "unknown" : id.toString();
+        *///?}
+        //? if >=1.19.3 && <1.21.5 {
         /*Identifier id = BuiltInRegistries.VILLAGER_PROFESSION.getKey(villager.getVillagerData().getProfession());
         return id == null ? "unknown" : id.toString();
-        *///?} else {
+        *///?}
+        //? if >=1.21.5 {
         return villager.getVillagerData().profession().unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
         //?}
     }
@@ -202,7 +214,15 @@ public final class McBridge {
     }
 
     public static boolean withinEntity(Player player, Entity entity) {
-        //? if <1.20.5 {
+        //? if <1.19.4 {
+        /*net.minecraft.world.phys.Vec3 eye = player.getEyePosition();
+        net.minecraft.world.phys.AABB box = entity.getBoundingBox();
+        double x = Math.max(box.minX, Math.min(eye.x, box.maxX));
+        double y = Math.max(box.minY, Math.min(eye.y, box.maxY));
+        double z = Math.max(box.minZ, Math.min(eye.z, box.maxZ));
+        return eye.distanceToSqr(x, y, z) < 9.0;
+        *///?}
+        //? if >=1.19.4 && <1.20.5 {
         /*return entity.getBoundingBox().distanceToSqr(player.getEyePosition()) < 9.0;
         *///?}
         //? if >=1.20.5 && <1.21.11 {
@@ -273,6 +293,12 @@ public final class McBridge {
         //?}
     }
 
+    //? if <1.19.3 {
+    /*public static Enchantment enchantment(String id) {
+        return Registry.ENCHANTMENT.get(new Identifier(id));
+    }
+    *///?}
+    //? if >=1.19.3 {
     public static Optional<Holder<Enchantment>> enchantmentHolder(RegistryAccess access, String id) {
         HolderGetter<Enchantment> lookup = access.lookupOrThrow(Registries.ENCHANTMENT);
         //? if <1.21 {
@@ -283,6 +309,7 @@ public final class McBridge {
         ResourceKey<Enchantment> key = ResourceKey.create(Registries.ENCHANTMENT, parsed);
         return lookup.get(key).map(holder -> (Holder<Enchantment>) holder);
     }
+    //?}
 
     private static final class ScreenWidgets extends java.util.AbstractList<AbstractWidget> {
         private final Screen screen;

@@ -45,12 +45,32 @@ public final class ForgeConfigScreen extends Screen {
     protected void init() {
         int x = this.width / 2 - 100;
         int y = 32;
+        //? if <1.19.3 {
+        enabledButton = addRenderableWidget(new Button(x, y, 200, 20, enabledLabel(), button -> {
+            enabled = !enabled;
+            button.setMessage(enabledLabel());
+            refreshStatus();
+        }));
+        //?}
+        //? if >=1.19.3 {
         enabledButton = addRenderableWidget(Button.builder(enabledLabel(), button -> {
             enabled = !enabled;
             button.setMessage(enabledLabel());
             refreshStatus();
         }).bounds(x, y, 200, 20).build());
+        //?}
         y += 24;
+        //? if <1.19.3 {
+        enchantmentButton = addRenderableWidget(new Button(x, y, 200, 20, enchantmentLabel(), button -> {
+            if (enchantments.length == 0) {
+                return;
+            }
+            enchantIndex = (enchantIndex + 1) % enchantments.length;
+            button.setMessage(enchantmentLabel());
+            refreshStatus();
+        }));
+        //?}
+        //? if >=1.19.3 {
         enchantmentButton = addRenderableWidget(Button.builder(enchantmentLabel(), button -> {
             if (enchantments.length == 0) {
                 return;
@@ -59,30 +79,60 @@ public final class ForgeConfigScreen extends Screen {
             button.setMessage(enchantmentLabel());
             refreshStatus();
         }).bounds(x, y, 200, 20).build());
+        //?}
         y += 24;
+        //? if <1.19.3 {
+        levelButton = addRenderableWidget(new Button(x, y, 200, 20, levelLabel(), button -> {
+            level = level >= 5 ? 1 : level + 1;
+            button.setMessage(levelLabel());
+            refreshStatus();
+        }));
+        //?}
+        //? if >=1.19.3 {
         levelButton = addRenderableWidget(Button.builder(levelLabel(), button -> {
             level = level >= 5 ? 1 : level + 1;
             button.setMessage(levelLabel());
             refreshStatus();
         }).bounds(x, y, 200, 20).build());
+        //?}
         y += 24;
         priceBox = new EditBox(this.font, x, y, 200, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price"));
         priceBox.setMaxLength(3);
         priceBox.setValue(Integer.toString(AutomatorConfig.get().maxPrice()));
+        //? if >=1.19.3 {
         priceBox.setHint(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price"));
+        //?}
         priceBox.setResponder(value -> refreshStatus());
         addRenderableWidget(priceBox);
         y += 24;
         attemptsBox = new EditBox(this.font, x, y, 200, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts"));
         attemptsBox.setMaxLength(5);
         attemptsBox.setValue(Integer.toString(AutomatorConfig.get().maxAttempts()));
+        //? if >=1.19.3 {
         attemptsBox.setHint(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts"));
+        //?}
         addRenderableWidget(attemptsBox);
         y += 28;
+        //? if <1.19.3 {
+        statusButton = addRenderableWidget(new Button(x, y, 200, 20, Component.literal("..."), button -> {
+        }));
+        //?}
+        //? if >=1.19.3 {
         statusButton = addRenderableWidget(Button.builder(Component.literal("..."), button -> {
         }).bounds(x, y, 200, 20).build());
+        //?}
         statusButton.active = false;
         y += 24;
+        //? if <1.19.3 {
+        addRenderableWidget(new Button(x, y, 200, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.panic"), button -> {
+            panic = !panic;
+            button.setMessage(Component.translatable(panic
+                    ? "text." + VillagerReroller.MOD_ID + ".config.panic.on"
+                    : "text." + VillagerReroller.MOD_ID + ".config.panic"));
+        }));
+        addRenderableWidget(new Button(x, this.height - 28, 200, 20, Component.translatable("gui.done"), button -> saveAndClose()));
+        //?}
+        //? if >=1.19.3 {
         addRenderableWidget(Button.builder(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.panic"), button -> {
             panic = !panic;
             button.setMessage(Component.translatable(panic
@@ -92,6 +142,7 @@ public final class ForgeConfigScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> saveAndClose())
                 .bounds(x, this.height - 28, 200, 20)
                 .build());
+        //?}
         refreshStatus();
     }
 

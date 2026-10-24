@@ -28,7 +28,7 @@
     "fabricloader": ">=0.16.0",
     "minecraft": "${minecraft}",
     "java": "${java}",
-    "fabric-api": "*",
+    "${fabricApiId}": "*",
     "cloth-config": "*",
     "trade_cycling": ">=1.0.0",
     "modmenu": "*"

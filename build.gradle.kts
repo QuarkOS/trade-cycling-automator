@@ -66,6 +66,8 @@ loom {
         sc.current.version == "1.21.11" -> "src/main/resources/villager_reroller.accesswidener"
         sc.current.parsed >= "1.21.2" -> "src/main/resources/accesswidener/1.21.4/villager_reroller.accesswidener"
         sc.current.version == "1.19.4" -> "src/main/resources/accesswidener/1.19.4/villager_reroller.accesswidener"
+        sc.current.version == "1.19.3" -> "src/main/resources/accesswidener/1.19.3/villager_reroller.accesswidener"
+        sc.current.parsed < "1.19.3" -> "src/main/resources/accesswidener/1.19.2/villager_reroller.accesswidener"
         sc.current.version == "1.20.1" -> "src/main/resources/accesswidener/1.20.1/villager_reroller.accesswidener"
         sc.current.version == "1.20.2" -> "src/main/resources/accesswidener/1.20.2/villager_reroller.accesswidener"
         sc.current.version == "1.20.4" -> "src/main/resources/accesswidener/1.20.4/villager_reroller.accesswidener"
@@ -109,6 +111,8 @@ tasks {
             minecraftVersion == "1.21.11" -> "villager_reroller.accesswidener"
             sc.current.parsed >= "1.21.2" -> "accesswidener/1.21.4/villager_reroller.accesswidener"
             minecraftVersion == "1.19.4" -> "accesswidener/1.19.4/villager_reroller.accesswidener"
+            minecraftVersion == "1.19.3" -> "accesswidener/1.19.3/villager_reroller.accesswidener"
+            sc.current.parsed < "1.19.3" -> "accesswidener/1.19.2/villager_reroller.accesswidener"
             minecraftVersion == "1.20.1" -> "accesswidener/1.20.1/villager_reroller.accesswidener"
             minecraftVersion == "1.20.2" -> "accesswidener/1.20.2/villager_reroller.accesswidener"
             minecraftVersion == "1.20.4" -> "accesswidener/1.20.4/villager_reroller.accesswidener"
@@ -126,6 +130,8 @@ tasks {
                 else -> ">=17"
             })
             register("accessWidener", accessWidener)
+            // 1.19 and 1.19.1 Fabric API still uses mod id "fabric". 1.19.2+ renamed it to "fabric-api".
+            register("fabricApiId", if (sc.current.parsed < "1.19.2") "fabric" else "fabric-api")
         }
 
         // Every version breaks and replaces the job site itself, so Trade Cycling stays a suggestion.

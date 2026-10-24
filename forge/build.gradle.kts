@@ -225,6 +225,38 @@ val forgeNode = when (minecraftVersion) {
     )
     // 50.0.8 is the last 1.20.6 build whose payload context still has getDirection().
     // Trade Cycling 1.0.11 calls that method, so a newer Forge disconnects the client on the first cycle.
+    "1.19" -> ForgeNode(
+        "1.19-41.1.0",
+        "41.1.0",
+        17,
+        "accesstransformer-1.19.2.cfg",
+        "forge-1.19-1.0.5",
+        legacyPack(9),
+    )
+    "1.19.1" -> ForgeNode(
+        "1.19.1-42.0.9",
+        "42.0.9",
+        17,
+        "accesstransformer-1.19.2.cfg",
+        "forge-1.19.1-1.0.5",
+        legacyPack(9),
+    )
+    "1.19.2" -> ForgeNode(
+        "1.19.2-43.5.0",
+        "43.5.0",
+        17,
+        "accesstransformer-1.19.2.cfg",
+        "forge-1.19.2-1.0.15",
+        legacyPack(9),
+    )
+    "1.19.3" -> ForgeNode(
+        "1.19.3-44.1.0",
+        "44.1.0",
+        17,
+        "accesstransformer-1.19.3.cfg",
+        "forge-1.19.3-1.0.5",
+        legacyPack(12),
+    )
     "1.19.4" -> ForgeNode(
         "1.19.4-45.4.0",
         "45.4.0",

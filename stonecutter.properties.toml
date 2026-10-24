@@ -10,7 +10,44 @@ loomx.loom_version = "1.18-SNAPSHOT"
 # 1.21 reuses the 1.21.1 Trade Cycling jar. 1.21.2 has no Trade Cycling build.
 # 1.20.6 is the last release that still stores trades in data components and runs on Java 21.
 # 1.20.4 and older store trades in NBT. 1.20.2 uses the same listing field shapes as 1.20.4.
-# 1.20.1 and 1.19.4 use the older shapes: item counts, a single stew effect, and every tradeable enchantment.
+# 1.19 through 1.20.1 use the older shapes: item counts, a single stew effect, and every tradeable enchantment.
+# 1.19, 1.19.1, and 1.19.2 use Registry and the Button constructor. 1.19.3 adds BuiltInRegistries and Button.builder.
+
+["1.19"]
+mod.mc_compat = "1.19"
+mod.mc_releases = ["1.19"]
+
+deps.fabric_api = "0.58.0+1.19"
+deps.modmenu = "4.0.4"
+deps.cloth_config = "8.3.134+fabric"
+deps.trade_cycling = "fabric-1.19-1.0.5"
+
+["1.19.1"]
+mod.mc_compat = "1.19.1"
+mod.mc_releases = ["1.19.1"]
+
+deps.fabric_api = "0.58.5+1.19.1"
+deps.modmenu = "4.0.5"
+deps.cloth_config = "8.3.134+fabric"
+deps.trade_cycling = "fabric-1.19.1-1.0.5"
+
+["1.19.2"]
+mod.mc_compat = "1.19.2"
+mod.mc_releases = ["1.19.2"]
+
+deps.fabric_api = "0.77.0+1.19.2"
+deps.modmenu = "4.2.0-beta.2"
+deps.cloth_config = "8.3.134+fabric"
+deps.trade_cycling = "fabric-1.19.2-1.0.15"
+
+["1.19.3"]
+mod.mc_compat = "1.19.3"
+mod.mc_releases = ["1.19.3"]
+
+deps.fabric_api = "0.76.1+1.19.3"
+deps.modmenu = "5.1.0"
+deps.cloth_config = "9.1.104+fabric"
+deps.trade_cycling = "fabric-1.19.3-1.0.5"
 
 ["1.19.4"]
 mod.mc_compat = "1.19.4"

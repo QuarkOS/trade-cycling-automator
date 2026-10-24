@@ -126,7 +126,12 @@ public final class CycleAutomator {
         }
         emptyTicks = 0;
 
+        //? if <1.19.3 {
+        /*Enchantment target = McBridge.enchantment(config.enchantment());
+        *///?}
+        //? if >=1.19.3 {
         Holder<Enchantment> target = McBridge.enchantmentHolder(client.level.registryAccess(), config.enchantment()).orElse(null);
+        //?}
         if (target == null) {
             stop(StopReason.INVALID);
             return;
@@ -161,6 +166,32 @@ public final class CycleAutomator {
         ticksSinceSend = 0;
     }
 
+    //? if <1.19.3 {
+    /*static boolean containsTarget(MerchantOffers offers, Enchantment target, int level, int maxPrice) {
+        for (MerchantOffer offer : offers) {
+            if (offer.isOutOfStock()) {
+                continue;
+            }
+            ItemStack cost = offer.getCostA();
+            if (!cost.is(Items.EMERALD)) {
+                continue;
+            }
+            int price = cost.getCount();
+            if (price <= 0 || price > maxPrice) {
+                continue;
+            }
+            ItemStack result = offer.getResult();
+            if (!result.is(Items.ENCHANTED_BOOK)) {
+                continue;
+            }
+            if (TradeEntry.storedBookMatches(result, target, level)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    *///?}
+    //? if >=1.19.3 {
     static boolean containsTarget(MerchantOffers offers, Holder<Enchantment> target, int level, int maxPrice) {
         for (MerchantOffer offer : offers) {
             if (offer.isOutOfStock()) {
@@ -195,6 +226,7 @@ public final class CycleAutomator {
         }
         return false;
     }
+    //?}
 
     private static String signature(MerchantOffers offers) {
         StringBuilder builder = new StringBuilder();

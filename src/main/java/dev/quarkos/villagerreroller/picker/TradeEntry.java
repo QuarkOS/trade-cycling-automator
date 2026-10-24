@@ -4,7 +4,12 @@ import net.minecraft.core.Holder;
 //? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
 //?}
+//? if <1.19.3 {
+/*import net.minecraft.core.Registry;
+*///?}
+//? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries;
+//?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffect;
@@ -64,7 +69,24 @@ public final class TradeEntry {
         return emeraldMin + "\u2013" + emeraldMax;
     }
 
-    //? if <1.21 {
+    //? if <1.19.3 {
+    /*public static TradeEntry book(Enchantment enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
+        Identifier id = Registry.ENCHANTMENT.getKey(enchantment);
+        String entryId = "enchant:" + id + ":" + level;
+        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, (offer, chosenMax) -> {
+            ItemStack cost = offer.getCostA();
+            if (!cost.is(Items.EMERALD) || cost.getCount() <= 0 || cost.getCount() > chosenMax) {
+                return false;
+            }
+            ItemStack result = offer.getResult();
+            if (!result.is(Items.ENCHANTED_BOOK)) {
+                return false;
+            }
+            return storedBookMatches(result, enchantment, level);
+        });
+    }
+    *///?}
+    //? if >=1.19.3 && <1.21 {
     /*public static TradeEntry book(Enchantment enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
         Identifier id = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);
         String entryId = "enchant:" + id + ":" + level;
@@ -80,7 +102,8 @@ public final class TradeEntry {
             return storedBookMatches(result, enchantment, level);
         });
     }
-    *///?} else {
+    *///?}
+    //? if >=1.21 {
     public static TradeEntry book(Holder<Enchantment> enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
         Identifier id = enchantment.unwrapKey().orElseThrow().identifier();
         String entryId = "enchant:" + id + ":" + level;
@@ -117,11 +140,30 @@ public final class TradeEntry {
     }
 
     public static String itemId(Item item) {
+        //? if <1.19.3 {
+        /*Identifier id = Registry.ITEM.getKey(item);
+        *///?}
+        //? if >=1.19.3 {
         Identifier id = BuiltInRegistries.ITEM.getKey(item);
+        //?}
         return id == null ? "minecraft:air" : id.toString();
     }
 
-    //? if <1.20.5 {
+    //? if <1.19.3 {
+    /*public static boolean storedBookMatches(ItemStack result, Enchantment enchantment, int level) {
+        net.minecraft.nbt.ListTag list = net.minecraft.world.item.EnchantedBookItem.getEnchantments(result);
+        Identifier id = Registry.ENCHANTMENT.getKey(enchantment);
+        String wanted = id == null ? "" : id.toString();
+        for (int i = 0; i < list.size(); i++) {
+            net.minecraft.nbt.CompoundTag tag = list.getCompound(i);
+            if (wanted.equals(tag.getString("id")) && tag.getInt("lvl") == level) {
+                return true;
+            }
+        }
+        return false;
+    }
+    *///?}
+    //? if >=1.19.3 && <1.20.5 {
     /*public static boolean storedBookMatches(ItemStack result, Enchantment enchantment, int level) {
         net.minecraft.nbt.ListTag list = net.minecraft.world.item.EnchantedBookItem.getEnchantments(result);
         Identifier id = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);

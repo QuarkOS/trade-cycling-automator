@@ -8,8 +8,13 @@ import net.minecraft.core.HolderLookup;
 //? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
 //?}
+//? if <1.19.3 {
+/*import net.minecraft.core.Registry;
+*///?}
+//? if >=1.19.3 {
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+//?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 //? if >=1.21 {
@@ -21,7 +26,9 @@ import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.npc.villager.VillagerTrades;
 import net.minecraft.world.entity.npc.villager.VillagerType;
+//? if >=1.19.3 {
 import net.minecraft.world.flag.FeatureFlags;
+//?}
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -92,7 +99,12 @@ public final class ListingTrades {
         if (listings == null || listings.length == 0) {
             return List.of();
         }
+        //? if <1.19.3 {
+        /*HolderLookup.RegistryLookup<Enchantment> enchantments = null;
+        *///?}
+        //? if >=1.19.3 {
         HolderLookup.RegistryLookup<Enchantment> enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+        //?}
         List<TradeEntry> entries = new ArrayList<>();
         for (VillagerTrades.ItemListing listing : listings) {
             expand(listing, villagerType, enchantments, entries);
@@ -228,7 +240,7 @@ public final class ListingTrades {
             MobEffect mobEffect = stew.effect;
             ItemStack icon = new ItemStack(Items.SUSPICIOUS_STEW);
             net.minecraft.world.item.SuspiciousStewItem.saveMobEffect(icon, mobEffect, stew.duration);
-            net.minecraft.resources.Identifier effectKey = BuiltInRegistries.MOB_EFFECT.getKey(mobEffect);
+            net.minecraft.resources.Identifier effectKey = mobEffectId(mobEffect);
             String effectId = effectKey == null ? "unknown" : effectKey.toString();
             String name = icon.getHoverName().getString() + " (" + mobEffect.getDisplayName().getString() + ")";
             String id = "stew:" + effectId;
@@ -288,9 +300,13 @@ public final class ListingTrades {
                 return;
             }
             ItemStack icon = new ItemStack(item, typed.cost);
-            //? if <1.21.5 {
+            //? if <1.19.3 {
+            /*String typeId = String.valueOf(Registry.VILLAGER_TYPE.getKey((VillagerType) type));
+            *///?}
+            //? if >=1.19.3 && <1.21.5 {
             /*String typeId = String.valueOf(BuiltInRegistries.VILLAGER_TYPE.getKey((VillagerType) type));
-            *///?} else {
+            *///?}
+            //? if >=1.21.5 {
             String typeId = ((ResourceKey<VillagerType>) type).identifier().toString();
             //?}
             String id = "typed:" + typeId + ":" + TradeEntry.itemId(item);
@@ -317,7 +333,40 @@ public final class ListingTrades {
                         && offer.getCostA().is(stack.getItem())));
     }
 
-    //? if <1.20.2 {
+    private static net.minecraft.resources.Identifier mobEffectId(MobEffect effect) {
+        //? if <1.19.3 {
+        /*return Registry.MOB_EFFECT.getKey(effect);
+        *///?}
+        //? if >=1.19.3 {
+        return BuiltInRegistries.MOB_EFFECT.getKey(effect);
+        //?}
+    }
+
+    //? if <1.19.3 {
+    /*private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
+        for (Enchantment enchantment : Registry.ENCHANTMENT) {
+            if (!enchantment.isTradeable()) {
+                continue;
+            }
+            int low = enchantment.getMinLevel();
+            int high = enchantment.getMaxLevel();
+            if (low > high) {
+                continue;
+            }
+            boolean treasure = enchantment.isTreasureOnly();
+            boolean curse = enchantment.isCurse();
+            for (int level = low; level <= high; level++) {
+                ItemStack icon = net.minecraft.world.item.EnchantedBookItem.createForEnchantment(new EnchantmentInstance(enchantment, level));
+                String name = Component.translatable(enchantment.getDescriptionId()).getString();
+                if (level != 1 || enchantment.getMaxLevel() != 1) {
+                    name = name + " " + Component.translatable("enchantment.level." + level).getString();
+                }
+                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure)));
+            }
+        }
+    }
+    *///?}
+    //? if >=1.19.3 && <1.20.2 {
     /*private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
         for (Enchantment enchantment : BuiltInRegistries.ENCHANTMENT) {
             if (!enchantment.isTradeable()) {
