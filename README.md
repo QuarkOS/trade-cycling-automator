@@ -137,7 +137,7 @@ A later run with `--version` or `--loader` rewrites those rows and keeps every o
 ./gradlew validateAll
 ```
 
-Gradle itself still needs Java 25 (`JAVA_HOME=/opt/jdk25`, which the script sets). The game uses Java 17 for 1.19 through 1.20.4, Java 21 for 1.20.6 through 1.21.11, and Java 25 for 26.x. Those JDKs are expected at `/opt/jdk17`, `/usr/lib/jvm/java-21-openjdk-amd64`, and `/opt/jdk25`. `xvfb` has to be on `PATH`. The first run downloads the Minecraft client, assets, and loaders into `build/validation-minecraft/`.
+Gradle itself still needs Java 25 (`JAVA_HOME=/opt/jdk25`, which the script sets). The game uses Java 17 for 1.19 through 1.20.4, Java 21 for 1.20.6 through 1.21.11, and Java 25 for 26.x. Those JDKs are expected at `/opt/jdk17`, `/usr/lib/jvm/java-21-openjdk-amd64`, and `/opt/jdk25`. `xvfb` has to be on `PATH`. The first run downloads the Minecraft client, assets, and loaders into `build/validation-minecraft/`. 26.3 preloads `tools/libglx-srgb.so`. The script compiles it from `tools/libglx_srgb.c` when `gcc` is on `PATH`. The library strips the sRGB GLX attribute that Xvfb does not advertise.
 
 `--jobs` defaults to however many clients fit in memory and CPU, capped at 2. `--retries` defaults to 1 extra attempt after a lag timeout. `--timeout-minutes` defaults to 40 for one attempt. `--skip-build` launches jars that are already built. `./gradlew validateAll` builds the jars, then runs the script with `--skip-build`.
 
