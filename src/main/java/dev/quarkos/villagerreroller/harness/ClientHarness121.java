@@ -177,6 +177,14 @@ public final class ClientHarness121 {
             }
             return;
         }
+        // The Mojang splash is an overlay drawn on top of the title screen. A screenshot
+        // taken while it is up is the red logo, not the config screen underneath.
+        if (loadingOverlay(client)) {
+            if (ticks > timeout(20 * 120)) {
+                fail("loading overlay did not finish, screen=" + McBridge.currentScreen(client));
+            }
+            return;
+        }
         state = State.OPEN_CONFIG;
         ticks = 0;
     }
@@ -205,13 +213,17 @@ public final class ClientHarness121 {
 
     private static void waitConfig(Minecraft client) {
         Screen screen = McBridge.currentScreen(client);
-        if (screen == null || screen instanceof TitleScreen) {
-            if (ticks > timeout(20 * 15)) {
+        if (screen == null || screen instanceof TitleScreen || loadingOverlay(client)) {
+            if (loadingOverlay(client)) {
+                ticks = 0;
+            }
+            if (ticks > timeout(20 * 30)) {
                 fail("config screen did not open, screen=" + screen);
             }
             return;
         }
-        if (ticks < 8) {
+        // The tick runs before the frame is presented, so wait for a rendered frame.
+        if (ticks < 20) {
             return;
         }
         String title = screen.getTitle().getString();
@@ -229,6 +241,14 @@ public final class ClientHarness121 {
         openCreateWorld(client, screen);
         state = State.WAIT_PRESETS;
         ticks = 0;
+    }
+
+    private static boolean loadingOverlay(Minecraft client) {
+        //? if >=26.2 {
+        /*return client.gui.overlay() != null;
+        *///?} else {
+        return client.getOverlay() != null;
+        //?}
     }
 
     private static void openCreateWorld(Minecraft client, Screen parent) {
