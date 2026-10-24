@@ -51,9 +51,9 @@ public final class VillagerReroller implements ClientModInitializer {
     //?}
 
     public static void onClientTick(Minecraft client) {
-        //? if <1.21.5 || forge {
-        /*dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
-        *///?}
+        // Every release jar keeps this call. start() returns immediately unless
+        // -Dvillager_reroller.harness=true, which is how tools/validate drives the jar.
+        dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
         if (McBridge.currentScreen(client) instanceof PauseScreen && dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()) {
             dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED);
             McBridge.setScreen(client, null);

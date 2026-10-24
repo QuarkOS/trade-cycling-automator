@@ -215,3 +215,17 @@ tasks {
         into(rootProject.layout.buildDirectory.dir("libs/${project.property("mod.version")}"))
     }
 }
+
+if (project == rootProject) {
+    // Realized only when this task is selected, so a normal build does not configure it.
+    tasks.register<Exec>("validateAll") {
+        group = "verification"
+        description = "Build every Villager Reroller jar and launch each release jar in production Minecraft, without and with Trade Cycling."
+        notCompatibleWithConfigurationCache("Launches production Minecraft.")
+        val jars = rootProject.allprojects.mapNotNull { candidate -> candidate.tasks.findByName("jar") }
+        dependsOn(jars)
+        workingDir = rootProject.layout.projectDirectory.asFile
+        commandLine("python3", rootProject.file("tools/validate.py").absolutePath, "--skip-build")
+        environment("VALIDATE_FROM_GRADLE", "1")
+    }
+}
