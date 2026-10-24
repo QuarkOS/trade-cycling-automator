@@ -181,16 +181,22 @@ abstract class ReobfReleaseJarTask : DefaultTask() {
     fun reobf() {
         val work = temporaryDir
         val remapped = work.resolve("remapped.jar")
+        val plainMap = work.resolve("official-to-srg.tsrg")
         val output = outputJar.get().asFile
         output.parentFile.mkdirs()
+        // FART reads the mapping as text. The cached file is gzipped tsrg2.
+        GZIPInputStream(mapFile.get().asFile.inputStream()).use { input ->
+            plainMap.outputStream().use { stream -> input.copyTo(stream) }
+        }
         execOperations.javaexec {
             classpath = fartJars
             mainClass.set("net.minecraftforge.fart.Main")
             args(
                 "--input", inputJar.get().asFile.absolutePath,
                 "--output", remapped.absolutePath,
-                "--map", mapFile.get().asFile.absolutePath,
+                "--map", plainMap.absolutePath,
                 "--lib", libraryJar.get().asFile.absolutePath,
+                "--log", work.resolve("fart.log").absolutePath,
                 "--threads", "2",
             )
         }
@@ -282,42 +288,6 @@ abstract class ReobfReleaseJarTask : DefaultTask() {
         }
         val suffix = if (comment.isEmpty()) "" else " # ${comment.removePrefix("#").trim()}"
         return "${tokens[0]} ${tokens[1]} $renamed$suffix"
-    }
-}
-
-abstract class RemapForgeLibraryTask : DefaultTask() {
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.NONE)
-    abstract val inputJar: RegularFileProperty
-
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.NONE)
-    abstract val mapFile: RegularFileProperty
-
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.NONE)
-    abstract val fartJars: ConfigurableFileCollection
-
-    @get:OutputFile
-    abstract val outputJar: RegularFileProperty
-
-    @get:Inject
-    abstract val execOperations: ExecOperations
-
-    @TaskAction
-    fun remap() {
-        val output = outputJar.get().asFile
-        output.parentFile.mkdirs()
-        execOperations.javaexec {
-            classpath = fartJars
-            mainClass.set("net.minecraftforge.fart.Main")
-            args(
-                "--input", inputJar.get().asFile.absolutePath,
-                "--output", output.absolutePath,
-                "--map", mapFile.get().asFile.absolutePath,
-                "--threads", "2",
-            )
-        }
     }
 }
 
@@ -725,20 +695,16 @@ if (forgeNode == null) {
                 .firstOrNull { it.isFile && it.name == "official-$minecraftVersion-obf.tsrg.gz" }
                 ?: throw GradleException("No official-to-SRG mapping cached for Minecraft $minecraftVersion.")
         }
-        val srgLibrary = tasks.register<RemapForgeLibraryTask>("srgForgeLibrary") {
-            dependsOn("compileJava")
-            inputJar.set(forgeUserdev)
-            mapFile.set(layout.file(mapProvider))
-            fartJars.from(fartTool)
-            outputJar.set(layout.buildDirectory.file("generated/forge-srg-library.jar"))
-        }
         tasks.named<Jar>("jar") {
             archiveClassifier.set("mojmap")
         }
         val reobfJar = tasks.register<ReobfReleaseJarTask>("reobfJar") {
+            dependsOn("compileJava")
+            // Inheritance has to be the official Forge jar. An SRG library does not
+            // match getInstance and FART then leaves the mod on mojmap names.
             inputJar.set(tasks.named<Jar>("jar").flatMap { it.archiveFile })
             mapFile.set(layout.file(mapProvider))
-            libraryJar.set(srgLibrary.flatMap { it.outputJar })
+            libraryJar.set(forgeUserdev)
             fartJars.from(fartTool)
             outputJar.set(layout.buildDirectory.file("libs/villager_reroller-forge-${project.version}.jar"))
         }
