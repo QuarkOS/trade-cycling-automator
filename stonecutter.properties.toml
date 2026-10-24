@@ -10,7 +10,16 @@ loomx.loom_version = "1.18-SNAPSHOT"
 # 1.21 reuses the 1.21.1 Trade Cycling jar. 1.21.2 has no Trade Cycling build.
 # 1.20.6 is the last release that still stores trades in data components and runs on Java 21.
 # 1.20.4 and older store trades in NBT. 1.20.2 uses the same listing field shapes as 1.20.4.
-# 1.20.1 uses the older shapes: item counts, a single stew effect, and every tradeable enchantment.
+# 1.20.1 and 1.19.4 use the older shapes: item counts, a single stew effect, and every tradeable enchantment.
+
+["1.19.4"]
+mod.mc_compat = "1.19.4"
+mod.mc_releases = ["1.19.4"]
+
+deps.fabric_api = "0.87.2+1.19.4"
+deps.modmenu = "6.3.1"
+deps.cloth_config = "10.1.135+fabric"
+deps.trade_cycling = "fabric-1.19.4-1.0.5"
 
 ["1.20.1"]
 mod.mc_compat = "1.20.1"

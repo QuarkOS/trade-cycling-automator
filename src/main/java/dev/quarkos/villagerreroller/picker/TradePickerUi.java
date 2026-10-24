@@ -6,7 +6,12 @@ import dev.quarkos.villagerreroller.text.ScrollingNames;
 import dev.quarkos.villagerreroller.text.TradeNameLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+//? if >=1.20 {
 import net.minecraft.client.gui.GuiGraphics;
+//?}
+//? if <1.20 {
+/*import com.mojang.blaze3d.vertex.PoseStack;
+*///?}
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -222,6 +227,33 @@ public final class TradePickerUi {
             return false;
         }
 
+        //? if <1.20 {
+        /*@Override
+        public void renderWidget(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+            fill(pose, getX(), getY(), getX() + width, getY() + height, 0xFF000000);
+            fill(pose, getX() + 2, getY() + 2, getX() + width - 2, getY() + height - 2, 0xFFC6C6C6);
+            fill(pose, getX() + 2, getY() + 2, getX() + width - 2, getY() + 3, 0xFFFFFFFF);
+            fill(pose, getX() + 2, getY() + 2, getX() + 3, getY() + height - 2, 0xFFFFFFFF);
+            fill(pose, getX() + 3, getY() + height - 3, getX() + width - 2, getY() + height - 2, 0xFF555555);
+            fill(pose, getX() + width - 3, getY() + 3, getX() + width - 2, getY() + height - 2, 0xFF555555);
+            Minecraft minecraft = Minecraft.getInstance();
+            Component title = Component.translatable(
+                    "text." + VillagerReroller.MOD_ID + ".panel.title",
+                    Component.translatable("merchant.level." + villagerLevel)
+            );
+            minecraft.font.draw(pose, title, getX() + 6, getY() + 6, TEXT);
+            Component status = JobSiteReroller.status();
+            if (status != null && !status.getString().isEmpty()) {
+                String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
+                minecraft.font.draw(pose, line, getX() + 6, getY() + STATUS_TOP, TEXT);
+            }
+            minecraft.font.draw(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), getX() + 6, getY() + METHOD_TOP + 6, TEXT);
+            if (methodButton == null) {
+                minecraft.font.draw(pose, RerollMethod.label(), getX() + 48, getY() + METHOD_TOP + 6, TEXT);
+            }
+        }
+        *///?}
+        //? if >=1.20 {
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             graphics.fill(getX(), getY(), getX() + width, getY() + height, 0xFF000000);
@@ -269,6 +301,7 @@ public final class TradePickerUi {
                 //?}
             }
         }
+        //?}
 
         @Override
         protected void updateWidgetNarration(NarrationElementOutput output) {
@@ -288,6 +321,66 @@ public final class TradePickerUi {
             this.scroll = Math.max(0, scroll);
         }
 
+        //? if <1.20 {
+        /*private void drawName(PoseStack pose, Font font, String text, int color, int left, int right, int rowTop, int rowBottom) {
+            int available = right - left;
+            if (available <= 0) {
+                return;
+            }
+            int textWidth = font.width(text);
+            int top = rowTop + 6;
+            if (textWidth <= available) {
+                font.draw(pose, text, left, top, color);
+                return;
+            }
+            int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
+            enableScissor(left, rowTop, right, rowBottom);
+            font.draw(pose, text, left - offset, top, color);
+            disableScissor();
+        }
+
+        @Override
+        public void renderWidget(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+            action.setMessage(actionLabel());
+            if (methodButton != null) {
+                methodButton.active = !JobSiteReroller.isRunning();
+                methodButton.setMessage(RerollMethod.label());
+            }
+            List<TradeEntry> rows = TradeSession.visible();
+            int visibleRows = Math.max(1, height / ROW_HEIGHT);
+            int maxScroll = Math.max(0, rows.size() - visibleRows);
+            scroll = Mth.clamp(scroll, 0, maxScroll);
+            Minecraft minecraft = Minecraft.getInstance();
+            enableScissor(getX(), getY(), getX() + width - 8, getY() + height);
+            for (int i = 0; i < visibleRows && scroll + i < rows.size(); i++) {
+                TradeEntry entry = rows.get(scroll + i);
+                int rowY = getY() + i * ROW_HEIGHT;
+                boolean selected = TradeSession.selected(entry.id);
+                if (selected) {
+                    fill(pose, getX(), rowY, getX() + width - 10, rowY + ROW_HEIGHT - 1, 0xFFB0B0B0);
+                }
+                fill(pose, getX() + 1, rowY + 4, getX() + 13, rowY + 16, 0xFF000000);
+                fill(pose, getX() + 2, rowY + 5, getX() + 12, rowY + 15, selected ? 0xFF55FF55 : 0xFF8B8B8B);
+                ItemStack icon = entry.icon;
+                minecraft.getItemRenderer().renderGuiItem(pose, icon, getX() + 16, rowY + 1);
+                minecraft.getItemRenderer().renderGuiItemDecorations(pose, minecraft.font, icon, getX() + 16, rowY + 1);
+                String price = selected && entry.paysEmeralds
+                        ? (TradeSession.anyPrice(entry.id) ? Component.translatable("text." + VillagerReroller.MOD_ID + ".any").getString() : "\u2264" + TradeSession.chosenMax(entry.id))
+                        : entry.priceLabel();
+                int priceWidth = minecraft.font.width(price);
+                int priceX = TradeNameLayout.priceX(getX(), width, priceWidth);
+                int nameLeft = TradeNameLayout.nameLeft(getX());
+                int nameRight = TradeNameLayout.nameRight(priceX);
+                drawName(pose, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
+                minecraft.font.draw(pose, price, priceX, rowY + 6, TEXT);
+            }
+            disableScissor();
+            int travel = Math.max(1, height - 27);
+            int scrollerY = getY() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
+            fill(pose, getX() + width - 6, scrollerY, getX() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
+        }
+        *///?}
+        //? if >=1.20 {
         private static void drawName(GuiGraphics graphics, Font font, String text, int color, int left, int right, int rowTop, int rowBottom) {
             int available = right - left;
             if (available <= 0) {
@@ -387,6 +480,7 @@ public final class TradePickerUi {
             /*graphics.fill(getX() + width - 6, scrollerY, getX() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
             *///?}
         }
+        //?}
 
         //? if <1.21.9 {
         /*@Override

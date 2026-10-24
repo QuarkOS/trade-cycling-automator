@@ -254,9 +254,13 @@ public final class McBridge {
     }
 
     public static void sendLook(LocalPlayer player, float yaw, float pitch) {
-        //? if <1.21.2 {
+        //? if <1.20 {
+        /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.isOnGround()));
+        *///?}
+        //? if >=1.20 && <1.21.2 {
         /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround()));
-        *///?} else {
+        *///?}
+        //? if >=1.21.2 {
         player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
         //?}
     }

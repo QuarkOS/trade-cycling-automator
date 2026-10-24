@@ -31,6 +31,7 @@ Built with [Stonecutter](https://stonecutter.kikugie.dev/) 0.9.8. The sources in
 
 | Minecraft | Fabric | Forge |
 | --- | --- | --- |
+| 1.19.4 | `villager_reroller-fabric-1.0.0+1.19.4.jar` | `villager_reroller-forge-1.0.0+1.19.4.jar` (Forge 45.4.0) |
 | 1.20.1 | `villager_reroller-fabric-1.0.0+1.20.1.jar` | `villager_reroller-forge-1.0.0+1.20.1.jar` (Forge 47.4.28) |
 | 1.20.2 | `villager_reroller-fabric-1.0.0+1.20.2.jar` | `villager_reroller-forge-1.0.0+1.20.2.jar` (Forge 48.1.0) |
 | 1.20.4 | `villager_reroller-fabric-1.0.0+1.20.4.jar` | `villager_reroller-forge-1.0.0+1.20.4.jar` (Forge 49.2.13) |
@@ -47,17 +48,17 @@ Built with [Stonecutter](https://stonecutter.kikugie.dev/) 0.9.8. The sources in
 | 26.2 | `villager_reroller-fabric-1.0.0+26.2.jar` | `villager_reroller-forge-1.0.0+26.2.jar` (Forge 65.1.5) |
 | 26.3 | `villager_reroller-fabric-1.0.0+26.3.jar` | `villager_reroller-forge-1.0.0+26.3.jar` (Forge 66.1.0) |
 
-1.21.2 is not built. Trade Cycling does not publish a 1.21.2 jar, and Forge has no 1.21.2 promotion. 1.19.4 and 1.19.2 are not in this tree yet. 1.20.1, 1.20.2, and 1.20.4 store trades in NBT, and those builds read the offers through a Stonecutter branch. 1.20.2 uses the same listing field shapes as 1.20.4. 1.20.1 uses the older shapes: an item plus a count, a single stew effect, and every tradeable enchantment.
+1.21.2 is not built. Trade Cycling does not publish a 1.21.2 jar, and Forge has no 1.21.2 promotion. 1.19.2 is not in this tree yet. 1.19.4, 1.20.1, 1.20.2, and 1.20.4 store trades in NBT. 1.20.2 uses the same listing field shapes as 1.20.4. 1.19.4 and 1.20.1 use the older shapes: an item plus a count, a single stew effect, and every tradeable enchantment. 1.19.4 draws the trade panel with `PoseStack`.
 
-Fabric needs Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Forge does not depend on Cloth Config on any version. Its settings screen is a vanilla `Screen`. 1.20.4 and newer register it with `MinecraftForge.registerConfigScreen`. 1.20.1 and 1.20.2 register `ConfigScreenHandler.ConfigScreenFactory`. The mods list Config button opens it, and it writes the same `villager_reroller.json` file. Mod Menu is Fabric-only.
+Fabric needs Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Forge does not depend on Cloth Config on any version. Its settings screen is a vanilla `Screen`. 1.20.4 and newer register it with `MinecraftForge.registerConfigScreen`. 1.19.4, 1.20.1, and 1.20.2 register `ConfigScreenHandler.ConfigScreenFactory`. The mods list Config button opens it, and it writes the same `villager_reroller.json` file. Mod Menu is Fabric-only.
 
 Forge 1.20.6 is pinned to 50.0.8. Trade Cycling 1.0.11 calls `CustomPayloadEvent.Context.getDirection()`, and Forge removed that method in 50.0.9. A newer 1.20.6 Forge disconnects the client on the first cycle.
 
 Trade Cycling by Max Henkel is optional on every version ([Modrinth](https://modrinth.com/mod/trade-cycling), [CurseForge](https://www.curseforge.com/minecraft/mc-mods/trade-cycling)). 1.21 reuses the 1.21.1 Trade Cycling jar.
 
-1.20.1, 1.20.2, and 1.20.4 are compiled for Java 17. 1.20.6 and the 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
+1.19.4, 1.20.1, 1.20.2, and 1.20.4 are compiled for Java 17. 1.20.6 and the 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
 
-The Forge 1.20.1, 1.20.2, and 1.20.4 dev clients remap Trade Cycling's SRG jar to mojmap before launch. That remap is only for the official-mapped userdev runtime. The published mod jar does not include Trade Cycling. Forge 1.20.1 and 1.20.2 userdev clients also copy this mod's jar into the run `mods` folder, because those Forge builds do not discover an exploded module-path directory.
+The Forge 1.19.4, 1.20.1, 1.20.2, and 1.20.4 dev clients remap Trade Cycling's SRG jar to mojmap before launch. That remap is only for the official-mapped userdev runtime. The published mod jar does not include Trade Cycling. Forge 1.19.4, 1.20.1, and 1.20.2 userdev clients also copy this mod's jar into the run `mods` folder, because those Forge builds do not discover an exploded module-path directory.
 
 ## How to use
 
