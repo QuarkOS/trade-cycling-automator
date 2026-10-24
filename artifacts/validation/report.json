@@ -1,0 +1,1526 @@
+{
+  "generatedAt": "2026-10-24T04:52:54Z",
+  "partial": false,
+  "results": [
+    {
+      "version": "1.19",
+      "loader": "fabric",
+      "jar": "versions/1.19/build/libs/villager_reroller-fabric-1.0.0+1.19.jar",
+      "sha256": "0cc115a1b8a70b6ab897b6b7b6212de20c0f1713b9ec21af4ab95479c957eac3",
+      "durationSeconds": 157.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19",
+      "loader": "forge",
+      "jar": "forge/versions/1.19/build/libs/villager_reroller-forge-1.0.0+1.19.jar",
+      "sha256": "21697b57fcdfa22275f99048a02191b0e329e888ad877875fc1273dafd52f5b1",
+      "durationSeconds": 139.2,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 68.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 70.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.1",
+      "loader": "fabric",
+      "jar": "versions/1.19.1/build/libs/villager_reroller-fabric-1.0.0+1.19.1.jar",
+      "sha256": "bee658eb8ed78be8f79cf032bdcc0d7dd0b463c9d7a12bd04ded969837f9a306",
+      "durationSeconds": 157.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.1/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.1/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.1",
+      "loader": "forge",
+      "jar": "forge/versions/1.19.1/build/libs/villager_reroller-forge-1.0.0+1.19.1.jar",
+      "sha256": "18fec37c901b86fe0418d60986c02cb6d2736e84c6aed145c00d4a2708d9c3f6",
+      "durationSeconds": 137.2,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 68.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.1/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 68.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.1/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.2",
+      "loader": "fabric",
+      "jar": "versions/1.19.2/build/libs/villager_reroller-fabric-1.0.0+1.19.2.jar",
+      "sha256": "876edecde350eaf6590a2afaaa7d528983c1d2ebdc87e2cdc87558dbec24eae2",
+      "durationSeconds": 157.2,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.2/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.2/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.2",
+      "loader": "forge",
+      "jar": "forge/versions/1.19.2/build/libs/villager_reroller-forge-1.0.0+1.19.2.jar",
+      "sha256": "45e2a9462dfd23391747595aaf5e6b3b650b0b7a663962cb0d2d0e6712f5ca69",
+      "durationSeconds": 137.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 68.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.2/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 68.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.2/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.3",
+      "loader": "fabric",
+      "jar": "versions/1.19.3/build/libs/villager_reroller-fabric-1.0.0+1.19.3.jar",
+      "sha256": "440c79b56f745fce96ba4ab67d798fec77313ad8b8d932480a6345652fdb0ce1",
+      "durationSeconds": 157.1,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.3/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 78.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.3/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.3",
+      "loader": "forge",
+      "jar": "forge/versions/1.19.3/build/libs/villager_reroller-forge-1.0.0+1.19.3.jar",
+      "sha256": "ea8406c5b764c0e58e760f28c5430b55b5097dcc720d41c39bf624ab4a77622d",
+      "durationSeconds": 139.2,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 68.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.3/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 70.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.3/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.4",
+      "loader": "fabric",
+      "jar": "versions/1.19.4/build/libs/villager_reroller-fabric-1.0.0+1.19.4.jar",
+      "sha256": "9ed7cbd373e6fd400f82ba4b51971403a6551abfffed0fb9098c7abeddd86e9e",
+      "durationSeconds": 108.9,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 56.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.4/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 52.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.4/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.19.4",
+      "loader": "forge",
+      "jar": "forge/versions/1.19.4/build/libs/villager_reroller-forge-1.0.0+1.19.4.jar",
+      "sha256": "6bbb8fb4578076ddc6c8487c62e9be2a2a608027c583135fc57cf9388df65adc",
+      "durationSeconds": 119.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 48.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.4/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 70.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.19.4/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.1",
+      "loader": "fabric",
+      "jar": "versions/1.20.1/build/libs/villager_reroller-fabric-1.0.0+1.20.1.jar",
+      "sha256": "ef67db8df66f5249ea98e98647c32ebcadc6180d2d0277ed4d73b14471f31bd1",
+      "durationSeconds": 91.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 54.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.1/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.1/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.1",
+      "loader": "forge",
+      "jar": "forge/versions/1.20.1/build/libs/villager_reroller-forge-1.0.0+1.20.1.jar",
+      "sha256": "a13e2c4b7d1309342f06130440832fbb3c173d0c681398ab30d7a97db5eddeeb",
+      "durationSeconds": 85.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.1/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.1/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.2",
+      "loader": "fabric",
+      "jar": "versions/1.20.2/build/libs/villager_reroller-fabric-1.0.0+1.20.2.jar",
+      "sha256": "2bab78443b41bbc376c94b3f54639890d47ab28d1a7fff3c0abaaae560c3e032",
+      "durationSeconds": 72.8,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.2/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 34.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.2/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.2",
+      "loader": "forge",
+      "jar": "forge/versions/1.20.2/build/libs/villager_reroller-forge-1.0.0+1.20.2.jar",
+      "sha256": "f821a8d7c8c0a76cba25f7c7d0da6e40ea40ca26e81032b3cd069c69d23ed047",
+      "durationSeconds": 87.4,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 44.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.2/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.2/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.4",
+      "loader": "fabric",
+      "jar": "versions/1.20.4/build/libs/villager_reroller-fabric-1.0.0+1.20.4.jar",
+      "sha256": "5fb50781c023ceb4b25b2e3aad9b9027e3fbb47770b9413cd9b786956fbe4c3f",
+      "durationSeconds": 78.9,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.4/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.4/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.4",
+      "loader": "forge",
+      "jar": "forge/versions/1.20.4/build/libs/villager_reroller-forge-1.0.0+1.20.4.jar",
+      "sha256": "165fd8ead8551f8868cab37e0743729a1521c9245019acccb29450ba51925b09",
+      "durationSeconds": 91.6,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 48.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.4/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.9,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.4/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.6",
+      "loader": "fabric",
+      "jar": "versions/1.20.6/build/libs/villager_reroller-fabric-1.0.0+1.20.6.jar",
+      "sha256": "df57b846622e11ceee39496d47e0810c1e71e4195766a976b4d9133b0ef2d9a6",
+      "durationSeconds": 73.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.6/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 34.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.6/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.6",
+      "loader": "forge",
+      "jar": "forge/versions/1.20.6/build/libs/villager_reroller-forge-1.0.0+1.20.6.jar",
+      "sha256": "e31bd81fdafb090a0ae951dd19b7b5408a1670c876efc87b2cba4c6a1a5e36f7",
+      "durationSeconds": 93.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 50.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.6/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.6/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21",
+      "loader": "fabric",
+      "jar": "versions/1.21/build/libs/villager_reroller-fabric-1.0.0+1.21.jar",
+      "sha256": "5829e87dc4e303f980f14809b5b7d287a7e969ab42e291643fdd0c833aa29bf8",
+      "durationSeconds": 74.8,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21",
+      "loader": "forge",
+      "jar": "forge/versions/1.21/build/libs/villager_reroller-forge-1.0.0+1.21.jar",
+      "sha256": "2e914fe125717eab92e05522cab7ad96089a9798cbc4ad7ba88d800d58cf42eb",
+      "durationSeconds": 85.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.1",
+      "loader": "fabric",
+      "jar": "versions/1.21.1/build/libs/villager_reroller-fabric-1.0.0+1.21.1.jar",
+      "sha256": "73ec1cebaa12ba03de0eb3f7a308c751856299e21be47a1cc360873199732894",
+      "durationSeconds": 74.8,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.1/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.4,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.1/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.1",
+      "loader": "forge",
+      "jar": "forge/versions/1.21.1/build/libs/villager_reroller-forge-1.0.0+1.21.1.jar",
+      "sha256": "169c8e6777de90ae358aca29e9230eb6f1bd2215f06a133cf17582d98cd1cb56",
+      "durationSeconds": 87.4,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 44.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.1/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.1/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.3",
+      "loader": "fabric",
+      "jar": "versions/1.21.3/build/libs/villager_reroller-fabric-1.0.0+1.21.3.jar",
+      "sha256": "3c06c0524c52b5ef0c7c4dc7ee7c7a867645f4eaecf1b244a99d9c09e6a119fd",
+      "durationSeconds": 77.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.3/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.3/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.3",
+      "loader": "forge",
+      "jar": "forge/versions/1.21.3/build/libs/villager_reroller-forge-1.0.0+1.21.3.jar",
+      "sha256": "5888159d5d4d833246490916d63c2358b787b3b38152f565c844033739457a62",
+      "durationSeconds": 71.9,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 44.9,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.3/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 27.0,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.3/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.4",
+      "loader": "fabric",
+      "jar": "versions/1.21.4/build/libs/villager_reroller-fabric-1.0.0+1.21.4.jar",
+      "sha256": "164d1effeaec05776f5ed2628321207ab3eaf9c2f3016f5457cb8cff0b0b0179",
+      "durationSeconds": 73.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.4/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 34.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.4/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.4",
+      "loader": "forge",
+      "jar": "forge/versions/1.21.4/build/libs/villager_reroller-forge-1.0.0+1.21.4.jar",
+      "sha256": "2b1daa9909461c2896f195f7ed1e15a6564445ceb850cfca22f226b1c8e048bf",
+      "durationSeconds": 61.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.4/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 24.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.4/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.5",
+      "loader": "fabric",
+      "jar": "versions/1.21.5/build/libs/villager_reroller-fabric-1.0.0+1.21.5.jar",
+      "sha256": "c5c1a93823e32c0278ab7e1a2e054f59158eee7b071153b1a8412b3c72a6e156",
+      "durationSeconds": 77.1,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.5/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.5/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.5",
+      "loader": "forge",
+      "jar": "forge/versions/1.21.5/build/libs/villager_reroller-forge-1.0.0+1.21.5.jar",
+      "sha256": "ad9900619fa0b6590b0e1db6f0eb95a30427c6fed29f52318798f630d9384cf7",
+      "durationSeconds": 95.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 52.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.5/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.5/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.6",
+      "loader": "fabric",
+      "jar": "versions/1.21.6/build/libs/villager_reroller-fabric-1.0.0+1.21.6.jar",
+      "sha256": "a90479b65b2328f19023cbacbe3faf7389a4f4c6f5916efad48d276ed3523499",
+      "durationSeconds": 75.2,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.6/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 34.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.6/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.6",
+      "loader": "forge",
+      "jar": "forge/versions/1.21.6/build/libs/villager_reroller-forge-1.0.0+1.21.6.jar",
+      "sha256": "b5308f85e3b955b9498460dc899340991cd84a41ccf07360c3048a3ea974388a",
+      "durationSeconds": 95.7,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 52.9,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.6/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.6/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.9",
+      "loader": "fabric",
+      "jar": "versions/1.21.9/build/libs/villager_reroller-fabric-1.0.0+1.21.9.jar",
+      "sha256": "b13ff870b3d55aba276f8fc782985d79f283ce0d542a1e3ca5431239311128ab",
+      "durationSeconds": 93.1,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 58.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.9/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 34.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.9/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.9",
+      "loader": "forge",
+      "jar": "forge/versions/1.21.9/build/libs/villager_reroller-forge-1.0.0+1.21.9.jar",
+      "sha256": "3d3134aa99d30c29ce83476fda8010cc6af08bf7c7d3214994ef64db4aa9ff1d",
+      "durationSeconds": 61.6,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.9/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 22.9,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.9/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.11",
+      "loader": "fabric",
+      "jar": "versions/1.21.11/build/libs/villager_reroller-fabric-1.0.0+1.21.11.jar",
+      "sha256": "639b1adece4fbd86c9797928a9c25a92d7a6e6c74e1b98d98f43a6bb77f143ce",
+      "durationSeconds": 81.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.11/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.11/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.11",
+      "loader": "forge",
+      "jar": "forge/versions/1.21.11/build/libs/villager_reroller-forge-1.0.0+1.21.11.jar",
+      "sha256": "46b9762ffffa3d9cd453b5e2ff5447f9c2ccada30861a959a3a8e67e6faf7104",
+      "durationSeconds": 69.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 26.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.11/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.11/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.1.2",
+      "loader": "fabric",
+      "jar": "versions/26.1.2/build/libs/villager_reroller-fabric-1.0.0+26.1.2.jar",
+      "sha256": "15b65e1310d40e42f8782465fc5f1ef001260b563a45a35d362f35f3798cc75a",
+      "durationSeconds": 67.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 38.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.1.2/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 28.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.1.2/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.1.2",
+      "loader": "forge",
+      "jar": "forge/versions/26.1.2/build/libs/villager_reroller-forge-1.0.0+26.1.2.jar",
+      "sha256": "b2fbab54d996a691cc1f7e5ecf58141ea6c38b00553f345800b07c0458dff913",
+      "durationSeconds": 71.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 44.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.1.2/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 26.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.1.2/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.2",
+      "loader": "fabric",
+      "jar": "versions/26.2/build/libs/villager_reroller-fabric-1.0.0+26.2.jar",
+      "sha256": "7170e4a5e8a2f3c00db6ea9335e56468ae4af02c054a992498b5272f7442debb",
+      "durationSeconds": 63.1,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 32.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.2/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 30.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.2/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.2",
+      "loader": "forge",
+      "jar": "forge/versions/26.2/build/libs/villager_reroller-forge-1.0.0+26.2.jar",
+      "sha256": "c7af5b9e7fbeacc7c9355e212646d50fa8c8c056b16ce243806e1ccca63cb15a",
+      "durationSeconds": 55.4,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 28.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.2/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 26.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.2/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.3",
+      "loader": "fabric",
+      "jar": "versions/26.3/build/libs/villager_reroller-fabric-1.0.0+26.3.jar",
+      "sha256": "083f0c311baadc897ce303a06929674392151f1ddfa838277b345b07027881b4",
+      "durationSeconds": 69.0,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 36.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.3/fabric/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 32.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.3/fabric/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.3",
+      "loader": "forge",
+      "jar": "forge/versions/26.3/build/libs/villager_reroller-forge-1.0.0+26.3.jar",
+      "sha256": "3d9b76c49c7103a80c06b57e5e9044be535bddc7569996701185478f3ab9ba3a",
+      "durationSeconds": 61.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 34.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.3/forge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 26.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.3/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    }
+  ]
+}
