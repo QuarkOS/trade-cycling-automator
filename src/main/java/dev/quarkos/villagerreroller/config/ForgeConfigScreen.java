@@ -10,6 +10,12 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+//? if >=1.20 {
+import net.minecraft.client.gui.GuiGraphics;
+//?}
+//? if <1.20 {
+import com.mojang.blaze3d.vertex.PoseStack;
+//?}
 
 import java.util.Optional;
 
@@ -95,21 +101,21 @@ public final class ForgeConfigScreen extends Screen {
             refreshStatus();
         }).bounds(x, y, 200, 20).build());
         //?}
-        y += 24;
-        priceBox = new EditBox(this.font, x, y, 200, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price"));
+        y += 36;
+        priceBox = new EditBox(this.font, x, y, 200, 20, priceLabel());
         priceBox.setMaxLength(3);
         priceBox.setValue(Integer.toString(AutomatorConfig.get().maxPrice()));
         //? if >=1.19.3 {
-        priceBox.setHint(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price"));
+        priceBox.setHint(priceLabel());
         //?}
         priceBox.setResponder(value -> refreshStatus());
         addRenderableWidget(priceBox);
-        y += 24;
-        attemptsBox = new EditBox(this.font, x, y, 200, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts"));
+        y += 36;
+        attemptsBox = new EditBox(this.font, x, y, 200, 20, attemptsLabel());
         attemptsBox.setMaxLength(5);
         attemptsBox.setValue(Integer.toString(AutomatorConfig.get().maxAttempts()));
         //? if >=1.19.3 {
-        attemptsBox.setHint(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts"));
+        attemptsBox.setHint(attemptsLabel());
         //?}
         addRenderableWidget(attemptsBox);
         y += 28;
@@ -231,6 +237,131 @@ public final class ForgeConfigScreen extends Screen {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static Component priceLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price");
+    }
+
+    private static Component attemptsLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts");
+    }
+
+    private static Component priceTooltip() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price.tooltip");
+    }
+
+    private static Component attemptsTooltip() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts.tooltip");
+    }
+
+    // The edit box message is narration-only. Draw the Cloth Config names above the fields.
+    //? if <1.20 {
+    @Override
+    public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+        super.render(pose, mouseX, mouseY, partialTick);
+        drawFieldLabel(pose, priceBox, priceLabel());
+        drawFieldLabel(pose, attemptsBox, attemptsLabel());
+        Component tip = hoveredTip(mouseX, mouseY);
+        if (tip != null) {
+            renderTooltip(pose, tip, mouseX, mouseY);
+        }
+    }
+
+    private void drawFieldLabel(PoseStack pose, EditBox box, Component label) {
+        if (box == null) {
+            return;
+        }
+        this.font.drawShadow(pose, label, boxX(box), boxY(box) - 12, 0xFFFFFF);
+    }
+    //?}
+    //? if >=1.20 && <26.1 {
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
+        drawFieldLabel(graphics, priceBox, priceLabel());
+        drawFieldLabel(graphics, attemptsBox, attemptsLabel());
+        Component tip = hoveredTip(mouseX, mouseY);
+        if (tip != null) {
+            //? if <1.21.6 {
+            graphics.renderTooltip(this.font, tip, mouseX, mouseY);
+            //?}
+            //? if >=1.21.6 {
+            graphics.setTooltipForNextFrame(this.font, tip, mouseX, mouseY);
+            //?}
+        }
+    }
+
+    private void drawFieldLabel(GuiGraphics graphics, EditBox box, Component label) {
+        if (box == null) {
+            return;
+        }
+        graphics.drawString(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFFFF, true);
+    }
+    //?}
+    //? if >=26.1 {
+    @Override
+    public void extractRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        drawFieldLabel(graphics, priceBox, priceLabel());
+        drawFieldLabel(graphics, attemptsBox, attemptsLabel());
+        Component tip = hoveredTip(mouseX, mouseY);
+        if (tip != null) {
+            graphics.setTooltipForNextFrame(this.font, tip, mouseX, mouseY);
+        }
+    }
+
+    private void drawFieldLabel(GuiGraphics graphics, EditBox box, Component label) {
+        if (box == null) {
+            return;
+        }
+        graphics.text(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFFFF, true);
+    }
+    //?}
+
+    private Component hoveredTip(int mouseX, int mouseY) {
+        if (overField(priceBox, mouseX, mouseY)) {
+            return priceTooltip();
+        }
+        if (overField(attemptsBox, mouseX, mouseY)) {
+            return attemptsTooltip();
+        }
+        return null;
+    }
+
+    private boolean overField(EditBox box, int mouseX, int mouseY) {
+        if (box == null) {
+            return false;
+        }
+        int left = boxX(box);
+        int top = boxY(box) - 12;
+        return mouseX >= left && mouseX < left + boxW(box) && mouseY >= top && mouseY < boxY(box) + boxH(box);
+    }
+
+    private int boxX(EditBox box) {
+        //? if <1.19.3 {
+        return box.x;
+        //?}
+        //? if >=1.19.3 {
+        return box.getX();
+        //?}
+    }
+
+    private int boxY(EditBox box) {
+        //? if <1.19.3 {
+        return box.y;
+        //?}
+        //? if >=1.19.3 {
+        return box.getY();
+        //?}
+    }
+
+    private static int boxW(EditBox box) {
+        return box.getWidth();
+    }
+
+    private static int boxH(EditBox box) {
+        return box.getHeight();
     }
 }
 *///?}

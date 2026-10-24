@@ -148,6 +148,149 @@ abstract class TradeCyclingDevRuntimeTask : DefaultTask() {
     }
 }
 
+/**
+ * Forge 1.19 through 1.20.4 ship Minecraft under SRG names. The compile
+ * classpath is official, so the plain jar calls Minecraft.getInstance and
+ * dies on a production client. This task remaps that jar to SRG and rewrites
+ * accesstransformer.cfg the same way. 1.20.6 and newer already run official names.
+ */
+abstract class ReobfReleaseJarTask : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val inputJar: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val mapFile: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val libraryJar: RegularFileProperty
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val fartJars: ConfigurableFileCollection
+
+    @get:OutputFile
+    abstract val outputJar: RegularFileProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun reobf() {
+        val work = temporaryDir
+        val remapped = work.resolve("remapped.jar")
+        val plainMap = work.resolve("official-to-srg.tsrg")
+        val output = outputJar.get().asFile
+        output.parentFile.mkdirs()
+        // FART reads the mapping as text. The cached file is gzipped tsrg2.
+        GZIPInputStream(mapFile.get().asFile.inputStream()).use { input ->
+            plainMap.outputStream().use { stream -> input.copyTo(stream) }
+        }
+        execOperations.javaexec {
+            classpath = fartJars
+            mainClass.set("net.minecraftforge.fart.Main")
+            args(
+                "--input", inputJar.get().asFile.absolutePath,
+                "--output", remapped.absolutePath,
+                "--map", plainMap.absolutePath,
+                "--lib", libraryJar.get().asFile.absolutePath,
+                "--log", work.resolve("fart.log").absolutePath,
+                "--threads", "2",
+            )
+        }
+        remapAccessTransformer(remapped, output, mapFile.get().asFile)
+    }
+
+    private fun remapAccessTransformer(input: File, output: File, mapFile: File) {
+        val fields = HashMap<String, String>()
+        val methods = HashMap<String, String>()
+        GZIPInputStream(mapFile.inputStream()).bufferedReader().use { reader ->
+            var current = ""
+            reader.lineSequence().forEach { line ->
+                if (line.startsWith("tsrg")) {
+                    return@forEach
+                }
+                val tabs = line.takeWhile { it == '\t' }.length
+                val rest = line.trim()
+                if (rest.isEmpty()) {
+                    return@forEach
+                }
+                if (tabs == 0) {
+                    current = rest.substringBefore(' ')
+                    return@forEach
+                }
+                if (tabs != 1) {
+                    return@forEach
+                }
+                val parts = rest.split(' ')
+                if (parts.size == 2) {
+                    fields["$current ${parts[0]}"] = parts[1]
+                } else if (parts.size >= 3) {
+                    methods["$current ${parts[0]} ${parts[1]}"] = parts[2]
+                }
+            }
+        }
+        ZipFile(input).use { zip ->
+            val at = zip.getEntry("META-INF/accesstransformer.cfg")
+            val rewritten = if (at == null) {
+                null
+            } else {
+                zip.getInputStream(at).bufferedReader().use { it.readText() }
+                    .lineSequence()
+                    .joinToString("\n") { remapAtLine(it, fields, methods) }
+                    .let { text -> if (text.endsWith("\n")) text else "$text\n" }
+            }
+            JarOutputStream(output.outputStream()).use { out ->
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    if (entry.isDirectory) {
+                        continue
+                    }
+                    val bytes = if (entry.name == "META-INF/accesstransformer.cfg" && rewritten != null) {
+                        rewritten.toByteArray()
+                    } else {
+                        zip.getInputStream(entry).readBytes()
+                    }
+                    out.putNextEntry(ZipEntry(entry.name))
+                    out.write(bytes)
+                    out.closeEntry()
+                }
+            }
+        }
+    }
+
+    private fun remapAtLine(line: String, fields: Map<String, String>, methods: Map<String, String>): String {
+        val trimmed = line.trim()
+        if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+            return line
+        }
+        val hash = line.indexOf('#')
+        val code = (if (hash >= 0) line.substring(0, hash) else line).trim()
+        val comment = if (hash >= 0) line.substring(hash).trim() else ""
+        val tokens = code.split(Regex("\\s+"))
+        if (tokens.size < 3) {
+            return line
+        }
+        val owner = tokens[1].replace('.', '/')
+        val member = tokens[2]
+        val renamed = if ('(' in member) {
+            val name = member.substringBefore('(')
+            val descriptor = member.substring(member.indexOf('('))
+            val srg = methods["$owner $name $descriptor"]
+                ?: throw GradleException("No SRG method for ${tokens[1]} $member")
+            srg + descriptor
+        } else {
+            fields["$owner $member"]
+                ?: throw GradleException("No SRG field for ${tokens[1]} $member")
+        }
+        val suffix = if (comment.isEmpty()) "" else " # ${comment.removePrefix("#").trim()}"
+        return "${tokens[0]} ${tokens[1]} $renamed$suffix"
+    }
+}
+
 buildscript {
     repositories {
         gradlePluginPortal()
@@ -535,6 +678,40 @@ if (forgeNode == null) {
         return major < 1 || (major == 1 && (minor < 20 || (minor == 20 && patch < 4)))
     }
 
+    // 1.20.6 is the first Forge line whose production client is official names.
+    fun productionUsesSrg(version: String): Boolean {
+        val parts = version.split(".").map { it.toIntOrNull() ?: 0 }
+        val major = parts.getOrElse(0) { 0 }
+        val minor = parts.getOrElse(1) { 0 }
+        val patch = parts.getOrElse(2) { 0 }
+        return major == 1 && (minor < 20 || (minor == 20 && patch < 6))
+    }
+
+    if (productionUsesSrg(minecraftVersion)) {
+        val forgeUserdev = rootProject.file(".gradle/mavenizer/repo/net/minecraftforge/forge/${node.forgeCoordinate}/forge-${node.forgeCoordinate}.jar")
+        val mapProvider = providers.provider {
+            officialToSrg ?: File(System.getProperty("user.home"), ".gradle/caches/minecraftforge/forgegradle/mavenizer/caches/mcp")
+                .walkTopDown()
+                .firstOrNull { it.isFile && it.name == "official-$minecraftVersion-obf.tsrg.gz" }
+                ?: throw GradleException("No official-to-SRG mapping cached for Minecraft $minecraftVersion.")
+        }
+        tasks.named<Jar>("jar") {
+            archiveClassifier.set("mojmap")
+        }
+        val reobfJar = tasks.register<ReobfReleaseJarTask>("reobfJar") {
+            dependsOn("compileJava")
+            // Inheritance has to be the official Forge jar. An SRG library does not
+            // match getInstance and FART then leaves the mod on mojmap names.
+            inputJar.set(tasks.named<Jar>("jar").flatMap { it.archiveFile })
+            mapFile.set(layout.file(mapProvider))
+            libraryJar.set(forgeUserdev)
+            fartJars.from(fartTool)
+            outputJar.set(layout.buildDirectory.file("libs/villager_reroller-forge-${project.version}.jar"))
+        }
+        tasks.named("jar") { finalizedBy(reobfJar) }
+        tasks.named("assemble") { dependsOn(reobfJar) }
+    }
+
     tasks.withType<JavaExec>().configureEach {
         if (name == "runClient" && forgeBefore1204(minecraftVersion)) {
             val modsDir = runDir.dir("mods").asFile
@@ -544,7 +721,7 @@ if (forgeNode == null) {
                 modsDir.mkdirs()
                 modsDir.listFiles()?.filter { it.name.startsWith("villager_reroller") }?.forEach { it.delete() }
                 val built = builtJar.get().asFile
-                built.copyTo(modsDir.resolve(built.name), overwrite = true)
+                built.copyTo(modsDir.resolve("villager_reroller-forge-${project.version}.jar"), overwrite = true)
             }
         }
         val cycling = providers.gradleProperty("withTradeCycling").orNull == "true"

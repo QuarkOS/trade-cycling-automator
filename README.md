@@ -62,7 +62,7 @@ Trade Cycling by Max Henkel is optional on every version ([Modrinth](https://mod
 
 1.19 through 1.20.4 are compiled for Java 17. 1.20.6 and the 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
 
-The Forge 1.19 through 1.20.4 dev clients remap Trade Cycling's SRG jar to mojmap before launch. That remap is only for the official-mapped userdev runtime. The published mod jar does not include Trade Cycling. Forge 1.19 through 1.20.2 userdev clients also copy this mod's jar into the run `mods` folder, because those Forge builds do not discover an exploded module-path directory.
+The Forge 1.19 through 1.20.4 dev clients remap Trade Cycling's SRG jar to mojmap before launch. That remap is only for the official-mapped userdev runtime. The published mod jar does not include Trade Cycling. Those same Forge versions ship Minecraft under SRG names, so `reobfJar` remaps the release jar (and `accesstransformer.cfg`) from official names to SRG. 1.20.6 and newer Forge builds already run official names. Forge 1.19 through 1.20.2 userdev clients copy the official-mapped jar into the run `mods` folder, because those Forge builds do not discover an exploded module-path directory.
 
 ## How to use
 
@@ -119,5 +119,28 @@ xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
 ```
 
 `:1.21.11:test` checks the wiki price table, the vanilla roll, and the scrolling-name offset. The client gametest and the harness spawn a librarian next to a lectern. Without `-PwithTradeCycling=true` the run breaks the lectern. With the property it cycles through Trade Cycling and leaves the lectern in place. The published jars do not bundle Trade Cycling.
+
+## Validate release jars
+
+`./tools/validate` is the production check. It builds every Fabric and Forge jar, then launches that jar (the file under `build/libs`, not the Loom or ForgeGradle dev classes) in a headless client. The jar is copied into `mods/` with the dependencies that version already uses: Fabric API, Cloth Config, and Mod Menu on Fabric; Forge uses its own config screen and does not get those. Each jar runs twice, once without Trade Cycling and once with the matching Trade Cycling jar.
+
+The client is the real loader for that Minecraft version. `-Dvillager_reroller.harness=true` turns on the tick harness inside the jar, the same librarian, lectern, and reroll scenario as the dev gametest. A run passes only when the log shows the mod loaded, the config screen opened, the trade panel rendered, and a reroll reached a matching offer. Lag timeouts (a world that never finished loading, a reroll that hit the deadline) are retried. Other failures are not.
+
+Fabric API 1.19 and 1.19.1 are published to Maven as the base module only (mod id `fabric`, a few kilobytes, no nested jars). The validator uses the Modrinth bundle for those two versions, which is the jar players install and which nests the rest of the modules. 1.19.2 and newer resolve the bundled jar from Maven.
+
+A later run with `--version` or `--loader` rewrites those rows and keeps every other row already in `report.json`.
+
+```bash
+./tools/validate
+./tools/validate --version 1.21.1 --loader fabric
+./tools/validate --version 1.20.1,1.21.11 --loader forge --jobs 1 --retries 2
+./gradlew validateAll
+```
+
+Gradle itself still needs Java 25 (`JAVA_HOME=/opt/jdk25`, which the script sets). The game uses Java 17 for 1.19 through 1.20.4, Java 21 for 1.20.6 through 1.21.11, and Java 25 for 26.x. Those JDKs are expected at `/opt/jdk17`, `/usr/lib/jvm/java-21-openjdk-amd64`, and `/opt/jdk25`. `xvfb` has to be on `PATH`. The first run downloads the Minecraft client, assets, and loaders into `build/validation-minecraft/`. 26.3 preloads `tools/libglx-srgb.so`. The script compiles it from `tools/libglx_srgb.c` when `gcc` is on `PATH`. The library strips the sRGB GLX attribute that Xvfb does not advertise.
+
+`--jobs` defaults to however many clients fit in memory and CPU, capped at 2. `--retries` defaults to 1 extra attempt after a lag timeout. `--timeout-minutes` defaults to 40 for one attempt. `--skip-build` launches jars that are already built. `./gradlew validateAll` builds the jars, then runs the script with `--skip-build`.
+
+The report is `artifacts/validation/report.md` and `artifacts/validation/report.json`. One row is a Minecraft version and a loader. Columns are the without-Trade-Cycling result, the with-Trade-Cycling result, the release jar's SHA-256, the combined duration, and the failure reason. Screenshots are `artifacts/validation/screenshots/<version>/<loader>/<without-tc|with-tc>.png`. The process exits 0 only when every selected row passes.
 
 The Java package is `dev.quarkos.villagerreroller`. The mod id is `villager_reroller`.

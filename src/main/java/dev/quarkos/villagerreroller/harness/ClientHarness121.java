@@ -53,9 +53,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-// Fabric 1.21.5+ uses the client gametest. This tick harness covers Fabric
-// before that, and every Forge version, when -Dvillager_reroller.harness=true
-// is set. Normal launches ignore it.
+// In-game checks for a production jar. Fabric 1.21.5+ dev runs still use the
+// client gametest. This tick harness runs on every version, including those,
+// when -Dvillager_reroller.harness=true is set. Normal launches ignore it.
 public final class ClientHarness121 {
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
     private static final int SCALE = Integer.getInteger("villager_reroller.timeoutScale", 1);
@@ -105,11 +105,14 @@ public final class ClientHarness121 {
             client.options.simulationDistance().set(5);
             client.options.framerateLimit().set(20);
             LOGGER.info("1.21.1 client harness armed");
+            note("villager_reroller harness check mod-loaded");
         }
         ticks++;
         try {
             switch (state) {
                 case WAIT_TITLE -> waitTitle(client);
+                case OPEN_CONFIG -> openConfig(client);
+                case WAIT_CONFIG -> waitConfig(client);
                 case WAIT_PRESETS -> waitPresets(client);
                 case WAIT_PLAYER -> waitPlayer(client);
                 case WAIT_LIBRARIAN -> waitLibrarian(client);
@@ -153,19 +156,107 @@ public final class ClientHarness121 {
             }
         }
         *///?}
+        Screen early = McBridge.currentScreen(client);
+        if (early != null && !(early instanceof TitleScreen) && ticks > 20 && ticks % 20 == 0) {
+            String typeName = early.getClass().getName().toLowerCase(java.util.Locale.ROOT);
+            if (typeName.contains("notice") || typeName.contains("safety") || typeName.contains("warning") || typeName.contains("backup")) {
+                for (AbstractWidget widget : McBridge.buttons(early)) {
+                    if (widget instanceof Button button) {
+                        String label = button.getMessage().getString().toLowerCase(java.util.Locale.ROOT);
+                        if (label.contains("continue") || label.contains("proceed") || label.contains("offline")) {
+                            pressButton(button);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
         if (!(McBridge.currentScreen(client) instanceof TitleScreen)) {
             if (ticks > timeout(20 * 45)) {
                 fail("title screen did not open, screen=" + McBridge.currentScreen(client));
             }
             return;
         }
+        // The Mojang splash is an overlay drawn on top of the title screen. A screenshot
+        // taken while it is up is the red logo, not the config screen underneath.
+        if (loadingOverlay(client)) {
+            if (ticks > timeout(20 * 120)) {
+                fail("loading overlay did not finish, screen=" + McBridge.currentScreen(client));
+            }
+            return;
+        }
+        state = State.OPEN_CONFIG;
+        ticks = 0;
+    }
+
+    private static void openConfig(Minecraft client) {
+        if (!(McBridge.currentScreen(client) instanceof TitleScreen)) {
+            if (ticks > timeout(20 * 20)) {
+                fail("title screen left before the config screen, screen=" + McBridge.currentScreen(client));
+            }
+            return;
+        }
+        Screen config;
+        //? if forge {
+        /*config = new dev.quarkos.villagerreroller.config.ForgeConfigScreen(McBridge.currentScreen(client));
+        *///?} else {
+        config = dev.quarkos.villagerreroller.config.AutomatorConfigScreen.create(McBridge.currentScreen(client));
+        //?}
+        if (config == null) {
+            fail("config screen factory returned null");
+            return;
+        }
+        McBridge.setScreen(client, config);
+        state = State.WAIT_CONFIG;
+        ticks = 0;
+    }
+
+    private static void waitConfig(Minecraft client) {
+        Screen screen = McBridge.currentScreen(client);
+        if (screen == null || screen instanceof TitleScreen || loadingOverlay(client)) {
+            if (loadingOverlay(client)) {
+                ticks = 0;
+            }
+            if (ticks > timeout(20 * 30)) {
+                fail("config screen did not open, screen=" + screen);
+            }
+            return;
+        }
+        // The tick runs before the frame is presented, so wait for a rendered frame.
+        if (ticks < 20) {
+            return;
+        }
+        String title = screen.getTitle().getString();
+        String typeName = screen.getClass().getName();
+        boolean config = title.contains("Villager")
+                || title.contains("villager_reroller")
+                || typeName.contains("ForgeConfigScreen")
+                || typeName.toLowerCase(java.util.Locale.ROOT).contains("cloth");
+        if (!config) {
+            fail("config screen opened the wrong screen: " + typeName + " title=" + title);
+            return;
+        }
+        shot(client, "config-screen");
+        note("villager_reroller harness check config-screen");
+        openCreateWorld(client, screen);
+        state = State.WAIT_PRESETS;
+        ticks = 0;
+    }
+
+    private static boolean loadingOverlay(Minecraft client) {
+        //? if >=26.2 {
+        /*return client.gui.overlay() != null;
+        *///?} else {
+        return client.getOverlay() != null;
+        //?}
+    }
+
+    private static void openCreateWorld(Minecraft client, Screen parent) {
         //? if <1.21.9 {
-        /*CreateWorldScreen.openFresh(client, McBridge.currentScreen(client));
+        /*CreateWorldScreen.openFresh(client, parent);
         *///?} else {
         CreateWorldScreen.openFresh(client, () -> McBridge.setScreen(client, new TitleScreen()));
         //?}
-        state = State.WAIT_PRESETS;
-        ticks = 0;
     }
 
     private static void waitPresets(Minecraft client) {
@@ -408,6 +499,7 @@ public final class ClientHarness121 {
             fail("panel catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
             return;
         }
+        note("villager_reroller harness check trade-panel");
         state = State.WAIT_SCROLL;
         ticks = 0;
     }
@@ -566,7 +658,11 @@ public final class ClientHarness121 {
             }
             return;
         }
+        note("villager_reroller harness check reroll-matched");
         LOGGER.info("1.21.1 client harness passed (cycling={})", cycling);
+        System.out.println("1.21.1 client harness passed (cycling=" + cycling + ")");
+        System.out.flush();
+        writeResult("PASS\ncycling=" + cycling + "\nmod-loaded\nconfig-screen\ntrade-panel\nreroll-matched\n");
         client.stop();
     }
 
@@ -767,13 +863,34 @@ public final class ClientHarness121 {
         return Math.max(1, ticks) * Math.max(1, SCALE);
     }
 
+    private static void note(String message) {
+        LOGGER.info(message);
+        System.out.println(message);
+        System.out.flush();
+    }
+
+    private static void writeResult(String body) {
+        try {
+            Path file = artifacts().resolve("harness-result.txt");
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, body);
+        } catch (IOException e) {
+            LOGGER.error("could not write harness result: {}", e.getMessage());
+        }
+    }
+
     private static void fail(String message) {
         LOGGER.error("1.21.1 client harness failed: {}", message);
+        System.err.println("1.21.1 client harness failed: " + message);
+        System.err.flush();
+        writeResult("FAIL\n" + message + "\n");
         System.exit(1);
     }
 
     private enum State {
         WAIT_TITLE,
+        OPEN_CONFIG,
+        WAIT_CONFIG,
         WAIT_PRESETS,
         WAIT_PLAYER,
         WAIT_LIBRARIAN,
