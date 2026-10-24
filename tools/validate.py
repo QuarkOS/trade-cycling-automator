@@ -17,12 +17,15 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import tomllib
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -38,7 +41,6 @@ PASS_MARK = "client harness passed"
 FAIL_MARK = "client harness failed:"
 LAG_HINTS = (
     "did not open",
-    "did not load",
     "never loaded",
     "did not claim",
     "still running after the deadline",
@@ -403,14 +405,23 @@ def download_dependencies(cache: Path, selected: list[dict]) -> None:
         unique.append(coord)
     for group, artifact, version in unique:
         destination = dep_path(cache, group, artifact, version)
-        if destination.is_file() and destination.stat().st_size > 0:
+        if jar_is_usable(destination, artifact):
             continue
-        cached = gradle_cache_jar(group, artifact, version)
+        if destination.exists():
+            destination.unlink()
         destination.parent.mkdir(parents=True, exist_ok=True)
+        cached = gradle_cache_jar(group, artifact, version)
         if cached is not None:
             shutil.copy(cached, destination)
-            continue
-        download_maven(group, artifact, version, destination)
+        elif artifact == "fabric-api":
+            # 1.19 and 1.19.1 Maven artifacts are the base module only.
+            download_fabric_api_bundle(version, destination)
+        else:
+            download_maven(group, artifact, version, destination)
+        if not jar_is_usable(destination, artifact):
+            if destination.exists():
+                destination.unlink()
+            raise SystemExit(f"{group}:{artifact}:{version} did not resolve to a usable jar")
 
 
 def dependency_coords(spec: dict, with_trade_cycling: bool) -> list[tuple[str, str, str]]:
@@ -430,6 +441,18 @@ def dep_path(cache: Path, group: str, artifact: str, version: str) -> Path:
     return cache / "mods" / f"{artifact}-{version}.jar"
 
 
+def jar_is_usable(path: Path, artifact: str) -> bool:
+    if not path.is_file() or path.stat().st_size <= 0:
+        return False
+    if artifact != "fabric-api":
+        return True
+    try:
+        with zipfile.ZipFile(path) as archive:
+            return any(name.startswith("META-INF/jars/") and name.endswith(".jar") for name in archive.namelist())
+    except zipfile.BadZipFile:
+        return False
+
+
 def gradle_cache_jar(group: str, artifact: str, version: str) -> Path | None:
     base = Path.home() / ".gradle" / "caches" / "modules-2" / "files-2.1" / group / artifact / version
     if not base.is_dir():
@@ -438,8 +461,34 @@ def gradle_cache_jar(group: str, artifact: str, version: str) -> Path | None:
         path
         for path in base.rglob("*.jar")
         if not path.name.endswith(("-sources.jar", "-javadoc.jar", "-dev.jar"))
+        and jar_is_usable(path, artifact)
     ]
-    return sorted(jars)[0] if jars else None
+    return max(jars, key=lambda path: path.stat().st_size) if jars else None
+
+
+def download_fabric_api_bundle(version: str, destination: Path) -> None:
+    if "+" not in version:
+        raise RuntimeError(f"fabric-api version {version} has no Minecraft suffix")
+    game = version.split("+", 1)[1]
+    query = urllib.parse.urlencode(
+        {
+            "game_versions": json.dumps([game]),
+            "loaders": json.dumps(["fabric"]),
+        }
+    )
+    url = "https://api.modrinth.com/v2/project/fabric-api/version?" + query
+    request = urllib.request.Request(url, headers={"User-Agent": "villager-reroller-validate"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        payload = json.loads(response.read().decode())
+    match = next((item for item in payload if item.get("version_number") == version), None)
+    if match is None:
+        found = ", ".join(item.get("version_number", "?") for item in payload[:8])
+        raise RuntimeError(f"Modrinth has no Fabric API {version} (saw {found})")
+    files = [item for item in match.get("files") or [] if str(item.get("filename", "")).endswith(".jar")]
+    chosen = next((item for item in files if item.get("primary")), None) or (files[0] if files else None)
+    if chosen is None:
+        raise RuntimeError(f"Modrinth Fabric API {version} has no jar")
+    download(chosen["url"], destination)
 
 
 def download_maven(group: str, artifact: str, version: str, destination: Path) -> None:
@@ -791,8 +840,26 @@ def stop_live_processes() -> None:
         terminate(proc)
 
 
+def previous_rows(output: Path) -> dict[tuple[str, str], dict]:
+    path = output / "report.json"
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        return {}
+    rows = {}
+    for row in payload.get("results") or []:
+        version = row.get("version")
+        loader = row.get("loader")
+        if version and loader:
+            rows[(version, loader)] = row
+    return rows
+
+
 def write_reports(output: Path, selected: list[dict], results: dict, partial: bool) -> dict:
-    rows = []
+    previous = previous_rows(output)
+    fresh: dict[tuple[str, str], dict] = {}
     for spec in selected:
         without = results.get((spec["version"], spec["loader"], "without-tc"))
         with_tc = results.get((spec["version"], spec["loader"], "with-tc"))
@@ -810,18 +877,23 @@ def write_reports(output: Path, selected: list[dict], results: dict, partial: bo
             duration += without["durationSeconds"]
         if with_tc:
             duration += with_tc["durationSeconds"]
-        rows.append(
-            {
-                "version": spec["version"],
-                "loader": spec["loader"],
-                "jar": str(spec["jar"].relative_to(ROOT)) if spec.get("jar") else None,
-                "sha256": spec.get("sha256") or "",
-                "durationSeconds": round(duration, 1),
-                "withoutTradeCycling": public_mode(without),
-                "withTradeCycling": public_mode(with_tc),
-                "failureReason": "; ".join(reasons),
-            }
-        )
+        fresh[(spec["version"], spec["loader"])] = {
+            "version": spec["version"],
+            "loader": spec["loader"],
+            "jar": str(spec["jar"].relative_to(ROOT)) if spec.get("jar") else None,
+            "sha256": spec.get("sha256") or "",
+            "durationSeconds": round(duration, 1),
+            "withoutTradeCycling": public_mode(without),
+            "withTradeCycling": public_mode(with_tc),
+            "failureReason": "; ".join(reasons),
+        }
+    rows = []
+    for entry in load_matrix(ROOT)["entries"]:
+        key = (entry["version"], entry["loader"])
+        if key in fresh:
+            rows.append(fresh[key])
+        elif key in previous:
+            rows.append(previous[key])
     report = {
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "partial": partial,
@@ -920,6 +992,55 @@ def self_test() -> None:
     assert classified["status"] == "pass", classified
     lag = classify_log("1.21.1 client harness failed: world did not load, screen=null", "", 1, False)
     assert lag["status"] == "fail" and retryable(lag)
+    crash = classify_log("java.lang.NoSuchMethodError: Minecraft.getInstance", "", 255, False)
+    assert crash["status"] == "fail" and not retryable(crash)
+    with tempfile.TemporaryDirectory() as tmp:
+        stub = Path(tmp) / "stub.jar"
+        bundle = Path(tmp) / "bundle.jar"
+        with zipfile.ZipFile(stub, "w") as archive:
+            archive.writestr("fabric.mod.json", "{}")
+        with zipfile.ZipFile(bundle, "w") as archive:
+            archive.writestr("META-INF/jars/fabric-events-interaction-v0.jar", b"not-a-jar")
+        assert not jar_is_usable(stub, "fabric-api")
+        assert jar_is_usable(bundle, "fabric-api")
+        report_dir = Path(tmp) / "out"
+        report_dir.mkdir()
+        (report_dir / "report.json").write_text(json.dumps({
+            "results": [{
+                "version": "1.19",
+                "loader": "fabric",
+                "sha256": "old",
+                "durationSeconds": 1,
+                "withoutTradeCycling": {"status": "pass"},
+                "withTradeCycling": {"status": "pass"},
+                "failureReason": "",
+            }]
+        }))
+        kept = write_reports(
+            report_dir,
+            [{
+                "version": "1.21.1",
+                "loader": "fabric",
+                "jar": ROOT / "README.md",
+                "sha256": "new",
+            }],
+            {
+                ("1.21.1", "fabric", "without-tc"): {
+                    "status": "pass",
+                    "failureReason": None,
+                    "durationSeconds": 2,
+                    "attempts": 1,
+                    "screenshot": None,
+                    "checks": {},
+                    "exitCode": 0,
+                    "logExcerpt": "",
+                }
+            },
+            partial=True,
+        )
+        by_key = {(row["version"], row["loader"]): row for row in kept["results"]}
+        assert by_key[("1.19", "fabric")]["sha256"] == "old"
+        assert by_key[("1.21.1", "fabric")]["sha256"] == "new"
     hard = classify_log(
         "villager_reroller harness check mod-loaded\n"
         "1.21.1 client harness failed: name reaches the price at offset 3",

@@ -62,7 +62,7 @@ Trade Cycling by Max Henkel is optional on every version ([Modrinth](https://mod
 
 1.19 through 1.20.4 are compiled for Java 17. 1.20.6 and the 1.21.x jars are compiled for Java 21. The 26.x jars are compiled for Java 25. Gradle itself has to run on Java 25 because Fabric Loom 1.18 requires that runtime.
 
-The Forge 1.19 through 1.20.4 dev clients remap Trade Cycling's SRG jar to mojmap before launch. That remap is only for the official-mapped userdev runtime. The published mod jar does not include Trade Cycling. Forge 1.19 through 1.20.2 userdev clients also copy this mod's jar into the run `mods` folder, because those Forge builds do not discover an exploded module-path directory.
+The Forge 1.19 through 1.20.4 dev clients remap Trade Cycling's SRG jar to mojmap before launch. That remap is only for the official-mapped userdev runtime. The published mod jar does not include Trade Cycling. Those same Forge versions ship Minecraft under SRG names, so `reobfJar` remaps the release jar (and `accesstransformer.cfg`) from official names to SRG. 1.20.6 and newer Forge builds already run official names. Forge 1.19 through 1.20.2 userdev clients copy the official-mapped jar into the run `mods` folder, because those Forge builds do not discover an exploded module-path directory.
 
 ## How to use
 
@@ -125,6 +125,10 @@ xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
 `./tools/validate` is the production check. It builds every Fabric and Forge jar, then launches that jar (the file under `build/libs`, not the Loom or ForgeGradle dev classes) in a headless client. The jar is copied into `mods/` with the dependencies that version already uses: Fabric API, Cloth Config, and Mod Menu on Fabric; Forge uses its own config screen and does not get those. Each jar runs twice, once without Trade Cycling and once with the matching Trade Cycling jar.
 
 The client is the real loader for that Minecraft version. `-Dvillager_reroller.harness=true` turns on the tick harness inside the jar, the same librarian, lectern, and reroll scenario as the dev gametest. A run passes only when the log shows the mod loaded, the config screen opened, the trade panel rendered, and a reroll reached a matching offer. Lag timeouts (a world that never finished loading, a reroll that hit the deadline) are retried. Other failures are not.
+
+Fabric API 1.19 and 1.19.1 are published to Maven as the base module only (mod id `fabric`, a few kilobytes, no nested jars). The validator uses the Modrinth bundle for those two versions, which is the jar players install and which nests the rest of the modules. 1.19.2 and newer resolve the bundled jar from Maven.
+
+A later run with `--version` or `--loader` rewrites those rows and keeps every other row already in `report.json`.
 
 ```bash
 ./tools/validate

@@ -222,7 +222,9 @@ if (project == rootProject) {
         group = "verification"
         description = "Build every Villager Reroller jar and launch each release jar in production Minecraft, without and with Trade Cycling."
         notCompatibleWithConfigurationCache("Launches production Minecraft.")
-        val jars = rootProject.allprojects.mapNotNull { candidate -> candidate.tasks.findByName("jar") }
+        val jars = rootProject.allprojects.flatMap { candidate ->
+            listOfNotNull(candidate.tasks.findByName("reobfJar"), candidate.tasks.findByName("jar"))
+        }
         dependsOn(jars)
         workingDir = rootProject.layout.projectDirectory.asFile
         commandLine("python3", rootProject.file("tools/validate.py").absolutePath, "--skip-build")
