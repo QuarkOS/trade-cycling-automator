@@ -296,7 +296,7 @@ public final class ForgeConfigScreen extends Screen {
         if (box == null) {
             return;
         }
-        graphics.drawString(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFF, true);
+        graphics.drawString(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFFFF, true);
     }
     //?}
     //? if >=26.1 {
@@ -315,7 +315,7 @@ public final class ForgeConfigScreen extends Screen {
         if (box == null) {
             return;
         }
-        graphics.text(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFF, true);
+        graphics.text(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFFFF, true);
     }
     //?}
 
