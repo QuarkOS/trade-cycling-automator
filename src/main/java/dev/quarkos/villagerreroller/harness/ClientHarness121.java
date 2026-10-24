@@ -77,6 +77,9 @@ public final class ClientHarness121 {
     private static boolean rerollShot;
     private static int lecternsBefore;
     private static String stopReason = "running";
+    private static final java.util.ArrayDeque<String> COMMANDS = new java.util.ArrayDeque<>();
+    private static boolean platformQueued;
+    private static int commandGap;
 
     private ClientHarness121() {
     }
@@ -173,25 +176,21 @@ public final class ClientHarness121 {
             return;
         }
         //? if <1.19.4 {
-        /*if (ticks < 5) {
+        /*        if (ticks < 100) {
+            // Forge's create-world screen reloads datapacks after it opens and then rebuilds the
+            // widgets. Applying the flat preset or cheats before that reload is wiped, and creating
+            // during the reload never starts the server.
             return;
         }
-        create.setGameMode(CreateWorldScreen.SelectedGameMode.SURVIVAL);
-        create.commands = true;
-        var access = create.worldGenSettingsComponent.registryHolder();
-        //? if <1.19.3 {
-        create.worldGenSettingsComponent.updateSettings(net.minecraft.client.gui.screens.worldselection.PresetEditor.flatWorldConfigurator(
-                net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings.getDefault(
-                        access.registryOrThrow(net.minecraft.core.Registry.BIOME_REGISTRY),
-                        access.registryOrThrow(net.minecraft.core.Registry.STRUCTURE_SET_REGISTRY))));
-        //?}
-        //? if >=1.19.3 {
-        create.worldGenSettingsComponent.updateSettings(net.minecraft.client.gui.screens.worldselection.PresetEditor.flatWorldConfigurator(
-                net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings.getDefault(
-                        access.registryOrThrow(net.minecraft.core.registries.Registries.BIOME).asLookup(),
-                        access.registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET).asLookup(),
-                        access.registryOrThrow(net.minecraft.core.registries.Registries.PLACED_FEATURE).asLookup())));
-        //?}
+        if (ticks == 100) {
+            applyLegacyFlat(create);
+            return;
+        }
+        if (ticks < 105) {
+            return;
+        }
+        applyLegacyFlat(create);
+        LOGGER.info("creating legacy world, commands={}, screen={}", create.commands, McBridge.currentScreen(client));
         create.onCreate();
         *///?}
         //? if >=1.19.4 {
@@ -221,6 +220,24 @@ public final class ClientHarness121 {
     }
 
     private static void waitPlayer(Minecraft client) {
+        Screen current = McBridge.currentScreen(client);
+        if (current instanceof net.minecraft.client.gui.screens.ConfirmScreen) {
+            for (AbstractWidget widget : McBridge.buttons(current)) {
+                if (widget instanceof Button button) {
+                    pressButton(button);
+                    return;
+                }
+            }
+        }
+        if (current instanceof CreateWorldScreen && ticks > 20 && ticks % 20 == 0 && !press(current, "selectWorld.create")) {
+            for (AbstractWidget widget : McBridge.buttons(current)) {
+                if (widget instanceof Button button
+                        && button.getMessage().getString().toLowerCase(java.util.Locale.ROOT).contains("create")) {
+                    pressButton(button);
+                    break;
+                }
+            }
+        }
         if (client.player == null || client.level == null || client.getSingleplayerServer() == null) {
             if (ticks > timeout(20 * 180)) {
                 fail("world did not load, screen=" + McBridge.currentScreen(client));
@@ -230,45 +247,96 @@ public final class ClientHarness121 {
         if (ticks < 40) {
             return;
         }
-        BlockPos feet = client.player.blockPosition();
-        x = feet.getX() + 6;
-        y = feet.getY();
-        z = feet.getZ();
-        villagerX = x + 1.15;
-        villagerZ = z + 0.5;
-        //? if >=26.2 {
-        /*command(client, "gamerule send_command_feedback false");
-        command(client, "gamerule advance_time false");
-        command(client, "gamerule spawn_mobs false");
-        command(client, "gamerule immediate_respawn true");
-        *///?} else {
-        command(client, "gamerule sendCommandFeedback false");
-        command(client, "gamerule doDaylightCycle false");
-        command(client, "gamerule doMobSpawning false");
-        command(client, "gamerule doImmediateRespawn true");
-        //?}
-        command(client, "time set day");
-        command(client, "fill " + (x - 2) + " " + (y - 1) + " " + (z - 2) + " " + (x + 3) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
-        command(client, "fill " + (x - 2) + " " + y + " " + (z - 2) + " " + (x + 3) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
-        command(client, "setblock " + x + " " + y + " " + z + " minecraft:lectern");
-        command(client, "setblock " + (x - 1) + " " + y + " " + z + " minecraft:oak_fence");
-        command(client, "setblock " + (x + 2) + " " + y + " " + z + " minecraft:oak_fence");
-        command(client, "setblock " + x + " " + y + " " + (z + 1) + " minecraft:oak_fence");
-        command(client, "setblock " + (x + 1) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
-        command(client, "setblock " + (x - 1) + " " + y + " " + (z - 1) + " minecraft:oak_fence");
-        command(client, "setblock " + (x + 2) + " " + y + " " + (z - 1) + " minecraft:oak_fence");
-        command(client, "summon minecraft:villager " + villagerX + " " + y + " " + villagerZ + " {PersistenceRequired:1b}");
-        command(client, "tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + (x + 1.0) + " " + (y + 1) + " " + z);
-        command(client, "gamemode survival @p");
-        command(client, "clear @p");
-        command(client, "give @p minecraft:diamond_axe");
-        command(client, "give @p minecraft:lectern 16");
+        if (client.player == null) {
+            return;
+        }
+        if (!platformQueued) {
+            BlockPos feet = client.player.blockPosition();
+            x = feet.getX() + 6;
+            y = feet.getY();
+            z = feet.getZ();
+            villagerX = x + 1.15;
+            villagerZ = z + 0.5;
+            //? if >=26.2 {
+            /*enqueue("gamerule send_command_feedback false");
+            enqueue("gamerule advance_time false");
+            enqueue("gamerule spawn_mobs false");
+            enqueue("gamerule immediate_respawn true");
+            *///?} else {
+            enqueue("gamerule sendCommandFeedback false");
+            enqueue("gamerule doDaylightCycle false");
+            enqueue("gamerule doMobSpawning false");
+            enqueue("gamerule doImmediateRespawn true");
+            //?}
+            enqueue("time set day");
+            enqueue("fill " + (x - 2) + " " + (y - 1) + " " + (z - 2) + " " + (x + 3) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
+            enqueue("fill " + (x - 2) + " " + y + " " + (z - 2) + " " + (x + 3) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
+            enqueue("setblock " + x + " " + y + " " + z + " minecraft:lectern");
+            enqueue("setblock " + (x - 1) + " " + y + " " + z + " minecraft:oak_fence");
+            enqueue("setblock " + (x + 2) + " " + y + " " + z + " minecraft:oak_fence");
+            enqueue("setblock " + x + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+            enqueue("setblock " + (x + 1) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+            enqueue("setblock " + (x - 1) + " " + y + " " + (z - 1) + " minecraft:oak_fence");
+            enqueue("setblock " + (x + 2) + " " + y + " " + (z - 1) + " minecraft:oak_fence");
+            enqueue("summon minecraft:villager " + villagerX + " " + y + " " + villagerZ + " {PersistenceRequired:1b}");
+            enqueue("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + (x + 1.0) + " " + (y + 1) + " " + z);
+            enqueue("gamemode survival @p");
+            enqueue("clear @p");
+            enqueue("give @p minecraft:diamond_axe");
+            enqueue("give @p minecraft:lectern 16");
+            enqueue("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+            platformQueued = true;
+        }
+        // 1.19.3 adds 20 to the spam counter per command and removes 1 per tick, and kicks at 200
+        // when the player is not op. One command every 15 ticks stays under that limit.
+        if (!COMMANDS.isEmpty()) {
+            if (client.player == null) {
+                fail("player left before the platform was built");
+                return;
+            }
+            //? if <1.20 {
+            /*if (commandGap > 0) {
+                commandGap--;
+                return;
+            }
+            *///?}
+            command(client, COMMANDS.removeFirst());
+            //? if <1.20 {
+            /*commandGap = 15;
+            *///?}
+            return;
+        }
         state = State.WAIT_LIBRARIAN;
         ticks = 0;
     }
 
+    //? if <1.19.4 {
+    /*private static void applyLegacyFlat(CreateWorldScreen create) {
+        create.setGameMode(CreateWorldScreen.SelectedGameMode.SURVIVAL);
+        create.commands = true;
+        var access = create.worldGenSettingsComponent.registryHolder();
+        //? if <1.19.3 {
+        create.worldGenSettingsComponent.updateSettings(net.minecraft.client.gui.screens.worldselection.PresetEditor.flatWorldConfigurator(
+                net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings.getDefault(
+                        access.registryOrThrow(net.minecraft.core.Registry.BIOME_REGISTRY),
+                        access.registryOrThrow(net.minecraft.core.Registry.STRUCTURE_SET_REGISTRY))));
+        //?}
+        //? if >=1.19.3 {
+        create.worldGenSettingsComponent.updateSettings(net.minecraft.client.gui.screens.worldselection.PresetEditor.flatWorldConfigurator(
+                net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings.getDefault(
+                        access.registryOrThrow(net.minecraft.core.registries.Registries.BIOME).asLookup(),
+                        access.registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE_SET).asLookup(),
+                        access.registryOrThrow(net.minecraft.core.registries.Registries.PLACED_FEATURE).asLookup())));
+        //?}
+    }
+    *///?}
+
+    private static void enqueue(String command) {
+        COMMANDS.add(command);
+    }
+
     private static void waitLibrarian(Minecraft client) {
-        if (ticks % 40 == 0) {
+        if (ticks % 20 == 0) {
             command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
         }
         Villager villager = nearestLibrarian(client);
@@ -443,6 +511,17 @@ public final class ClientHarness121 {
         }
         stopReason = JobSiteReroller.stopReason().name();
         if (!"FOUND".equals(stopReason)) {
+            // The villager can finish claiming the lectern after the trade screen opens. Pull them
+            // back onto it and press Start again instead of failing the first lookup.
+            if ("NO_JOB_SITE".equals(stopReason) && ticks < 20 * 20) {
+                if (ticks % 20 == 0) {
+                    command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
+                }
+                if (ticks % 20 == 10) {
+                    press(McBridge.currentScreen(client), "text.villager_reroller.button.start");
+                }
+                return;
+            }
             fail("reroll stopped with " + stopReason + " after " + JobSiteReroller.attempts() + " attempts");
             return;
         }
@@ -492,6 +571,10 @@ public final class ClientHarness121 {
     }
 
     private static void command(Minecraft client, String command) {
+        if (client.player == null) {
+            fail("player left before command: " + command);
+            return;
+        }
         //? if <1.19.1 {
         /*client.player.command(command);
         *///?}
