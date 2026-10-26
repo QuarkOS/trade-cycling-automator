@@ -47,13 +47,14 @@ public final class TradePickerUi {
     private static final int MERCHANT_WIDTH = 276;
     private static final int MERCHANT_HEIGHT = 166;
     private static final int PANEL_WIDTH = 168;
-    private static final int PANEL_HEIGHT = 188;
+    private static final int PANEL_HEIGHT = 200;
     private static final int LIST_TOP = 42;
     private static final int LIST_HEIGHT = 80;
     private static final int LIST_WIDTH = PANEL_WIDTH - 12;
     private static final int STATUS_TOP = 126;
-    private static final int METHOD_TOP = 140;
-    private static final int START_TOP = 164;
+    private static final int ODDS_SECOND = 136;
+    private static final int METHOD_TOP = 152;
+    private static final int START_TOP = 176;
     private static final int ROW_HEIGHT = 20;
     private static final int TEXT = 0xFF404040;
     private static final int CURSE = 0xFFAA0000;
@@ -234,6 +235,26 @@ public final class TradePickerUi {
         return TradeNameLayout.availableWidth(LIST_WIDTH, priceWidth);
     }
 
+    /**
+     * Lines drawn above Start while the reroll is idle. Null when there is nothing to estimate.
+     */
+    public static String[] oddsLines() {
+        if (JobSiteReroller.isRunning()) {
+            return null;
+        }
+        dev.quarkos.villagerreroller.odds.TradeOdds.Estimate estimate = TradeSession.estimate(JobSiteReroller.ticksPerAttempt());
+        if (estimate == null) {
+            return null;
+        }
+        if (estimate.impossible()) {
+            return new String[]{Component.translatable("text." + VillagerReroller.MOD_ID + ".odds.impossible").getString(), null};
+        }
+        return new String[]{
+                Component.translatable("text." + VillagerReroller.MOD_ID + ".odds.attempts", estimate.oneInText()).getString(),
+                Component.translatable("text." + VillagerReroller.MOD_ID + ".odds.time", estimate.timeText()).getString()
+        };
+    }
+
     private static Component actionLabel() {
         String key = JobSiteReroller.isRunning() ? "button.stop" : "button.start";
         return Component.translatable("text." + VillagerReroller.MOD_ID + "." + key);
@@ -285,10 +306,20 @@ public final class TradePickerUi {
                     Component.translatable("merchant.level." + villagerLevel)
             );
             minecraft.font.draw(pose, title, left() + 6, top() + 6, TEXT);
-            Component status = JobSiteReroller.status();
-            if (status != null && !status.getString().isEmpty()) {
-                String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
-                minecraft.font.draw(pose, line, left() + 6, top() + STATUS_TOP, TEXT);
+            String[] odds = oddsLines();
+            if (odds != null) {
+                if (odds[0] != null) {
+                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[0], width - 12), left() + 6, top() + STATUS_TOP, TEXT);
+                }
+                if (odds.length > 1 && odds[1] != null) {
+                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[1], width - 12), left() + 6, top() + ODDS_SECOND, TEXT);
+                }
+            } else {
+                Component status = JobSiteReroller.status();
+                if (status != null && !status.getString().isEmpty()) {
+                    String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
+                    minecraft.font.draw(pose, line, left() + 6, top() + STATUS_TOP, TEXT);
+                }
             }
             minecraft.font.draw(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), left() + 6, top() + METHOD_TOP + 6, TEXT);
             if (methodButton == null) {
@@ -311,10 +342,20 @@ public final class TradePickerUi {
                     Component.translatable("merchant.level." + villagerLevel)
             );
             minecraft.font.draw(pose, title, getX() + 6, getY() + 6, TEXT);
-            Component status = JobSiteReroller.status();
-            if (status != null && !status.getString().isEmpty()) {
-                String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
-                minecraft.font.draw(pose, line, getX() + 6, getY() + STATUS_TOP, TEXT);
+            String[] odds = oddsLines();
+            if (odds != null) {
+                if (odds[0] != null) {
+                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[0], width - 12), getX() + 6, getY() + STATUS_TOP, TEXT);
+                }
+                if (odds.length > 1 && odds[1] != null) {
+                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[1], width - 12), getX() + 6, getY() + ODDS_SECOND, TEXT);
+                }
+            } else {
+                Component status = JobSiteReroller.status();
+                if (status != null && !status.getString().isEmpty()) {
+                    String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
+                    minecraft.font.draw(pose, line, getX() + 6, getY() + STATUS_TOP, TEXT);
+                }
             }
             minecraft.font.draw(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), getX() + 6, getY() + METHOD_TOP + 6, TEXT);
             if (methodButton == null) {
@@ -341,14 +382,34 @@ public final class TradePickerUi {
             *///?} else {
             graphics.drawString(minecraft.font, title, getX() + 6, getY() + 6, TEXT, false);
             //?}
-            Component status = JobSiteReroller.status();
-            if (status != null && !status.getString().isEmpty()) {
-                String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
-                //? if >=26.1 {
-                /*graphics.text(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
-                *///?} else {
-                graphics.drawString(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
-                //?}
+            String[] odds = oddsLines();
+            if (odds != null) {
+                if (odds[0] != null) {
+                    String line = minecraft.font.plainSubstrByWidth(odds[0], width - 12);
+                    //? if >=26.1 {
+                    /*graphics.text(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
+                    *///?} else {
+                    graphics.drawString(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
+                    //?}
+                }
+                if (odds.length > 1 && odds[1] != null) {
+                    String line = minecraft.font.plainSubstrByWidth(odds[1], width - 12);
+                    //? if >=26.1 {
+                    /*graphics.text(minecraft.font, line, getX() + 6, getY() + ODDS_SECOND, TEXT, false);
+                    *///?} else {
+                    graphics.drawString(minecraft.font, line, getX() + 6, getY() + ODDS_SECOND, TEXT, false);
+                    //?}
+                }
+            } else {
+                Component status = JobSiteReroller.status();
+                if (status != null && !status.getString().isEmpty()) {
+                    String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
+                    //? if >=26.1 {
+                    /*graphics.text(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
+                    *///?} else {
+                    graphics.drawString(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
+                    //?}
+                }
             }
             //? if >=26.1 {
             /*graphics.text(minecraft.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), getX() + 6, getY() + METHOD_TOP + 6, TEXT, false);

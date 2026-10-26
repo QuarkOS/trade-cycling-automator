@@ -1,5 +1,6 @@
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.odds.AttemptPace;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
@@ -53,7 +54,12 @@ public final class JobSiteReroller {
             return ticks;
         }
     }
-    private static final int TICKS_BETWEEN_CYCLES = 8;
+    private static final int TICKS_BETWEEN_CYCLES = AttemptPace.TRADE_CYCLING_TICKS;
+
+    /** Ticks the odds line uses for one attempt of the method selected on the panel. */
+    public static int ticksPerAttempt() {
+        return RerollMethod.usesTradeCycling() ? AttemptPace.TRADE_CYCLING_TICKS : AttemptPace.JOB_SITE_TICKS;
+    }
 
     private static Phase phase = Phase.IDLE;
     private static StopReason stopReason;

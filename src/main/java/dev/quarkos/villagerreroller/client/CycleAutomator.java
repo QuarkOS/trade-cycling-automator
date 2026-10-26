@@ -2,6 +2,7 @@ package dev.quarkos.villagerreroller.client;
 
 import de.maxhenkel.tradecycling.gui.CycleTradesButton;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
+import dev.quarkos.villagerreroller.odds.AttemptPace;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
@@ -28,7 +29,7 @@ import net.minecraft.world.item.trading.MerchantOffers;
  * Never clicks a trade slot and never moves emeralds.
  */
 public final class CycleAutomator {
-    private static final int TICKS_BETWEEN_CYCLES = 8;
+    private static final int TICKS_BETWEEN_CYCLES = AttemptPace.TRADE_CYCLING_TICKS;
     private static final int EMPTY_OFFER_TIMEOUT = 40;
 
     private static boolean running;
