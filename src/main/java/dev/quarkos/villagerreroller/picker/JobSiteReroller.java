@@ -93,7 +93,12 @@ public final class JobSiteReroller {
         VILLAGER_GONE("villager_gone"),
         NEED_SCREEN("need_screen"),
         CANNOT_CYCLE("cannot_cycle"),
-        MISSING_TRADE_CYCLING("missing_trade_cycling");
+        MISSING_TRADE_CYCLING("missing_trade_cycling"),
+        PERMISSION("permission"),
+        COST("cost"),
+        COOLDOWN("cooldown"),
+        TOO_FAR("too_far"),
+        NOT_TRADING("not_trading");
 
         private final String id;
 
@@ -121,7 +126,7 @@ public final class JobSiteReroller {
     }
 
     public static boolean isRunning() {
-        return phase != Phase.IDLE;
+        return phase != Phase.IDLE || dev.quarkos.villagerreroller.net.ServerRerollClient.isRunning();
     }
 
     public static StopReason stopReason() {
@@ -129,10 +134,16 @@ public final class JobSiteReroller {
     }
 
     public static int attempts() {
+        if (dev.quarkos.villagerreroller.net.ServerRerollClient.isRunning()) {
+            return dev.quarkos.villagerreroller.net.ServerRerollClient.attempts();
+        }
         return attempts;
     }
 
     public static Component status() {
+        if (dev.quarkos.villagerreroller.net.ServerRerollClient.isRunning()) {
+            return dev.quarkos.villagerreroller.net.ServerRerollClient.status();
+        }
         return status;
     }
 
@@ -144,8 +155,24 @@ public final class JobSiteReroller {
         }
     }
 
+    /**
+     * The server path never enters a job-site phase, so {@link #stop} would return
+     * before recording why it finished. The harness and the toast read this field.
+     */
+    public static void recordStop(StopReason reason, int serverAttempts) {
+        stopReason = reason;
+        if (serverAttempts > 0) {
+            attempts = serverAttempts;
+        }
+        status = message(reason);
+    }
+
     public static void stop(StopReason reason) {
-        if (phase == Phase.IDLE && reason != StopReason.PANIC && reason != StopReason.DISABLED) {
+        boolean server = dev.quarkos.villagerreroller.net.ServerRerollClient.isRunning();
+        if (server) {
+            dev.quarkos.villagerreroller.net.ServerRerollClient.halt(reason);
+        }
+        if (phase == Phase.IDLE && !server && reason != StopReason.PANIC && reason != StopReason.DISABLED) {
             return;
         }
         Minecraft client = Minecraft.getInstance();
@@ -206,6 +233,10 @@ public final class JobSiteReroller {
             startCycling(client, villager, menu);
             return;
         }
+        if (dev.quarkos.villagerreroller.net.ServerRerollClient.tryStart(client, villager)) {
+            return;
+        }
+        dev.quarkos.villagerreroller.net.ServerRerollClient.noteFallbackOnce();
         BlockPos pos = JobSiteFinder.find(client, villager);
         if (pos == null) {
             fail(client, StopReason.NO_JOB_SITE);
@@ -239,6 +270,10 @@ public final class JobSiteReroller {
     }
 
     public static void tick(Minecraft client) {
+        if (dev.quarkos.villagerreroller.net.ServerRerollClient.isRunning()) {
+            dev.quarkos.villagerreroller.net.ServerRerollClient.tick(client);
+            return;
+        }
         if (phase == Phase.IDLE) {
             return;
         }

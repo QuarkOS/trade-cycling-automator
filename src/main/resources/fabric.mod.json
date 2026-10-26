@@ -14,9 +14,12 @@
   },
   "license": "MIT",
   "icon": "assets/${id}/icon.png",
-  "environment": "client",
+  "environment": "*",
   "accessWidener": "${accessWidener}",
   "entrypoints": {
+    "main": [
+      "dev.quarkos.villagerreroller.server.VillagerRerollerServer"
+    ],
     "client": [
       "dev.quarkos.villagerreroller.VillagerReroller"
     ],
@@ -25,15 +28,15 @@
     ]
   },
   "depends": {
+    "trade_cycling": ">=1.0.0",
     "fabricloader": ">=0.16.0",
     "minecraft": "${minecraft}",
     "java": "${java}",
-    "${fabricApiId}": "*",
-    "cloth-config": "*",
-    "trade_cycling": ">=1.0.0",
-    "modmenu": "*"
+    "${fabricApiId}": "*"
   },
   "suggests": {
-    "trade_cycling": "*"
+    "trade_cycling": "*",
+    "cloth-config": "*",
+    "modmenu": "*"
   }
 }

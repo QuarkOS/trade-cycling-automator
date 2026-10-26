@@ -1,0 +1,10 @@
+enabled: true
+# free, emeralds, or xp
+cost: free
+costAmount: 1
+# Ticks between accepted rerolls. 0 still waits one tick.
+cooldownTicks: 1
+permission: villager_reroller.reroll
+requirePermission: false
+onlyFreshVillagers: true
+maxDistance: 8.0

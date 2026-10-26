@@ -36,6 +36,19 @@ public final class VillagerReroller implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         bootstrap();
+        dev.quarkos.villagerreroller.net.FabricClientChannels.register();
+        dev.quarkos.villagerreroller.net.ServerRerollClient.bind(new dev.quarkos.villagerreroller.net.ServerRerollClient.Sender() {
+            @Override
+            public boolean canSend() {
+                return dev.quarkos.villagerreroller.net.FabricClientChannels.canSend()
+                        || dev.quarkos.villagerreroller.net.ServerRerollClient.available();
+            }
+
+            @Override
+            public void send(byte[] data) {
+                dev.quarkos.villagerreroller.net.FabricClientChannels.send(data);
+            }
+        });
 
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (world.isClientSide()) {
@@ -53,6 +66,7 @@ public final class VillagerReroller implements ClientModInitializer {
     public static void onClientTick(Minecraft client) {
         // Every release jar keeps this call. start() returns immediately unless
         // -Dvillager_reroller.harness=true, which is how tools/validate drives the jar.
+        dev.quarkos.villagerreroller.harness.ServerJoinHarness.tick(client);
         dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
         if (McBridge.currentScreen(client) instanceof PauseScreen && dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()) {
             dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED);
