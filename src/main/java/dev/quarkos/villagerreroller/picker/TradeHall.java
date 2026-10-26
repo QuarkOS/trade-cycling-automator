@@ -579,20 +579,14 @@ public final class TradeHall {
         return false;
     }
 
+    /**
+     * Client-side preview. Experience and level are synced on the villager.
+     * Offer uses are not: {@code getOffers()} throws on the client from 1.21 on,
+     * and on older versions it invents a trade list. The open trade menu is
+     * checked separately before a reroll starts.
+     */
     private static boolean locked(Villager villager) {
-        if (McBridge.villagerXp(villager) > 0 || McBridge.villagerLevel(villager) > 1) {
-            return true;
-        }
-        var offers = villager.getOffers();
-        if (offers == null) {
-            return false;
-        }
-        for (MerchantOffer offer : offers) {
-            if (offer.getUses() > 0) {
-                return true;
-            }
-        }
-        return false;
+        return McBridge.villagerXp(villager) > 0 || McBridge.villagerLevel(villager) > 1;
     }
 
     private static Villager find(Minecraft client, int villagerId) {

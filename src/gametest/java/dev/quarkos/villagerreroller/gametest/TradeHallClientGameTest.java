@@ -42,8 +42,10 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         context.getInput().resizeWindow(1280, 720);
         context.runOnClient(client -> {
             client.options.guiScale().set(2);
-            client.options.renderDistance().set(8);
-            client.options.simulationDistance().set(8);
+            // Wide enough for the out-of-reach villager (~28 blocks) and small
+            // enough that waitForChunksRender finishes in the client gametest.
+            client.options.renderDistance().set(4);
+            client.options.simulationDistance().set(6);
             client.options.framerateLimit().set(20);
             if (JobSiteReroller.isRunning()) {
                 JobSiteReroller.stop(JobSiteReroller.StopReason.STOPPED);
@@ -51,6 +53,10 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             TradeHall.clear();
             RerollMethod.reset();
             LibrarianTracker.unpin();
+            // The single-villager test leaves the panel open in this same client.
+            TradeSession.setPanelOpen(false);
+            TradeSession.setFilter("");
+            TradeSession.restoreSelections(java.util.Map.of());
         });
 
         try (TestSingleplayerContext world = context.worldBuilder()
@@ -64,15 +70,24 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
                 .create()) {
             waitForChunks(world);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
-            int x = feet.getX() + 2;
+            // Three lecterns in a row, each villager one block behind their own lectern
+            // (south), two blocks apart so the closest job site is unambiguous. The
+            // player stands just north of the middle lectern: the break ray hits that
+            // lectern's north face, and the side rays pass through the air gaps.
+            // Villagers are frozen with movement speed 0 after they take the job, so
+            // the brain still drops and reclaims the profession but they cannot walk
+            // out of reach. The locked and far lecterns stay loaded and outside the
+            // novice search cube.
+            int x = feet.getX() + 8;
             int y = feet.getY();
-            int z = feet.getZ();
+            int z = feet.getZ() + 8;
             int[] cellX = {x, x + 2, x + 4};
             double playerX = x + 2.5;
-            double playerZ = z + 0.5;
+            double playerZ = z - 1.0;
             double lockedX = x + 2.5;
-            double lockedZ = z - 1.5;
-            int farX = x + 28;
+            double lockedZ = z - 7.5;
+            int farX = x + 2;
+            int farZ = z + 9;
 
             //? if >=26.2 {
             /*world.getServer().runCommand("gamerule send_command_feedback false");
@@ -86,28 +101,32 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("gamerule doImmediateRespawn true");
             //?}
             world.getServer().runCommand("time set day");
-            world.getServer().runCommand("fill " + (x - 2) + " " + (y - 1) + " " + (z - 5) + " " + (x + 8) + " " + (y - 1) + " " + (z + 5) + " minecraft:stone");
-            world.getServer().runCommand("fill " + (x - 2) + " " + y + " " + (z - 5) + " " + (x + 8) + " " + (y + 3) + " " + (z + 5) + " minecraft:air");
-            world.getServer().runCommand("fill " + (farX - 2) + " " + (y - 1) + " " + (z - 2) + " " + (farX + 2) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
-            world.getServer().runCommand("fill " + (farX - 2) + " " + y + " " + (z - 2) + " " + (farX + 2) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
+            world.getServer().runCommand("fill " + (x - 2) + " " + (y - 1) + " " + (z - 12) + " " + (x + 6) + " " + (y - 1) + " " + (z + 12) + " minecraft:stone");
+            world.getServer().runCommand("fill " + (x - 2) + " " + y + " " + (z - 12) + " " + (x + 6) + " " + (y + 3) + " " + (z + 12) + " minecraft:air");
 
             for (int cx : cellX) {
-                pen(world, cx, y, z + 3, z + 2);
+                world.getServer().runCommand("setblock " + cx + " " + y + " " + z + " minecraft:lectern");
             }
-            pen(world, x + 2, y, z - 3, z - 2);
-            world.getServer().runCommand("setblock " + farX + " " + y + " " + z + " minecraft:lectern");
-            world.getServer().runCommand("setblock " + (farX - 1) + " " + y + " " + z + " minecraft:oak_fence");
-            world.getServer().runCommand("setblock " + (farX + 1) + " " + y + " " + z + " minecraft:oak_fence");
-            world.getServer().runCommand("setblock " + farX + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+            // Gap fences keep a novice from stepping onto a neighbor's lectern. They sit
+            // beside the villager, behind the block face the player breaks.
+            world.getServer().runCommand("setblock " + (x + 1) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+            world.getServer().runCommand("setblock " + (x + 3) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+            world.getServer().runCommand("setblock " + (x - 1) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+            world.getServer().runCommand("setblock " + (x + 5) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
+            world.getServer().runCommand("setblock " + x + " " + y + " " + (z + 2) + " minecraft:oak_fence");
+            world.getServer().runCommand("setblock " + (x + 2) + " " + y + " " + (z + 2) + " minecraft:oak_fence");
+            world.getServer().runCommand("setblock " + (x + 4) + " " + y + " " + (z + 2) + " minecraft:oak_fence");
+            world.getServer().runCommand("setblock " + (x + 2) + " " + y + " " + (z - 9) + " minecraft:lectern");
+            world.getServer().runCommand("setblock " + farX + " " + y + " " + farZ + " minecraft:lectern");
 
             String[] tags = {"hall_a", "hall_b", "hall_c"};
             for (int i = 0; i < cellX.length; i++) {
-                summon(world, tags[i], cellX[i] + 0.5, y, z + 2.5, false);
+                summon(world, tags[i], cellX[i] + 0.5, y, z + 1.5, false);
             }
-            summon(world, "hall_locked", x + 2.5, y, z - 1.5, true);
-            summon(world, "hall_far", farX + 0.5, y, z + 0.5, false);
+            summon(world, "hall_locked", lockedX, y, lockedZ, true);
+            summon(world, "hall_far", farX + 0.5, y, farZ + 1.5, false);
 
-            world.getServer().runCommand("tp @p " + playerX + " " + y + " " + playerZ + " 180 0");
+            world.getServer().runCommand("tp @p " + playerX + " " + y + " " + playerZ + " 0 0");
             context.waitTicks(5);
             world.getServer().runCommand("gamemode survival @p");
             world.getServer().runCommand("clear @p");
@@ -115,59 +134,72 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("give @p minecraft:lectern 32");
             waitForChunks(world);
 
-            context.waitFor(client -> countLibrarians(client) >= 4, 20 * 40);
+            context.waitFor(client -> isLibrarian(named(client, "hall_a"))
+                    && isLibrarian(named(client, "hall_b"))
+                    && isLibrarian(named(client, "hall_c"))
+                    && isLibrarian(named(client, "hall_locked")), 20 * 40);
             world.getServer().runCommand("data merge entity @e[type=minecraft:villager,tag=hall_locked,limit=1] {Xp:25}");
             context.waitFor(client -> {
-                Villager locked = nearestTo(client, lockedX, y, lockedZ);
+                Villager locked = named(client, "hall_locked");
                 return locked != null && (McBridge.villagerXp(locked) > 0 || McBridge.villagerLevel(locked) > 1);
             }, 20 * 20);
+            // Speed 0 keeps them on the lectern. NoAI would also freeze the brain, so
+            // breaking the lectern would never clear the profession.
+            for (String tag : new String[] {"hall_a", "hall_b", "hall_c", "hall_locked"}) {
+                freeze(world, tag);
+            }
 
-            queueVillager(context, cellX[0] + 0.5, y, z + 2.5, 0);
+            place(world, context, "hall_a", cellX[0] + 0.5, y, z + 1.5);
+            queueVillager(world, context, "hall_a", cellX[0] + 0.5, y, z + 1.5, 0, true);
+            place(world, context, "hall_locked", lockedX, y, lockedZ);
+            queueVillager(world, context, "hall_locked", lockedX, y, lockedZ, 1, false);
+            place(world, context, "hall_far", farX + 0.5, y, farZ + 1.5);
+            context.waitFor(client -> {
+                Villager far = named(client, "hall_far");
+                return far != null && isLibrarian(far);
+            }, 20 * 40);
+            freeze(world, "hall_far");
+            place(world, context, "hall_far", farX + 0.5, y, farZ + 1.5);
+            queueVillager(world, context, "hall_far", farX + 0.5, y, farZ + 1.5, 3, false);
+            world.getServer().runCommand("tp @p " + playerX + " " + y + " " + playerZ + " 0 0");
             context.waitTicks(10);
-            saveShot(context, "hall-panel");
-            queueVillager(context, lockedX, y, lockedZ, 1);
-            world.getServer().runCommand("tp @p " + (farX + 0.5) + " " + y + " " + (z - 1.2) + " facing " + (farX + 0.5) + " " + y + " " + z);
-            context.waitTicks(20);
-            waitForChunks(world);
-            context.waitFor(client -> nearestTo(client, farX + 0.5, y, z + 0.5) != null
-                    && isLibrarian(nearestTo(client, farX + 0.5, y, z + 0.5)), 20 * 40);
-            queueVillager(context, farX + 0.5, y, z + 0.5, 3);
-            world.getServer().runCommand("tp @p " + playerX + " " + y + " " + playerZ + " 180 0");
-            context.waitTicks(10);
-            queueVillager(context, cellX[1] + 0.5, y, z + 2.5, 2);
-            queueVillager(context, cellX[2] + 0.5, y, z + 2.5, 4);
+            place(world, context, "hall_b", cellX[1] + 0.5, y, z + 1.5);
+            queueVillager(world, context, "hall_b", cellX[1] + 0.5, y, z + 1.5, 2, false);
+            place(world, context, "hall_c", cellX[2] + 0.5, y, z + 1.5);
+            queueVillager(world, context, "hall_c", cellX[2] + 0.5, y, z + 1.5, 4, false);
 
             int queued = context.computeOnClient(client -> TradeHall.size());
             if (queued != 5) {
                 throw new AssertionError("expected 5 queued villagers, got " + queued);
             }
-            context.runOnClient(client -> {
-                Villager current = nearestTo(client, cellX[2] + 0.5, y, z + 2.5);
-                if (current == null) {
-                    throw new AssertionError("last novice disappeared before the queue screen");
-                }
-                LibrarianTracker.remember(current);
-                McBridge.interact(client.gameMode, client.player, current, InteractionHand.MAIN_HAND);
-            });
-            context.waitForScreen(MerchantScreen.class);
+            // Teleporting the player closes the hall screen, so stand at the anchor first.
+            world.getServer().runCommand("tp @p " + playerX + " " + y + " " + playerZ + " 0 0");
+            place(world, context, "hall_a", cellX[0] + 0.5, y, z + 1.5);
+            place(world, context, "hall_b", cellX[1] + 0.5, y, z + 1.5);
+            place(world, context, "hall_c", cellX[2] + 0.5, y, z + 1.5);
+            place(world, context, "hall_locked", lockedX, y, lockedZ);
+            context.waitTicks(40);
+            openTrades(world, context, "hall_c", cellX[2] + 0.5, y, z + 1.5, false);
             context.waitTicks(8);
-            context.clickScreenButton("text.villager_reroller.button.offers");
-            context.waitTicks(5);
-            context.clickScreenButton("text.villager_reroller.button.hall");
+            openOffers(context);
+            // The hall button's label includes the queue size, so the plain translation key does not match it.
+            String hallLabel = context.computeOnClient(client -> net.minecraft.network.chat.Component
+                    .translatable("text.villager_reroller.button.hall", TradeHall.size())
+                    .getString());
+            context.clickScreenButton(hallLabel);
             context.waitForScreen(TradeHallScreen.class);
-            world.getServer().runCommand("tp @p " + playerX + " " + y + " " + playerZ + " 180 0");
-            context.waitTicks(15);
+            context.waitTicks(10);
             saveShot(context, "hall-queue");
 
             context.runOnClient(client -> {
                 if (TradeHall.slots().size() != 5) {
                     throw new AssertionError("queue screen lost villagers");
                 }
-                assertBlocker(client, cellX[0] + 0.5, y, z + 2.5, null);
-                assertBlocker(client, cellX[1] + 0.5, y, z + 2.5, null);
-                assertBlocker(client, cellX[2] + 0.5, y, z + 2.5, null);
-                assertBlocker(client, lockedX, y, lockedZ, "locked");
-                assertBlocker(client, farX + 0.5, y, z + 0.5, "out_of_reach");
+                assertBlocker(client, "hall_a", null);
+                assertBlocker(client, "hall_b", null);
+                assertBlocker(client, "hall_c", null);
+                assertBlocker(client, "hall_locked", "locked");
+                assertBlocker(client, "hall_far", "out_of_reach");
                 int ranged = 0;
                 for (TradeHall.Slot slot : TradeHall.slots()) {
                     if (slot.selections().isEmpty()) {
@@ -188,34 +220,20 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             });
 
             Vec3 anchor = context.computeOnClient(client -> client.player.position());
-            BlockPos lockedLectern = new BlockPos(x + 2, y, z - 3);
-            BlockPos farLectern = new BlockPos(farX, y, z);
+            BlockPos lockedLectern = new BlockPos(x + 2, y, z - 9);
+            BlockPos farLectern = new BlockPos(farX, y, farZ);
             BlockPos[] noviceLecterns = {
-                    new BlockPos(cellX[0], y, z + 3),
-                    new BlockPos(cellX[1], y, z + 3),
-                    new BlockPos(cellX[2], y, z + 3)
+                    new BlockPos(cellX[0], y, z),
+                    new BlockPos(cellX[1], y, z),
+                    new BlockPos(cellX[2], y, z)
             };
             boolean[] sawAir = {false, false, false};
             boolean progressShot = false;
+            context.waitTicks(20);
             context.clickScreenButton("text.villager_reroller.button.hall_start");
             String phase = "running";
             for (int tick = 0; tick < 20 * 300 * 3; tick++) {
                 context.waitTick();
-                boolean trading = context.computeOnClient(client -> McBridge.currentScreen(client) instanceof MerchantScreen);
-                if (tick % 10 == 0 && !trading) {
-                    if (context.computeOnClient(client -> wandered(client, cellX[0] + 0.5, y, z + 2.5))) {
-                        world.getServer().runCommand("tp @e[type=minecraft:villager,tag=hall_a,limit=1] " + (cellX[0] + 0.5) + " " + y + " " + (z + 2.5) + " 180 0");
-                    }
-                    if (context.computeOnClient(client -> wandered(client, cellX[1] + 0.5, y, z + 2.5))) {
-                        world.getServer().runCommand("tp @e[type=minecraft:villager,tag=hall_b,limit=1] " + (cellX[1] + 0.5) + " " + y + " " + (z + 2.5) + " 180 0");
-                    }
-                    if (context.computeOnClient(client -> wandered(client, cellX[2] + 0.5, y, z + 2.5))) {
-                        world.getServer().runCommand("tp @e[type=minecraft:villager,tag=hall_c,limit=1] " + (cellX[2] + 0.5) + " " + y + " " + (z + 2.5) + " 180 0");
-                    }
-                    if (context.computeOnClient(client -> wandered(client, lockedX, y, lockedZ))) {
-                        world.getServer().runCommand("tp @e[type=minecraft:villager,tag=hall_locked,limit=1] " + lockedX + " " + y + " " + lockedZ + " 0 0");
-                    }
-                }
                 for (int i = 0; i < noviceLecterns.length; i++) {
                     int index = i;
                     boolean air = context.computeOnClient(client -> client.level.getBlockState(noviceLecterns[index]).isAir());
@@ -275,18 +293,6 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private static void pen(TestSingleplayerContext world, int x, int y, int lecternZ, int villagerZ) {
-        int minZ = Math.min(lecternZ, villagerZ);
-        int maxZ = Math.max(lecternZ, villagerZ);
-        for (int dz = minZ - 1; dz <= maxZ + 1; dz++) {
-            world.getServer().runCommand("setblock " + (x - 1) + " " + y + " " + dz + " minecraft:oak_fence");
-            world.getServer().runCommand("setblock " + (x + 1) + " " + y + " " + dz + " minecraft:oak_fence");
-        }
-        world.getServer().runCommand("setblock " + x + " " + y + " " + (minZ - 1) + " minecraft:oak_fence");
-        world.getServer().runCommand("setblock " + x + " " + y + " " + (maxZ + 1) + " minecraft:oak_fence");
-        world.getServer().runCommand("setblock " + x + " " + y + " " + lecternZ + " minecraft:lectern");
-    }
-
     private static void expect(TradeHall.Slot slot, TradeHall.Outcome outcome, String detail) {
         if (slot.outcome() != outcome || !detail.equals(slot.detail())) {
             throw new AssertionError("expected " + outcome + " " + detail + " but was " + slot.outcome() + " " + slot.detail()
@@ -294,20 +300,106 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private static void queueVillager(ClientGameTestContext context, double x, double y, double z, int offset) {
-        int before = context.computeOnClient(client -> TradeHall.size());
-        context.runOnClient(client -> {
-            Villager villager = nearestTo(client, x, y, z);
-            if (villager == null) {
-                throw new AssertionError("no villager to queue at " + x + " " + z);
+    /** Stops pathing without stopping the villager brain. */
+    private static void freeze(TestSingleplayerContext world, String tag) {
+        world.getServer().runCommand("attribute @e[type=minecraft:villager,tag=" + tag + ",limit=1] minecraft:movement_speed base set 0");
+    }
+
+    private static void place(TestSingleplayerContext world, ClientGameTestContext context, String tag, double x, double y, double z) {
+        world.getServer().runCommand("tp @e[type=minecraft:villager,tag=" + tag + ",limit=1] " + x + " " + y + " " + z + " 180 0");
+        int stable = 0;
+        for (int tick = 0; tick < 20 * 10; tick++) {
+            context.waitTick();
+            boolean arrived = context.computeOnClient(client -> {
+                Villager villager = named(client, tag);
+                return villager != null && villager.distanceToSqr(x, y, z) <= 2.25;
+            });
+            if (arrived) {
+                stable++;
+                if (stable >= 5) {
+                    return;
+                }
+            } else {
+                stable = 0;
             }
-            LibrarianTracker.remember(villager);
-            McBridge.interact(client.gameMode, client.player, villager, InteractionHand.MAIN_HAND);
-        });
-        context.waitForScreen(MerchantScreen.class);
+        }
+        throw new AssertionError(tag + " did not arrive at " + x + "," + z + " " + context.computeOnClient(client -> describe(client, tag, x, y, z)));
+    }
+
+    /** The book button toggles. A second click closes the panel and hides Queue. */
+    private static void openOffers(ClientGameTestContext context) {
+        boolean open = context.computeOnClient(client -> TradeSession.panelOpen());
+        if (!open) {
+            context.clickScreenButton("text.villager_reroller.button.offers");
+            context.waitTicks(5);
+        }
+    }
+
+    /**
+     * Stands just north of the villager and retries the direct interact until the
+     * merchant screen opens. One interact after a teleport misses while the client
+     * entity is still at the old position.
+     */
+    private static void openTrades(TestSingleplayerContext world, ClientGameTestContext context, String tag, double x, double y, double z, boolean approach) {
+        if (approach) {
+            world.getServer().runCommand("tp @e[type=minecraft:villager,tag=" + tag + ",limit=1] " + x + " " + y + " " + z + " 180 0");
+            world.getServer().runCommand("tp @p " + x + " " + y + " " + (z - 2.0) + " facing " + x + " " + (y + 1.0) + " " + z);
+        }
+        for (int tick = 0; tick < 20 * 15; tick++) {
+            context.waitTick();
+            boolean ready = context.computeOnClient(client -> {
+                Villager villager = named(client, tag);
+                return villager != null
+                        && isLibrarian(villager)
+                        && client.player != null
+                        && McBridge.withinEntity(client.player, villager);
+            });
+            if (ready) {
+                break;
+            }
+            if (tick == 20 * 15 - 1) {
+                throw new AssertionError(tag + " was not in reach " + context.computeOnClient(client -> describe(client, tag, x, y, z)));
+            }
+        }
+        for (int attempt = 0; attempt < 8; attempt++) {
+            context.runOnClient(client -> {
+                Villager villager = named(client, tag);
+                if (villager == null || client.player == null) {
+                    return;
+                }
+                lookAt(client.player, villager.getEyePosition());
+                LibrarianTracker.remember(villager);
+                McBridge.interact(client.gameMode, client.player, villager, InteractionHand.MAIN_HAND);
+            });
+            for (int tick = 0; tick < 20; tick++) {
+                context.waitTick();
+                if (context.computeOnClient(client -> McBridge.currentScreen(client) instanceof MerchantScreen)) {
+                    return;
+                }
+            }
+        }
+        throw new AssertionError("trade screen did not open for " + tag + " " + context.computeOnClient(client -> describe(client, tag, x, y, z)));
+    }
+
+    private static void lookAt(net.minecraft.client.player.LocalPlayer player, Vec3 target) {
+        Vec3 eye = player.getEyePosition();
+        double dx = target.x - eye.x;
+        double dy = target.y - eye.y;
+        double dz = target.z - eye.z;
+        double horizontal = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+        float pitch = (float) (-Math.toDegrees(Math.atan2(dy, horizontal)));
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.setYHeadRot(yaw);
+        McBridge.sendLook(player, yaw, pitch);
+    }
+
+    private static void queueVillager(TestSingleplayerContext world, ClientGameTestContext context, String tag, double x, double y, double z, int offset, boolean capturePanel) {
+        int before = context.computeOnClient(client -> TradeHall.size());
+        openTrades(world, context, tag, x, y, z, true);
         context.waitTicks(10);
-        context.clickScreenButton("text.villager_reroller.button.offers");
-        context.waitTicks(5);
+        openOffers(context);
         context.runOnClient(client -> {
             if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
                 throw new AssertionError("trade screen closed before the targets were chosen");
@@ -331,6 +423,9 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         if (after != before + 1) {
             throw new AssertionError("queue did not grow at " + x + "," + z + " (" + before + " -> " + after + ")");
         }
+        if (capturePanel) {
+            saveShot(context, "hall-panel");
+        }
         context.runOnClient(client -> {
             if (client.player != null) {
                 client.player.closeContainer();
@@ -340,10 +435,37 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
     }
 
     private static void summon(TestSingleplayerContext world, String tag, double x, double y, double z, boolean locked) {
+        String name = "CustomName:{text:\"" + tag + "\"}";
         String data = locked
-                ? "{PersistenceRequired:1b,Tags:[\"" + tag + "\"],Xp:25,VillagerData:{profession:\"minecraft:librarian\",level:2,type:\"minecraft:plains\"}}"
-                : "{PersistenceRequired:1b,Tags:[\"" + tag + "\"]}";
+                ? "{PersistenceRequired:1b," + name + ",Tags:[\"" + tag + "\"],Xp:25,VillagerData:{profession:\"minecraft:librarian\",level:2,type:\"minecraft:plains\"}}"
+                : "{PersistenceRequired:1b," + name + ",Tags:[\"" + tag + "\"]}";
         world.getServer().runCommand("summon minecraft:villager " + x + " " + y + " " + z + " " + data);
+    }
+
+    private static Villager named(net.minecraft.client.Minecraft client, String tag) {
+        if (client.level == null || client.player == null) {
+            return null;
+        }
+        AABB box = client.player.getBoundingBox().inflate(80.0);
+        for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
+            if (villager.hasCustomName() && villager.getCustomName() != null && tag.equals(villager.getCustomName().getString())) {
+                return villager;
+            }
+        }
+        return null;
+    }
+
+    private static String describe(net.minecraft.client.Minecraft client, String tag, double x, double y, double z) {
+        Villager villager = named(client, tag);
+        if (villager == null || client.player == null) {
+            return "missing name=" + tag + " librarians=" + countLibrarians(client);
+        }
+        boolean reach = McBridge.withinEntity(client.player, villager);
+        return "pos=" + villager.position()
+                + " distSq=" + villager.distanceToSqr(x, y, z)
+                + " reach=" + reach
+                + " librarian=" + isLibrarian(villager)
+                + " screen=" + (McBridge.currentScreen(client) == null ? "none" : McBridge.currentScreen(client).getClass().getSimpleName());
     }
 
     private static int countLibrarians(net.minecraft.client.Minecraft client) {
@@ -364,46 +486,20 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         return villager != null && villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN);
     }
 
-    private static boolean wandered(net.minecraft.client.Minecraft client, double x, double y, double z) {
-        Villager villager = nearestTo(client, x, y, z);
-        return villager == null || villager.distanceToSqr(x, y, z) > 4.0;
-    }
-
-    private static Villager nearestTo(net.minecraft.client.Minecraft client, double x, double y, double z) {
-        if (client.level == null) {
-            return null;
-        }
-        Villager best = null;
-        double bestDistance = Double.MAX_VALUE;
-        AABB box = new AABB(x, y, z, x, y, z).inflate(6.0);
-        for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
-            double distance = villager.distanceToSqr(x, y, z);
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = villager;
-            }
-        }
-        return best;
-    }
-
-    private static int idOf(net.minecraft.client.Minecraft client, double x, double y, double z) {
-        Villager villager = nearestTo(client, x, y, z);
+    private static void assertBlocker(net.minecraft.client.Minecraft client, String tag, String expected) {
+        Villager villager = named(client, tag);
         if (villager == null) {
-            throw new AssertionError("missing villager at " + x + " " + z);
+            throw new AssertionError(tag + " missing during blocker check");
         }
-        return villager.getId();
-    }
-
-    private static void assertBlocker(net.minecraft.client.Minecraft client, double x, double y, double z, String expected) {
-        String blocker = TradeHall.blocker(client, idOf(client, x, y, z));
+        String blocker = TradeHall.blocker(client, villager.getId());
         if (expected == null) {
             if (blocker != null) {
-                throw new AssertionError("villager at " + x + "," + z + " was blocked by " + blocker);
+                throw new AssertionError(tag + " was blocked by " + blocker);
             }
             return;
         }
         if (!expected.equals(blocker)) {
-            throw new AssertionError("villager at " + x + "," + z + " blocker was " + blocker);
+            throw new AssertionError(tag + " blocker was " + blocker);
         }
     }
 
