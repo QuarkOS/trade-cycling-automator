@@ -178,6 +178,10 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             if (!title.toLowerCase().contains("villager")) {
                 throw new AssertionError("match sound settings were not open, title=" + title);
             }
+            // The next client gametest clicks Offers to open the panel. Leaving it open
+            // would make that click close the panel, so Start would not be on screen.
+            // The picks file stays; this only drops the in-memory session.
+            context.runOnClient(client -> TradeSession.simulateClientRestart());
         }
     }
 
