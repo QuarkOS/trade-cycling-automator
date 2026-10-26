@@ -238,7 +238,7 @@ if (neoForgeNode == null) {
     apply(plugin = "java")
     apply(plugin = "net.neoforged.moddev")
 
-    version = "1.0.0+$minecraftVersion"
+    version = "1.1.0+$minecraftVersion"
     base.archivesName.set("villager_reroller-neoforge")
     group = "dev.quarkos"
 
@@ -347,7 +347,7 @@ issueTrackerURL = "https://github.com/QuarkOS/trade-cycling-automator/issues"
 
 [[mods]]
 modId = "villager_reroller"
-version = "1.0.0+$minecraftVersion"
+version = "1.1.0+$minecraftVersion"
 displayName = "Villager Reroller"
 authors = "Emilio Schwaiger"
 description = '''Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If Trade Cycling is installed, the list can use that mod's cycle action instead.'''

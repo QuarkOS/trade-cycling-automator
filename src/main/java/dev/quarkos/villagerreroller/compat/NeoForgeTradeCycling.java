@@ -10,6 +10,21 @@ final class NeoForgeTradeCycling {
     private NeoForgeTradeCycling() {
     }
 
+    static boolean serverHasChannel(ClientPacketListener handler) {
+        //? if <1.20.4 {
+        var channel = de.maxhenkel.tradecycling.ForgeTradeCyclingMod.CYCLE_TRADES_CHANNEL;
+        return channel != null && channel.isRemotePresent(handler.getConnection());
+        //?}
+        //? if >=1.20.4 && <1.20.6 {
+        return net.neoforged.neoforge.network.registration.NetworkRegistry.getInstance()
+                .isConnected(handler, de.maxhenkel.tradecycling.TradeCyclingMod.CYCLE_TRADES_PACKET);
+        //?}
+        //? if >=1.20.6 {
+        return ((net.neoforged.neoforge.common.extensions.ICommonPacketListener) handler)
+                .hasChannel(de.maxhenkel.tradecycling.net.CycleTradesPacket.CYCLE_TRADES);
+        //?}
+    }
+
     static void send(ClientPacketListener handler) {
         //? if <1.20.4 {
         var packet = net.neoforged.neoforge.network.PlayNetworkDirection.PLAY_TO_SERVER.buildPacket(

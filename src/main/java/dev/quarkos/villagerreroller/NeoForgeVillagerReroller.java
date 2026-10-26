@@ -3,8 +3,8 @@
 package dev.quarkos.villagerreroller;
 
 import dev.quarkos.villagerreroller.client.AutomatorKeys;
-import dev.quarkos.villagerreroller.client.CycleAutomator;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
+import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.neoforged.bus.api.IEventBus;
@@ -53,6 +53,9 @@ public final class NeoForgeVillagerReroller {
             if (AutomatorKeys.TOGGLE != null) {
                 event.register(AutomatorKeys.TOGGLE);
             }
+            if (AutomatorKeys.CONFIG != null) {
+                event.register(AutomatorKeys.CONFIG);
+            }
         });
         //? if <1.20.6 {
         NeoForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent event) -> {
@@ -79,7 +82,7 @@ public final class NeoForgeVillagerReroller {
             if (!matches) {
                 return;
             }
-            CycleAutomator.toggle();
+            JobSiteReroller.onToggleKey();
             event.setCanceled(true);
         });
         NeoForge.EVENT_BUS.addListener((PlayerInteractEvent.EntityInteract event) -> {

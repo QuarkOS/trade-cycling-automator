@@ -31,30 +31,30 @@ Built with [Stonecutter](https://stonecutter.kikugie.dev/) 0.9.8. The sources in
 
 | Minecraft | Fabric | Forge | NeoForge |
 | --- | --- | --- | --- |
-| 1.19 | `villager_reroller-fabric-1.0.0+1.19.jar` | `villager_reroller-forge-1.0.0+1.19.jar` (Forge 41.1.0) | — |
-| 1.19.1 | `villager_reroller-fabric-1.0.0+1.19.1.jar` | `villager_reroller-forge-1.0.0+1.19.1.jar` (Forge 42.0.9) | — |
-| 1.19.2 | `villager_reroller-fabric-1.0.0+1.19.2.jar` | `villager_reroller-forge-1.0.0+1.19.2.jar` (Forge 43.5.0) | — |
-| 1.19.3 | `villager_reroller-fabric-1.0.0+1.19.3.jar` | `villager_reroller-forge-1.0.0+1.19.3.jar` (Forge 44.1.0) | — |
-| 1.19.4 | `villager_reroller-fabric-1.0.0+1.19.4.jar` | `villager_reroller-forge-1.0.0+1.19.4.jar` (Forge 45.4.0) | — |
-| 1.20.1 | `villager_reroller-fabric-1.0.0+1.20.1.jar` | `villager_reroller-forge-1.0.0+1.20.1.jar` (Forge 47.4.28) | — |
-| 1.20.2 | `villager_reroller-fabric-1.0.0+1.20.2.jar` | `villager_reroller-forge-1.0.0+1.20.2.jar` (Forge 48.1.0) | `villager_reroller-neoforge-1.0.0+1.20.2.jar` (NeoForge 20.2.93) |
-| 1.20.4 | `villager_reroller-fabric-1.0.0+1.20.4.jar` | `villager_reroller-forge-1.0.0+1.20.4.jar` (Forge 49.2.13) | `villager_reroller-neoforge-1.0.0+1.20.4.jar` (NeoForge 20.4.253) |
-| 1.20.6 | `villager_reroller-fabric-1.0.0+1.20.6.jar` | `villager_reroller-forge-1.0.0+1.20.6.jar` (Forge 50.0.8) | `villager_reroller-neoforge-1.0.0+1.20.6.jar` (NeoForge 20.6.144) |
-| 1.21 | `villager_reroller-fabric-1.0.0+1.21.jar` | `villager_reroller-forge-1.0.0+1.21.jar` (Forge 51.0.33) | `villager_reroller-neoforge-1.0.0+1.21.jar` (NeoForge 21.0.167) |
-| 1.21.1 | `villager_reroller-fabric-1.0.0+1.21.1.jar` | `villager_reroller-forge-1.0.0+1.21.1.jar` (Forge 52.1.20) | `villager_reroller-neoforge-1.0.0+1.21.1.jar` (NeoForge 21.1.265) |
-| 1.21.3 | `villager_reroller-fabric-1.0.0+1.21.3.jar` | `villager_reroller-forge-1.0.0+1.21.3.jar` (Forge 53.1.16) | `villager_reroller-neoforge-1.0.0+1.21.3.jar` (NeoForge 21.3.100) |
-| 1.21.4 | `villager_reroller-fabric-1.0.0+1.21.4.jar` | `villager_reroller-forge-1.0.0+1.21.4.jar` (Forge 54.1.22) | `villager_reroller-neoforge-1.0.0+1.21.4.jar` (NeoForge 21.4.161) |
-| 1.21.5 | `villager_reroller-fabric-1.0.0+1.21.5.jar` | `villager_reroller-forge-1.0.0+1.21.5.jar` (Forge 55.1.18) | `villager_reroller-neoforge-1.0.0+1.21.5.jar` (NeoForge 21.5.101) |
-| 1.21.6 | `villager_reroller-fabric-1.0.0+1.21.6.jar` | `villager_reroller-forge-1.0.0+1.21.6.jar` (Forge 56.0.9) | `villager_reroller-neoforge-1.0.0+1.21.6.jar` (NeoForge 21.6.20-beta) |
-| 1.21.9 | `villager_reroller-fabric-1.0.0+1.21.9.jar` | `villager_reroller-forge-1.0.0+1.21.9.jar` (Forge 59.0.5) | `villager_reroller-neoforge-1.0.0+1.21.9.jar` (NeoForge 21.9.16-beta) |
-| 1.21.11 | `villager_reroller-fabric-1.0.0+1.21.11.jar` | `villager_reroller-forge-1.0.0+1.21.11.jar` (Forge 61.2.4) | `villager_reroller-neoforge-1.0.0+1.21.11.jar` (NeoForge 21.11.48) |
-| 26.1.2 | `villager_reroller-fabric-1.0.0+26.1.2.jar` | `villager_reroller-forge-1.0.0+26.1.2.jar` (Forge 64.1.5) | `villager_reroller-neoforge-1.0.0+26.1.2.jar` (NeoForge 26.1.2.124) |
-| 26.2 | `villager_reroller-fabric-1.0.0+26.2.jar` | `villager_reroller-forge-1.0.0+26.2.jar` (Forge 65.1.5) | `villager_reroller-neoforge-1.0.0+26.2.jar` (NeoForge 26.2.0.93) |
-| 26.3 | `villager_reroller-fabric-1.0.0+26.3.jar` | `villager_reroller-forge-1.0.0+26.3.jar` (Forge 66.1.0) | `villager_reroller-neoforge-1.0.0+26.3.jar` (NeoForge 26.3.0.99) |
+| 1.19 | `villager_reroller-fabric-1.1.0+1.19.jar` | `villager_reroller-forge-1.1.0+1.19.jar` (Forge 41.1.0) | — |
+| 1.19.1 | `villager_reroller-fabric-1.1.0+1.19.1.jar` | `villager_reroller-forge-1.1.0+1.19.1.jar` (Forge 42.0.9) | — |
+| 1.19.2 | `villager_reroller-fabric-1.1.0+1.19.2.jar` | `villager_reroller-forge-1.1.0+1.19.2.jar` (Forge 43.5.0) | — |
+| 1.19.3 | `villager_reroller-fabric-1.1.0+1.19.3.jar` | `villager_reroller-forge-1.1.0+1.19.3.jar` (Forge 44.1.0) | — |
+| 1.19.4 | `villager_reroller-fabric-1.1.0+1.19.4.jar` | `villager_reroller-forge-1.1.0+1.19.4.jar` (Forge 45.4.0) | — |
+| 1.20.1 | `villager_reroller-fabric-1.1.0+1.20.1.jar` | `villager_reroller-forge-1.1.0+1.20.1.jar` (Forge 47.4.28) | — |
+| 1.20.2 | `villager_reroller-fabric-1.1.0+1.20.2.jar` | `villager_reroller-forge-1.1.0+1.20.2.jar` (Forge 48.1.0) | `villager_reroller-neoforge-1.1.0+1.20.2.jar` (NeoForge 20.2.93) |
+| 1.20.4 | `villager_reroller-fabric-1.1.0+1.20.4.jar` | `villager_reroller-forge-1.1.0+1.20.4.jar` (Forge 49.2.13) | `villager_reroller-neoforge-1.1.0+1.20.4.jar` (NeoForge 20.4.253) |
+| 1.20.6 | `villager_reroller-fabric-1.1.0+1.20.6.jar` | `villager_reroller-forge-1.1.0+1.20.6.jar` (Forge 50.0.8) | `villager_reroller-neoforge-1.1.0+1.20.6.jar` (NeoForge 20.6.144) |
+| 1.21 | `villager_reroller-fabric-1.1.0+1.21.jar` | `villager_reroller-forge-1.1.0+1.21.jar` (Forge 51.0.33) | `villager_reroller-neoforge-1.1.0+1.21.jar` (NeoForge 21.0.167) |
+| 1.21.1 | `villager_reroller-fabric-1.1.0+1.21.1.jar` | `villager_reroller-forge-1.1.0+1.21.1.jar` (Forge 52.1.20) | `villager_reroller-neoforge-1.1.0+1.21.1.jar` (NeoForge 21.1.265) |
+| 1.21.3 | `villager_reroller-fabric-1.1.0+1.21.3.jar` | `villager_reroller-forge-1.1.0+1.21.3.jar` (Forge 53.1.16) | `villager_reroller-neoforge-1.1.0+1.21.3.jar` (NeoForge 21.3.100) |
+| 1.21.4 | `villager_reroller-fabric-1.1.0+1.21.4.jar` | `villager_reroller-forge-1.1.0+1.21.4.jar` (Forge 54.1.22) | `villager_reroller-neoforge-1.1.0+1.21.4.jar` (NeoForge 21.4.161) |
+| 1.21.5 | `villager_reroller-fabric-1.1.0+1.21.5.jar` | `villager_reroller-forge-1.1.0+1.21.5.jar` (Forge 55.1.18) | `villager_reroller-neoforge-1.1.0+1.21.5.jar` (NeoForge 21.5.101) |
+| 1.21.6 | `villager_reroller-fabric-1.1.0+1.21.6.jar` | `villager_reroller-forge-1.1.0+1.21.6.jar` (Forge 56.0.9) | `villager_reroller-neoforge-1.1.0+1.21.6.jar` (NeoForge 21.6.20-beta) |
+| 1.21.9 | `villager_reroller-fabric-1.1.0+1.21.9.jar` | `villager_reroller-forge-1.1.0+1.21.9.jar` (Forge 59.0.5) | `villager_reroller-neoforge-1.1.0+1.21.9.jar` (NeoForge 21.9.16-beta) |
+| 1.21.11 | `villager_reroller-fabric-1.1.0+1.21.11.jar` | `villager_reroller-forge-1.1.0+1.21.11.jar` (Forge 61.2.4) | `villager_reroller-neoforge-1.1.0+1.21.11.jar` (NeoForge 21.11.48) |
+| 26.1.2 | `villager_reroller-fabric-1.1.0+26.1.2.jar` | `villager_reroller-forge-1.1.0+26.1.2.jar` (Forge 64.1.5) | `villager_reroller-neoforge-1.1.0+26.1.2.jar` (NeoForge 26.1.2.124) |
+| 26.2 | `villager_reroller-fabric-1.1.0+26.2.jar` | `villager_reroller-forge-1.1.0+26.2.jar` (Forge 65.1.5) | `villager_reroller-neoforge-1.1.0+26.2.jar` (NeoForge 26.2.0.93) |
+| 26.3 | `villager_reroller-fabric-1.1.0+26.3.jar` | `villager_reroller-forge-1.1.0+26.3.jar` (Forge 66.1.0) | `villager_reroller-neoforge-1.1.0+26.3.jar` (NeoForge 26.3.0.99) |
 
 NeoForge is skipped on 1.19, 1.19.1, 1.19.2, 1.19.3, and 1.19.4 because that loader did not exist yet. 1.20.1 is skipped because the only NeoForge-named artifact for it is the legacy Forge fork `net.neoforged:forge:1.20.1-47.1.x`, which still uses the Forge packages. The `net.neoforged:neoforge` artifact and the `net.neoforged` packages start at 1.20.2. 1.21.6 and 1.21.9 use the last published NeoForge betas (`21.6.20-beta` and `21.9.16-beta`); those Minecraft versions have no stable NeoForge release, and Trade Cycling publishes a NeoForge jar for both. 1.21.2 is not built. Trade Cycling does not publish a 1.21.2 jar, and Forge has no 1.21.2 promotion. NeoForge 1.21.2 is beta-only and is not one of this repo's versions. 1.19 through 1.20.4 store trades in NBT. 1.20.2 uses the same listing field shapes as 1.20.4. 1.19 through 1.20.1 use the older shapes: an item plus a count, a single stew effect, and every tradeable enchantment. 1.19.4 draws the trade panel with `PoseStack` and `renderWidget`. 1.19.3 still uses `renderButton` and draws items without a pose. 1.19, 1.19.1, and 1.19.2 use `Registry`, public widget coordinates, and `new Button(...)`.
 
-Fabric needs Fabric Loader, Fabric API, [Cloth Config](https://modrinth.com/mod/cloth-config), and [Mod Menu](https://modrinth.com/mod/modmenu). Forge and NeoForge do not depend on Cloth Config on any version. Their settings screen is the same vanilla `Screen`. Forge 1.20.4 and newer register it with `MinecraftForge.registerConfigScreen`. Forge 1.19 through 1.20.2 register `ConfigScreenHandler.ConfigScreenFactory`. NeoForge 1.20.2 and 1.20.4 register `ConfigScreenHandler.ConfigScreenFactory`, and NeoForge 1.20.6 and newer register `IConfigScreenFactory`. The mods list Config button opens it, and it writes the same `villager_reroller.json` file. Mod Menu is Fabric-only.
+Fabric needs Fabric Loader and Fabric API. The settings screen is a vanilla `Screen` on Fabric, Forge, and NeoForge and writes `villager_reroller.json`. Fabric opens it with the `J` key. [Mod Menu](https://modrinth.com/mod/modmenu) is optional: when it is installed, its config button opens the same screen. Forge 1.20.4 and newer register that screen with `MinecraftForge.registerConfigScreen`. Forge 1.19 through 1.20.2 register `ConfigScreenHandler.ConfigScreenFactory`. NeoForge 1.20.2 and 1.20.4 register `ConfigScreenHandler.ConfigScreenFactory`, and NeoForge 1.20.6 and newer register `IConfigScreenFactory`. The mods list Config button opens it.
 
 Forge 1.20.6 is pinned to 50.0.8. Trade Cycling 1.0.11 calls `CustomPayloadEvent.Context.getDirection()`, and Forge removed that method in 50.0.9. A newer 1.20.6 Forge disconnects the client on the first cycle.
 
@@ -68,11 +68,11 @@ The Forge 1.19 through 1.20.4 dev clients remap Trade Cycling's SRG jar to mojma
 
 Install Fabric (or Forge 1.21.1), the loader's dependencies above, and this mod. Open a novice villager (no trades used yet) who is standing next to their job site, with that block and a suitable tool in your inventory.
 
-The book button opens the list. Search filters by name. Start rerolls until a selected row appears. The price you set is the most you will pay in emeralds before you count it as a match. Reputation can make a trade cheaper than the vanilla minimum; that still matches. Sells, where the villager pays you emeralds, match on the item rather than a ceiling.
+The book button opens the list. Search filters by name. Start rerolls until a selected row appears. A match is an offer at or under the vanilla maximum you see on that row. Reputation can make a trade cheaper than the vanilla minimum; that still matches. Sells, where the villager pays you emeralds, match on the item rather than a ceiling.
 
-The settings screen has an enabled switch, an attempt cap (default 500), and a panic stop. On Fabric, Cloth Config opens it from Mod Menu. On Forge and NeoForge, the same options are a vanilla screen opened from the mods list.
+The settings screen has an enabled switch, a durability floor (default 10 uses left), a bare-hand fallback, an attempt cap (default 500), a server-friendly pace, and a panic stop. Tools at or below the floor are skipped, and a run stops with a chat message when nothing safe is left. Server-friendly slows the cycle, the timeouts, and the camera. The same screen is used on Fabric, Forge, and NeoForge. Open it with `J`, from Mod Menu when that mod is installed, or from the Forge or NeoForge mods list.
 
-The toggle key is `K`. It starts the selected targets while the trade screen is open, and stops a reroll from anywhere. Change it in Controls, under Miscellaneous.
+The toggle key is `K`. It starts the selected targets while the trade screen is open, and stops a reroll from anywhere. Change it in Controls, under Miscellaneous. Trade Cycling is offered only when the connected server advertises that mod's channel. Otherwise the toggle is greyed out and the cycle packet is not sent.
 
 ## Emerald price rule
 
@@ -98,7 +98,7 @@ Trade Rebalance does not change the cost formula. It only changes which book can
 
 Enchanted gear adds `5 + random.nextInt(15)` to its base cost, so the added emeralds are 5 through 19, then capped at 64. A fletcher's enchanted bow (base 2) is 7–21.
 
-`src/main/java/dev/quarkos/villagerreroller/price/VanillaBookPrices.java` is that math with no Minecraft bootstrap. `librarian_book_prices.json` is the same capped table. The config screen rejects levels and prices outside it.
+`src/main/java/dev/quarkos/villagerreroller/price/VanillaBookPrices.java` is that math with no Minecraft bootstrap. `librarian_book_prices.json` is the same capped table, and the trade list uses it.
 
 ## Build
 
@@ -122,7 +122,7 @@ xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
 
 ## Validate release jars
 
-`./tools/validate` is the production check. It builds every Fabric, Forge, and NeoForge jar, then launches that jar (the file under `build/libs`, not the dev classes) in a headless client. The jar is copied into `mods/` with the dependencies that version already uses: Fabric API, Cloth Config, and Mod Menu on Fabric. Forge and NeoForge use their own config screen and do not get those. Each jar runs twice, once without Trade Cycling and once with the matching Trade Cycling jar. Pass `--loader neoforge` to launch only the NeoForge rows. Versions without a NeoForge build are omitted from that loader.
+`./tools/validate` is the production check. It builds every Fabric, Forge, and NeoForge jar, then launches that jar (the file under `build/libs`, not the Loom, ForgeGradle, or ModDevGradle dev classes) in a headless client. The jar is copied into `mods/` with the dependencies that version already uses: Fabric API on Fabric. Cloth Config is not required, and Mod Menu is not installed for the run, so the vanilla settings screen is what opens. Forge and NeoForge use the same screen from the mods list. Each jar runs twice, once without Trade Cycling and once with the matching Trade Cycling jar. Pass `--loader neoforge` to launch only the NeoForge rows. Versions without a NeoForge build are omitted from that loader.
 
 The client is the real loader for that Minecraft version. `-Dvillager_reroller.harness=true` turns on the tick harness inside the jar, the same librarian, lectern, and reroll scenario as the dev gametest. A run passes only when the log shows the mod loaded, the config screen opened, the trade panel rendered, and a reroll reached a matching offer. Lag timeouts (a world that never finished loading, a reroll that hit the deadline) are retried. Other failures are not.
 

@@ -521,7 +521,7 @@ if (forgeNode == null) {
     apply(plugin = "java")
     apply(plugin = "net.minecraftforge.gradle")
 
-    version = "1.0.0+$minecraftVersion"
+    version = "1.1.0+$minecraftVersion"
     base.archivesName.set("villager_reroller-forge")
     group = "dev.quarkos"
 
@@ -643,7 +643,7 @@ if (forgeNode == null) {
     tasks.named<ProcessResources>("processResources") {
         dependsOn(writeForgePack)
         val props = mapOf(
-            "version" to "1.0.0+$minecraftVersion",
+            "version" to "1.1.0+$minecraftVersion",
             "forge_dep" to node.forgeDep,
             "minecraft" to minecraftVersion,
         )

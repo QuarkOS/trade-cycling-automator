@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Tools at or below a durability floor (default 10 uses left) are skipped. Equally fast tools prefer an unenchanted one, then one without Mending. The bare hand is the fallback when the block allows it. The run stops with a chat message when no safe tool remains.
+- The settings screen is a vanilla screen on Fabric and Forge. Cloth Config is no longer required. Mod Menu is optional and opens the same screen when it is installed. Settings still save to `villager_reroller.json`.
+- A server-friendly preset slows the cycle spacing, the timeouts, and the camera turn. The camera eases toward the block instead of snapping.
+- Trade Cycling is used only when the connected server advertises its channel. The toggle is greyed out otherwise, and the cycle packet is not sent.
+- The enchantment, level, and maximum-emerald settings are gone. Older config files that still contain those keys keep loading.
+
 ## 1.0.0
 
 First release, for Minecraft 1.21.11 (jar version `1.0.0+1.21.11`).
