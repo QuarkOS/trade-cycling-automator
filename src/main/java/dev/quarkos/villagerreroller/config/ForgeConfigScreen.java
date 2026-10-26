@@ -26,6 +26,7 @@ public final class ForgeConfigScreen extends Screen {
     private int enchantIndex;
     private int level;
     private boolean enabled;
+    private boolean matchSound;
     private boolean panic;
     private Button enabledButton;
     private Button enchantmentButton;
@@ -33,6 +34,7 @@ public final class ForgeConfigScreen extends Screen {
     private Button statusButton;
     private EditBox priceBox;
     private EditBox attemptsBox;
+    private EditBox volumeBox;
 
     public ForgeConfigScreen(Screen parent) {
         super(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.title"));
@@ -45,6 +47,7 @@ public final class ForgeConfigScreen extends Screen {
         this.enchantIndex = indexOf(config.enchantment());
         this.level = clamp(config.level(), 1, 5);
         this.enabled = config.enabled();
+        this.matchSound = config.matchSound();
     }
 
     @Override
@@ -118,6 +121,27 @@ public final class ForgeConfigScreen extends Screen {
         attemptsBox.setHint(attemptsLabel());
         //?}
         addRenderableWidget(attemptsBox);
+        y += 24;
+        //? if <1.19.3 {
+        addRenderableWidget(new Button(x, y, 200, 20, matchSoundLabel(), button -> {
+            matchSound = !matchSound;
+            button.setMessage(matchSoundLabel());
+        }));
+        //?}
+        //? if >=1.19.3 {
+        addRenderableWidget(Button.builder(matchSoundLabel(), button -> {
+            matchSound = !matchSound;
+            button.setMessage(matchSoundLabel());
+        }).bounds(x, y, 200, 20).build());
+        //?}
+        y += 36;
+        volumeBox = new EditBox(this.font, x, y, 200, 20, volumeLabel());
+        volumeBox.setMaxLength(3);
+        volumeBox.setValue(Integer.toString(AutomatorConfig.get().matchVolume()));
+        //? if >=1.19.3 {
+        volumeBox.setHint(volumeLabel());
+        //?}
+        addRenderableWidget(volumeBox);
         y += 28;
         //? if <1.19.3 {
         statusButton = addRenderableWidget(new Button(x, y, 200, 20, Component.literal("..."), button -> {
@@ -161,6 +185,8 @@ public final class ForgeConfigScreen extends Screen {
         config.setMaxPrice(parse(priceBox.getValue(), config.maxPrice()));
         config.setMaxAttempts(parse(attemptsBox.getValue(), config.maxAttempts()));
         config.setEnabled(enabled);
+        config.setMatchSound(matchSound);
+        config.setMatchVolume(parse(volumeBox.getValue(), config.matchVolume()));
         if (!enabled) {
             CycleAutomator.stop(CycleAutomator.StopReason.DISABLED);
         }
@@ -194,6 +220,12 @@ public final class ForgeConfigScreen extends Screen {
         return Component.translatable(
                 "text." + VillagerReroller.MOD_ID + ".invalid." + problem.kind().name().toLowerCase(),
                 problem.limit());
+    }
+
+    private Component matchSoundLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_sound")
+                .append(": ")
+                .append(Component.translatable(matchSound ? "options.on" : "options.off"));
     }
 
     private Component enabledLabel() {
@@ -247,12 +279,20 @@ public final class ForgeConfigScreen extends Screen {
         return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts");
     }
 
+    private static Component volumeLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_volume");
+    }
+
     private static Component priceTooltip() {
         return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price.tooltip");
     }
 
     private static Component attemptsTooltip() {
         return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts.tooltip");
+    }
+
+    private static Component volumeTooltip() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_volume.tooltip");
     }
 
     // The edit box message is narration-only. Draw the Cloth Config names above the fields.
@@ -262,6 +302,7 @@ public final class ForgeConfigScreen extends Screen {
         super.render(pose, mouseX, mouseY, partialTick);
         drawFieldLabel(pose, priceBox, priceLabel());
         drawFieldLabel(pose, attemptsBox, attemptsLabel());
+        drawFieldLabel(pose, volumeBox, volumeLabel());
         Component tip = hoveredTip(mouseX, mouseY);
         if (tip != null) {
             renderTooltip(pose, tip, mouseX, mouseY);
@@ -281,6 +322,7 @@ public final class ForgeConfigScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
         drawFieldLabel(graphics, priceBox, priceLabel());
         drawFieldLabel(graphics, attemptsBox, attemptsLabel());
+        drawFieldLabel(graphics, volumeBox, volumeLabel());
         Component tip = hoveredTip(mouseX, mouseY);
         if (tip != null) {
             //? if <1.21.6 {
@@ -305,6 +347,7 @@ public final class ForgeConfigScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         drawFieldLabel(graphics, priceBox, priceLabel());
         drawFieldLabel(graphics, attemptsBox, attemptsLabel());
+        drawFieldLabel(graphics, volumeBox, volumeLabel());
         Component tip = hoveredTip(mouseX, mouseY);
         if (tip != null) {
             graphics.setTooltipForNextFrame(this.font, tip, mouseX, mouseY);
@@ -325,6 +368,9 @@ public final class ForgeConfigScreen extends Screen {
         }
         if (overField(attemptsBox, mouseX, mouseY)) {
             return attemptsTooltip();
+        }
+        if (overField(volumeBox, mouseX, mouseY)) {
+            return volumeTooltip();
         }
         return null;
     }

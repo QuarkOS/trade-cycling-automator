@@ -31,6 +31,21 @@ public final class AutomatorConfigScreen {
         ConfigEntryBuilder entries = builder.entryBuilder();
         ConfigCategory category = builder.getOrCreateCategory(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.category"));
 
+        category.addEntry(entries.startBooleanToggle(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_sound"), config.matchSound())
+                .setDefaultValue(true)
+                .setTooltip(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_sound.tooltip"))
+                .setSaveConsumer(config::setMatchSound)
+                .build());
+        category.addEntry(entries.startIntSlider(
+                        Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_volume"),
+                        config.matchVolume(),
+                        0,
+                        100)
+                .setDefaultValue(MatchSound.DEFAULT_VOLUME)
+                .setTooltip(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_volume.tooltip"))
+                .setSaveConsumer(config::setMatchVolume)
+                .build());
+
         category.addEntry(entries.startTextDescription(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.intro")).build());
 
         category.addEntry(entries.startBooleanToggle(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.enabled"), config.enabled())

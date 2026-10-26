@@ -5,6 +5,7 @@ import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
+import dev.quarkos.villagerreroller.config.MatchSound;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.player.LocalPlayer;
@@ -526,6 +527,10 @@ public final class JobSiteReroller {
         status = message(StopReason.FOUND);
         TradeSession.setPanelOpen(true);
         announce(client, status);
+        AutomatorConfig config = AutomatorConfig.get();
+        if (MatchSound.audible(config.matchSound(), config.matchVolume())) {
+            McBridge.playMatchFound(client, MatchSound.scale(config.matchVolume()));
+        }
         LOGGER.info("Trade reroll found a target after {} {}", attempts, packetRun ? "cycles" : "replacements");
         packetRun = false;
     }

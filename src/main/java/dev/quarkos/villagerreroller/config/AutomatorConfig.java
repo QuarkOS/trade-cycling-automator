@@ -28,6 +28,8 @@ public final class AutomatorConfig {
     private int level = 1;
     private int maxPrice = 10;
     private int maxAttempts = 500;
+    private boolean matchSound = true;
+    private int matchVolume = MatchSound.DEFAULT_VOLUME;
 
     public static AutomatorConfig get() {
         if (instance == null) {
@@ -113,6 +115,22 @@ public final class AutomatorConfig {
 
     public void setMaxAttempts(int maxAttempts) {
         this.maxAttempts = Math.max(1, maxAttempts);
+    }
+
+    public boolean matchSound() {
+        return matchSound;
+    }
+
+    public void setMatchSound(boolean matchSound) {
+        this.matchSound = matchSound;
+    }
+
+    public int matchVolume() {
+        return MatchSound.clampPercent(matchVolume);
+    }
+
+    public void setMatchVolume(int matchVolume) {
+        this.matchVolume = MatchSound.clampPercent(matchVolume);
     }
 
     public Optional<LibrarianBookPrices.Problem> problem() {

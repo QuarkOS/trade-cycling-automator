@@ -30,6 +30,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 //?}
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
@@ -127,6 +129,26 @@ public final class McBridge {
         // Fabric's button list inserts by a stale index. Trade Cycling's own merchant
         // widgets make that index run past the list, which disconnects the client.
         return new ScreenWidgets(screen);
+    }
+
+    /**
+     * Experience-orb pickup. Short, and it sits on the master bus so the Players slider does not mute it.
+     */
+    public static void playMatchFound(Minecraft client, float volume) {
+        if (client.player == null || client.level == null || volume <= 0.0F) {
+            return;
+        }
+        float loudness = Math.min(1.0F, volume);
+        client.level.playLocalSound(
+                client.player.getX(),
+                client.player.getY(),
+                client.player.getZ(),
+                SoundEvents.EXPERIENCE_ORB_PICKUP,
+                SoundSource.MASTER,
+                loudness,
+                1.0F,
+                false
+        );
     }
 
     public static void toast(Minecraft client, Component title, Component message) {
