@@ -46,6 +46,7 @@ public final class VillagerReroller implements ClientModInitializer {
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> onScreen(client, screen));
 
+        dev.quarkos.villagerreroller.picker.TradeHallHud.register();
         ClientTickEvents.END_CLIENT_TICK.register(VillagerReroller::onClientTick);
     }
     //?}
@@ -54,14 +55,21 @@ public final class VillagerReroller implements ClientModInitializer {
         // Every release jar keeps this call. start() returns immediately unless
         // -Dvillager_reroller.harness=true, which is how tools/validate drives the jar.
         dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
-        if (McBridge.currentScreen(client) instanceof PauseScreen && dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()) {
-            dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED);
+        if (McBridge.currentScreen(client) instanceof PauseScreen
+                && (dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()
+                || dev.quarkos.villagerreroller.picker.TradeHall.isActive())) {
+            if (dev.quarkos.villagerreroller.picker.TradeHall.isActive()) {
+                dev.quarkos.villagerreroller.picker.TradeHall.requestStop();
+            } else {
+                dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED);
+            }
             McBridge.setScreen(client, null);
         }
         if (McBridge.currentScreen(client) == null && AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.consumeClick()) {
             dev.quarkos.villagerreroller.picker.JobSiteReroller.onToggleKey();
         }
         dev.quarkos.villagerreroller.picker.JobSiteReroller.tick(client);
+        dev.quarkos.villagerreroller.picker.TradeHall.tick(client);
     }
 
     public static void onScreen(Minecraft client, Screen screen) {

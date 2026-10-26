@@ -88,6 +88,63 @@ public final class TradeSession {
         return !chosenMax.isEmpty();
     }
 
+    public static Map<String, Integer> copySelections() {
+        return new LinkedHashMap<>(chosenMax);
+    }
+
+    /**
+     * Puts a queued villager's ceilings back after the panel rebuilds its catalog.
+     * Ids that are not in the current catalog are dropped.
+     */
+    public static int restoreSelections(Map<String, Integer> saved) {
+        chosenMax.clear();
+        if (saved == null || saved.isEmpty()) {
+            return 0;
+        }
+        for (Map.Entry<String, Integer> entry : saved.entrySet()) {
+            boolean known = false;
+            for (TradeEntry row : entries) {
+                if (row.id.equals(entry.getKey())) {
+                    known = true;
+                    break;
+                }
+            }
+            if (known) {
+                chosenMax.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return chosenMax.size();
+    }
+
+    public static void setChosenMax(String id, int max) {
+        if (chosenMax.containsKey(id)) {
+            chosenMax.put(id, max);
+        }
+    }
+
+    /** Short label of the current ceilings, for the hall queue. */
+    public static String describeSelection() {
+        StringBuilder builder = new StringBuilder();
+        for (TradeEntry entry : entries) {
+            Integer max = chosenMax.get(entry.id);
+            if (max == null) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(", ");
+            }
+            builder.append(entry.name);
+            if (entry.paysEmeralds && max != ANY_PRICE) {
+                builder.append(" \u2264").append(max);
+            }
+            if (builder.length() > 72) {
+                builder.append("\u2026");
+                break;
+            }
+        }
+        return builder.toString();
+    }
+
     public static void toggle(TradeEntry entry) {
         if (chosenMax.containsKey(entry.id)) {
             chosenMax.remove(entry.id);

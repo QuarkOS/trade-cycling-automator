@@ -16,11 +16,16 @@ import net.minecraft.world.entity.npc.villager.Villager;
  */
 public final class LibrarianTracker {
     private static int entityId = Integer.MIN_VALUE;
+    /** While set, the merchant screen keeps this villager instead of the nearest one. */
+    private static boolean pinned;
 
     private LibrarianTracker() {
     }
 
     public static void remember(Entity entity) {
+        if (pinned) {
+            return;
+        }
         if (entity instanceof Villager) {
             entityId = entity.getId();
         } else if (entity instanceof Merchant) {
@@ -28,8 +33,28 @@ public final class LibrarianTracker {
         }
     }
 
+    /**
+     * Hall mode interacts with a chosen villager. The trade screen must stay bound
+     * to that villager even when another one is standing closer.
+     */
+    public static void pin(Villager villager) {
+        pinned = true;
+        entityId = villager.getId();
+    }
+
+    public static void unpin() {
+        pinned = false;
+    }
+
     public static void bindNearest(Minecraft client) {
+        if (pinned && current(client) != null) {
+            return;
+        }
         if (client.player == null || client.level == null) {
+            return;
+        }
+        Villager remembered = current(client);
+        if (remembered != null && McBridge.withinEntity(client.player, remembered)) {
             return;
         }
         AABB box = client.player.getBoundingBox().inflate(8.0);
