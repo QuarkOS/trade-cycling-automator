@@ -3,7 +3,7 @@
   "id": "${id}",
   "version": "${version}",
   "name": "${name}",
-  "description": "Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If Trade Cycling is installed, the list can use that mod's cycle action instead.",
+  "description": "Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If the server has Trade Cycling, the list can use that mod's cycle action instead.",
   "authors": [
     "Emilio Schwaiger"
   ],
@@ -25,15 +25,14 @@
     ]
   },
   "depends": {
+    "trade_cycling": ">=1.0.0",
     "fabricloader": ">=0.16.0",
     "minecraft": "${minecraft}",
     "java": "${java}",
-    "${fabricApiId}": "*",
-    "cloth-config": "*",
-    "trade_cycling": ">=1.0.0",
-    "modmenu": "*"
+    "${fabricApiId}": "*"
   },
   "suggests": {
+    "modmenu": "*",
     "trade_cycling": "*"
   }
 }

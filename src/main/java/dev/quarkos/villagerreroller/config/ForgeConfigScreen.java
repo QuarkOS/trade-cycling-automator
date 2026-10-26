@@ -1,11 +1,9 @@
-//? if forge {
-/*
 package dev.quarkos.villagerreroller.config;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
-import dev.quarkos.villagerreroller.client.CycleAutomator;
 import dev.quarkos.villagerreroller.client.McBridge;
-import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
+import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -14,163 +12,111 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.GuiGraphics;
 //?}
 //? if <1.20 {
-import com.mojang.blaze3d.vertex.PoseStack;
-//?}
+/*import com.mojang.blaze3d.vertex.PoseStack;
+*///?}
 
-import java.util.Optional;
-
-// Vanilla widgets for the Forge mod-list Config button. Writes villager_reroller.json.
+/**
+ * Vanilla settings screen shared by Fabric and Forge. Mod Menu opens it when
+ * that mod is installed. Forge opens it from the mods list. The same widgets
+ * write {@code villager_reroller.json}.
+ */
 public final class ForgeConfigScreen extends Screen {
     private final Screen parent;
-    private final String[] enchantments;
-    private int enchantIndex;
-    private int level;
     private boolean enabled;
+    private boolean bareHand;
+    private boolean serverFriendly;
     private boolean panic;
     private Button enabledButton;
-    private Button enchantmentButton;
-    private Button levelButton;
-    private Button statusButton;
-    private EditBox priceBox;
+    private Button bareHandButton;
+    private Button serverButton;
+    private Button panicButton;
     private EditBox attemptsBox;
+    private EditBox floorBox;
+    private EditBox ticksBox;
+    private EditBox timeoutBox;
+    private EditBox lookBox;
 
     public ForgeConfigScreen(Screen parent) {
         super(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.title"));
         this.parent = parent;
         AutomatorConfig config = AutomatorConfig.get();
-        config.ensureListedEnchantment();
-        this.enchantments = LibrarianBookPrices.get().enchantments().stream()
-                .map(LibrarianBookPrices.BookEnchantment::id)
-                .toArray(String[]::new);
-        this.enchantIndex = indexOf(config.enchantment());
-        this.level = clamp(config.level(), 1, 5);
         this.enabled = config.enabled();
+        this.bareHand = config.allowBareHand();
+        this.serverFriendly = config.serverFriendly();
     }
 
     @Override
     protected void init() {
-        int x = this.width / 2 - 100;
-        int y = 32;
-        //? if <1.19.3 {
-        enabledButton = addRenderableWidget(new Button(x, y, 200, 20, enabledLabel(), button -> {
+        int column = Math.min(170, Math.max(140, (this.width - 24) / 2));
+        int left = this.width / 2 - 4 - column;
+        int right = this.width / 2 + 4;
+        int y = 36;
+        enabledButton = button(left, y, column, enabledLabel(), pressed -> {
             enabled = !enabled;
-            button.setMessage(enabledLabel());
-            refreshStatus();
-        }));
-        //?}
-        //? if >=1.19.3 {
-        enabledButton = addRenderableWidget(Button.builder(enabledLabel(), button -> {
-            enabled = !enabled;
-            button.setMessage(enabledLabel());
-            refreshStatus();
-        }).bounds(x, y, 200, 20).build());
-        //?}
-        y += 24;
-        //? if <1.19.3 {
-        enchantmentButton = addRenderableWidget(new Button(x, y, 200, 20, enchantmentLabel(), button -> {
-            if (enchantments.length == 0) {
-                return;
-            }
-            enchantIndex = (enchantIndex + 1) % enchantments.length;
-            button.setMessage(enchantmentLabel());
-            refreshStatus();
-        }));
-        //?}
-        //? if >=1.19.3 {
-        enchantmentButton = addRenderableWidget(Button.builder(enchantmentLabel(), button -> {
-            if (enchantments.length == 0) {
-                return;
-            }
-            enchantIndex = (enchantIndex + 1) % enchantments.length;
-            button.setMessage(enchantmentLabel());
-            refreshStatus();
-        }).bounds(x, y, 200, 20).build());
-        //?}
-        y += 24;
-        //? if <1.19.3 {
-        levelButton = addRenderableWidget(new Button(x, y, 200, 20, levelLabel(), button -> {
-            level = level >= 5 ? 1 : level + 1;
-            button.setMessage(levelLabel());
-            refreshStatus();
-        }));
-        //?}
-        //? if >=1.19.3 {
-        levelButton = addRenderableWidget(Button.builder(levelLabel(), button -> {
-            level = level >= 5 ? 1 : level + 1;
-            button.setMessage(levelLabel());
-            refreshStatus();
-        }).bounds(x, y, 200, 20).build());
-        //?}
-        y += 36;
-        priceBox = new EditBox(this.font, x, y, 200, 20, priceLabel());
-        priceBox.setMaxLength(3);
-        priceBox.setValue(Integer.toString(AutomatorConfig.get().maxPrice()));
-        //? if >=1.19.3 {
-        priceBox.setHint(priceLabel());
-        //?}
-        priceBox.setResponder(value -> refreshStatus());
-        addRenderableWidget(priceBox);
-        y += 36;
-        attemptsBox = new EditBox(this.font, x, y, 200, 20, attemptsLabel());
-        attemptsBox.setMaxLength(5);
-        attemptsBox.setValue(Integer.toString(AutomatorConfig.get().maxAttempts()));
-        //? if >=1.19.3 {
-        attemptsBox.setHint(attemptsLabel());
-        //?}
-        addRenderableWidget(attemptsBox);
-        y += 28;
-        //? if <1.19.3 {
-        statusButton = addRenderableWidget(new Button(x, y, 200, 20, Component.literal("..."), button -> {
-        }));
-        //?}
-        //? if >=1.19.3 {
-        statusButton = addRenderableWidget(Button.builder(Component.literal("..."), button -> {
-        }).bounds(x, y, 200, 20).build());
-        //?}
-        statusButton.active = false;
-        y += 24;
-        //? if <1.19.3 {
-        addRenderableWidget(new Button(x, y, 200, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.panic"), button -> {
+            pressed.setMessage(enabledLabel());
+        });
+        bareHandButton = button(left, y + 24, column, bareHandLabel(), pressed -> {
+            bareHand = !bareHand;
+            pressed.setMessage(bareHandLabel());
+        });
+        attemptsBox = field(left, y + 62, column, attemptsLabel(), Integer.toString(AutomatorConfig.get().maxAttempts()), 5);
+        floorBox = field(left, y + 98, column, floorLabel(), Integer.toString(AutomatorConfig.get().durabilityFloor()), 5);
+
+        serverButton = button(right, y, column, serverLabel(), pressed -> {
+            serverFriendly = !serverFriendly;
+            AutomatorConfig draft = new AutomatorConfig();
+            draft.applyServerFriendly(serverFriendly);
+            ticksBox.setValue(Integer.toString(draft.ticksBetweenCycles()));
+            timeoutBox.setValue(Integer.toString(draft.timeoutMultiplier()));
+            lookBox.setValue(trim(draft.lookDegreesPerTick()));
+            pressed.setMessage(serverLabel());
+        });
+        ticksBox = field(right, y + 62, column, ticksLabel(), Integer.toString(AutomatorConfig.get().ticksBetweenCycles()), 4);
+        timeoutBox = field(right, y + 98, column, timeoutLabel(), Integer.toString(AutomatorConfig.get().timeoutMultiplier()), 3);
+        lookBox = field(right, y + 134, column, lookLabel(), trim(AutomatorConfig.get().lookDegreesPerTick()), 5);
+        panicButton = button(right, y + 160, column, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.panic"), pressed -> {
             panic = !panic;
-            button.setMessage(Component.translatable(panic
+            pressed.setMessage(Component.translatable(panic
                     ? "text." + VillagerReroller.MOD_ID + ".config.panic.on"
                     : "text." + VillagerReroller.MOD_ID + ".config.panic"));
-        }));
-        addRenderableWidget(new Button(x, this.height - 28, 200, 20, Component.translatable("gui.done"), button -> saveAndClose()));
+        });
+        button(this.width / 2 - 100, this.height - 28, 200, Component.translatable("gui.done"), pressed -> saveAndClose());
+    }
+
+    private Button button(int x, int y, int width, Component label, Button.OnPress press) {
+        //? if <1.19.3 {
+        /*return addRenderableWidget(new Button(x, y, width, 20, label, press));
+        *///?} else {
+        return addRenderableWidget(Button.builder(label, press).bounds(x, y, width, 20).build());
         //?}
+    }
+
+    private EditBox field(int x, int y, int width, Component label, String value, int maxLength) {
+        EditBox box = new EditBox(this.font, x, y, width, 20, label);
+        box.setMaxLength(maxLength);
+        box.setValue(value);
         //? if >=1.19.3 {
-        addRenderableWidget(Button.builder(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.panic"), button -> {
-            panic = !panic;
-            button.setMessage(Component.translatable(panic
-                    ? "text." + VillagerReroller.MOD_ID + ".config.panic.on"
-                    : "text." + VillagerReroller.MOD_ID + ".config.panic"));
-        }).bounds(x, y, 200, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> saveAndClose())
-                .bounds(x, this.height - 28, 200, 20)
-                .build());
+        box.setHint(label);
         //?}
-        refreshStatus();
+        addRenderableWidget(box);
+        return box;
     }
 
     private void saveAndClose() {
         AutomatorConfig config = AutomatorConfig.get();
-        if (enchantments.length > 0) {
-            config.setEnchantment(enchantments[enchantIndex]);
-        }
-        config.setLevel(level);
-        config.setMaxPrice(parse(priceBox.getValue(), config.maxPrice()));
-        config.setMaxAttempts(parse(attemptsBox.getValue(), config.maxAttempts()));
         config.setEnabled(enabled);
+        config.setAllowBareHand(bareHand);
+        config.setServerFriendly(serverFriendly);
+        config.setMaxAttempts(parseInt(attemptsBox.getValue(), config.maxAttempts()));
+        config.setDurabilityFloor(parseInt(floorBox.getValue(), config.durabilityFloor()));
+        config.setTicksBetweenCycles(parseInt(ticksBox.getValue(), config.ticksBetweenCycles()));
+        config.setTimeoutMultiplier(parseInt(timeoutBox.getValue(), config.timeoutMultiplier()));
+        config.setLookDegreesPerTick(parseFloat(lookBox.getValue(), config.lookDegreesPerTick()));
         if (!enabled) {
-            CycleAutomator.stop(CycleAutomator.StopReason.DISABLED);
+            JobSiteReroller.stop(JobSiteReroller.StopReason.DISABLED);
         }
         if (panic) {
-            CycleAutomator.stop(CycleAutomator.StopReason.PANIC);
-        }
-        Optional<LibrarianBookPrices.Problem> problem = config.problem();
-        if (problem.isPresent()) {
-            statusButton.setMessage(problemText(problem.get()));
-            return;
+            JobSiteReroller.stop(JobSiteReroller.StopReason.PANIC);
         }
         AutomatorConfig.save();
         if (this.minecraft != null) {
@@ -178,56 +124,45 @@ public final class ForgeConfigScreen extends Screen {
         }
     }
 
-    private void refreshStatus() {
-        if (statusButton == null || enchantments.length == 0) {
-            return;
-        }
-        Optional<LibrarianBookPrices.Problem> problem = LibrarianBookPrices.get().validate(
-                enchantments[enchantIndex],
-                level,
-                parse(priceBox == null ? "10" : priceBox.getValue(), 10));
-        statusButton.setMessage(problem.map(this::problemText).orElseGet(() -> Component.translatable(
-                "text." + VillagerReroller.MOD_ID + ".config.valid")));
-    }
-
-    private Component problemText(LibrarianBookPrices.Problem problem) {
-        return Component.translatable(
-                "text." + VillagerReroller.MOD_ID + ".invalid." + problem.kind().name().toLowerCase(),
-                problem.limit());
-    }
-
     private Component enabledLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.enabled")
+        return onOff("text." + VillagerReroller.MOD_ID + ".config.enabled", enabled);
+    }
+
+    private Component bareHandLabel() {
+        return onOff("text." + VillagerReroller.MOD_ID + ".config.bare_hand", bareHand);
+    }
+
+    private Component serverLabel() {
+        return onOff("text." + VillagerReroller.MOD_ID + ".config.server_friendly", serverFriendly);
+    }
+
+    private static Component onOff(String key, boolean value) {
+        return Component.translatable(key)
                 .append(": ")
-                .append(Component.translatable(enabled ? "options.on" : "options.off"));
+                .append(Component.translatable(value ? "options.on" : "options.off"));
     }
 
-    private Component enchantmentLabel() {
-        if (enchantments.length == 0) {
-            return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.enchantment");
-        }
-        String id = enchantments[enchantIndex];
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.enchantment")
-                .append(": ")
-                .append(Component.translatable("enchantment." + id.replace(':', '.')));
+    private static Component attemptsLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts");
     }
 
-    private Component levelLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.level")
-                .append(": ")
-                .append(Integer.toString(level));
+    private static Component floorLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.durability_floor");
     }
 
-    private int indexOf(String id) {
-        for (int i = 0; i < enchantments.length; i++) {
-            if (enchantments[i].equals(id)) {
-                return i;
-            }
-        }
-        return 0;
+    private static Component ticksLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.ticks_between");
     }
 
-    private static int parse(String text, int fallback) {
+    private static Component timeoutLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.timeout_multiplier");
+    }
+
+    private static Component lookLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.look_speed");
+    }
+
+    private static int parseInt(String text, int fallback) {
         try {
             return Integer.parseInt(text.trim());
         } catch (NumberFormatException e) {
@@ -235,36 +170,68 @@ public final class ForgeConfigScreen extends Screen {
         }
     }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
+    private static float parseFloat(String text, float fallback) {
+        try {
+            return Float.parseFloat(text.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
-    private static Component priceLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price");
+    private static String trim(float value) {
+        if (value == (int) value) {
+            return Integer.toString((int) value);
+        }
+        return Float.toString(value);
     }
 
-    private static Component attemptsLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts");
+    private Component hoveredTip(int mouseX, int mouseY) {
+        if (over(enabledButton, mouseX, mouseY)) {
+            return tip("enabled");
+        }
+        if (over(bareHandButton, mouseX, mouseY)) {
+            return tip("bare_hand");
+        }
+        if (overField(attemptsBox, mouseX, mouseY)) {
+            return tip("max_attempts");
+        }
+        if (overField(floorBox, mouseX, mouseY)) {
+            return tip("durability_floor");
+        }
+        if (over(serverButton, mouseX, mouseY)) {
+            return tip("server_friendly");
+        }
+        if (overField(ticksBox, mouseX, mouseY)) {
+            return tip("ticks_between");
+        }
+        if (overField(timeoutBox, mouseX, mouseY)) {
+            return tip("timeout_multiplier");
+        }
+        if (overField(lookBox, mouseX, mouseY)) {
+            return tip("look_speed");
+        }
+        if (over(panicButton, mouseX, mouseY)) {
+            return tip("panic");
+        }
+        return null;
     }
 
-    private static Component priceTooltip() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_price.tooltip");
+    private static Component tip(String key) {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config." + key + ".tooltip");
     }
 
-    private static Component attemptsTooltip() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts.tooltip");
-    }
-
-    // The edit box message is narration-only. Draw the Cloth Config names above the fields.
     //? if <1.20 {
-    @Override
+    /*@Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
         super.render(pose, mouseX, mouseY, partialTick);
-        drawFieldLabel(pose, priceBox, priceLabel());
         drawFieldLabel(pose, attemptsBox, attemptsLabel());
-        Component tip = hoveredTip(mouseX, mouseY);
-        if (tip != null) {
-            renderTooltip(pose, tip, mouseX, mouseY);
+        drawFieldLabel(pose, floorBox, floorLabel());
+        drawFieldLabel(pose, ticksBox, ticksLabel());
+        drawFieldLabel(pose, timeoutBox, timeoutLabel());
+        drawFieldLabel(pose, lookBox, lookLabel());
+        Component hovered = hoveredTip(mouseX, mouseY);
+        if (hovered != null) {
+            renderTooltip(pose, hovered, mouseX, mouseY);
         }
     }
 
@@ -272,22 +239,25 @@ public final class ForgeConfigScreen extends Screen {
         if (box == null) {
             return;
         }
-        this.font.drawShadow(pose, label, boxX(box), boxY(box) - 12, 0xFFFFFF);
+        this.font.drawShadow(pose, label, widgetX(box), widgetY(box) - 12, 0xFFFFFF);
     }
-    //?}
+    *///?}
     //? if >=1.20 && <26.1 {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        drawFieldLabel(graphics, priceBox, priceLabel());
         drawFieldLabel(graphics, attemptsBox, attemptsLabel());
-        Component tip = hoveredTip(mouseX, mouseY);
-        if (tip != null) {
+        drawFieldLabel(graphics, floorBox, floorLabel());
+        drawFieldLabel(graphics, ticksBox, ticksLabel());
+        drawFieldLabel(graphics, timeoutBox, timeoutLabel());
+        drawFieldLabel(graphics, lookBox, lookLabel());
+        Component hovered = hoveredTip(mouseX, mouseY);
+        if (hovered != null) {
             //? if <1.21.6 {
-            graphics.renderTooltip(this.font, tip, mouseX, mouseY);
-            //?}
+            /*graphics.renderTooltip(this.font, hovered, mouseX, mouseY);
+            *///?}
             //? if >=1.21.6 {
-            graphics.setTooltipForNextFrame(this.font, tip, mouseX, mouseY);
+            graphics.setTooltipForNextFrame(this.font, hovered, mouseX, mouseY);
             //?}
         }
     }
@@ -296,18 +266,21 @@ public final class ForgeConfigScreen extends Screen {
         if (box == null) {
             return;
         }
-        graphics.drawString(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFFFF, true);
+        graphics.drawString(this.font, label, widgetX(box), widgetY(box) - 12, 0xFFFFFFFF, true);
     }
     //?}
     //? if >=26.1 {
-    @Override
+    /*@Override
     public void extractRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        drawFieldLabel(graphics, priceBox, priceLabel());
         drawFieldLabel(graphics, attemptsBox, attemptsLabel());
-        Component tip = hoveredTip(mouseX, mouseY);
-        if (tip != null) {
-            graphics.setTooltipForNextFrame(this.font, tip, mouseX, mouseY);
+        drawFieldLabel(graphics, floorBox, floorLabel());
+        drawFieldLabel(graphics, ticksBox, ticksLabel());
+        drawFieldLabel(graphics, timeoutBox, timeoutLabel());
+        drawFieldLabel(graphics, lookBox, lookLabel());
+        Component hovered = hoveredTip(mouseX, mouseY);
+        if (hovered != null) {
+            graphics.setTooltipForNextFrame(this.font, hovered, mouseX, mouseY);
         }
     }
 
@@ -315,53 +288,41 @@ public final class ForgeConfigScreen extends Screen {
         if (box == null) {
             return;
         }
-        graphics.text(this.font, label, boxX(box), boxY(box) - 12, 0xFFFFFFFF, true);
+        graphics.text(this.font, label, widgetX(box), widgetY(box) - 12, 0xFFFFFFFF, true);
     }
-    //?}
+    *///?}
 
-    private Component hoveredTip(int mouseX, int mouseY) {
-        if (overField(priceBox, mouseX, mouseY)) {
-            return priceTooltip();
+    private boolean over(AbstractWidget widget, int mouseX, int mouseY) {
+        if (widget == null) {
+            return false;
         }
-        if (overField(attemptsBox, mouseX, mouseY)) {
-            return attemptsTooltip();
-        }
-        return null;
+        int left = widgetX(widget);
+        int top = widgetY(widget);
+        return mouseX >= left && mouseX < left + widget.getWidth() && mouseY >= top && mouseY < top + widget.getHeight();
     }
 
     private boolean overField(EditBox box, int mouseX, int mouseY) {
         if (box == null) {
             return false;
         }
-        int left = boxX(box);
-        int top = boxY(box) - 12;
-        return mouseX >= left && mouseX < left + boxW(box) && mouseY >= top && mouseY < boxY(box) + boxH(box);
+        int left = widgetX(box);
+        int top = widgetY(box) - 12;
+        return mouseX >= left && mouseX < left + box.getWidth() && mouseY >= top && mouseY < widgetY(box) + box.getHeight();
     }
 
-    private int boxX(EditBox box) {
+    private int widgetX(AbstractWidget widget) {
         //? if <1.19.3 {
-        return box.x;
-        //?}
-        //? if >=1.19.3 {
-        return box.getX();
+        /*return widget.x;
+        *///?} else {
+        return widget.getX();
         //?}
     }
 
-    private int boxY(EditBox box) {
+    private int widgetY(AbstractWidget widget) {
         //? if <1.19.3 {
-        return box.y;
+        /*return widget.y;
+        *///?} else {
+        return widget.getY();
         //?}
-        //? if >=1.19.3 {
-        return box.getY();
-        //?}
-    }
-
-    private static int boxW(EditBox box) {
-        return box.getWidth();
-    }
-
-    private static int boxH(EditBox box) {
-        return box.getHeight();
     }
 }
-*///?}
