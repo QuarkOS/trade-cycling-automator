@@ -349,9 +349,10 @@ def ensure_shim() -> Path:
 def ensure_launcher_lib() -> None:
     try:
         import minecraft_launcher_lib.install  # noqa: F401
+        from minecraft_launcher_lib.mod_loader._neoforge import Neoforge  # noqa: F401
     except ImportError:
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--user", "minecraft-launcher-lib>=6.1,<8"],
+            [sys.executable, "-m", "pip", "install", "--user", "minecraft-launcher-lib>=8"],
             check=True,
         )
     import minecraft_launcher_lib.install as install_mod
@@ -362,7 +363,8 @@ def ensure_launcher_lib() -> None:
 def install_runtimes(cache: Path, selected: list[dict]) -> None:
     import minecraft_launcher_lib.fabric as fabric
     import minecraft_launcher_lib.forge as forge
-    import minecraft_launcher_lib.neo_forge as neo_forge
+    from minecraft_launcher_lib.install import install_minecraft_version
+    from minecraft_launcher_lib.mod_loader._neoforge import Neoforge
 
     minecraft_dir = cache / "minecraft"
     minecraft_dir.mkdir(parents=True, exist_ok=True)
@@ -391,7 +393,12 @@ def install_runtimes(cache: Path, selected: list[dict]) -> None:
             if spec["loader"] == "fabric":
                 fabric.install_fabric(spec["version"], minecraft_dir, spec["fabricLoader"], callback=callback, java=java)
             elif spec["loader"] == "neoforge":
-                neo_forge.install_neo_forge_version(spec["neoVersion"], minecraft_dir, callback=callback, java=java)
+                # launcher-lib 8's ModLoader.install rejects 26.x and betas because it
+                # rewrites NeoForge versions as 1.<major>.<minor>. The installer jar
+                # already knows its Minecraft version, so call it directly.
+                install_minecraft_version(spec["version"], minecraft_dir, callback=callback)
+                Neoforge().install(spec["version"], str(minecraft_dir), callback, java, spec["neoVersion"])
+                install_minecraft_version(version_id, minecraft_dir, callback=callback)
             else:
                 forge.install_forge_version(spec["forgeCoordinate"], minecraft_dir, callback=callback, java=java)
         except Exception as error:  # noqa: BLE001 - keep going so the table records the installer failure
