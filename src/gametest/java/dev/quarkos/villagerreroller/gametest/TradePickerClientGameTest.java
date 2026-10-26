@@ -154,6 +154,46 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("offers button did not leave the merchant screen open");
                 }
             });
+            context.runOnClient(client -> {
+                TradeSession.clearSelection();
+                TradeEntry sample = null;
+                for (TradeEntry entry : TradeSession.entries()) {
+                    if ("enchant:minecraft:mending:1".equals(entry.id)) {
+                        sample = entry;
+                        break;
+                    }
+                }
+                if (sample == null) {
+                    for (TradeEntry entry : TradeSession.entries()) {
+                        if (entry.id.startsWith("enchant:")) {
+                            sample = entry;
+                            break;
+                        }
+                    }
+                }
+                if (sample == null) {
+                    throw new AssertionError("no enchanted book to estimate");
+                }
+                TradeSession.toggle(sample);
+                TradePickerUi.reveal(sample.id);
+            });
+            context.waitTicks(5);
+            context.runOnClient(client -> {
+                String[] lines = TradePickerUi.oddsLines();
+                if (lines == null || lines[0] == null || !lines[0].contains("1 in")) {
+                    throw new AssertionError("odds line missing: " + java.util.Arrays.toString(lines));
+                }
+                try {
+                    Path dir = artifactsDir();
+                    Files.createDirectories(dir);
+                    String time = lines.length > 1 && lines[1] != null ? lines[1] : "";
+                    Files.writeString(dir.resolve("panel-odds.txt"), lines[0] + "\n" + time + "\n");
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+            saveShot(context, "panel-odds");
+            context.runOnClient(client -> TradeSession.clearSelection());
             context.waitFor(client -> scrollSpot(client) == ScrollSpot.MID, 20 * 40);
             if (!cycling) {
                 saveShot(context, "name-scroll-mid");

@@ -591,12 +591,14 @@ public final class ClientHarness121 {
         for (TradeEntry entry : TradeSession.entries()) {
             if ("enchant:minecraft:mending:1".equals(entry.id)) {
                 TradeSession.toggle(entry);
+                TradePickerUi.reveal(entry.id);
                 return true;
             }
         }
         for (TradeEntry entry : TradeSession.entries()) {
             if (entry.id.startsWith("enchant:")) {
                 TradeSession.toggle(entry);
+                TradePickerUi.reveal(entry.id);
                 return true;
             }
         }

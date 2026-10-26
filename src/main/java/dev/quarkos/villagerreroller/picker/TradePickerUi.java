@@ -238,6 +238,30 @@ public final class TradePickerUi {
     /**
      * Lines drawn above Start while the reroll is idle. Null when there is nothing to estimate.
      */
+    /**
+     * Scrolls the open list so {@code id} is on screen. Used by the client proof
+     * so the selected book and its odds are in the same frame.
+     */
+    public static void reveal(String id) {
+        if (list == null || id == null) {
+            return;
+        }
+        List<TradeEntry> rows = TradeSession.visible();
+        int index = -1;
+        for (int i = 0; i < rows.size(); i++) {
+            if (id.equals(rows.get(i).id)) {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0) {
+            return;
+        }
+        int visibleRows = Math.max(1, list.widgetHeight() / ROW_HEIGHT);
+        int maxScroll = Math.max(0, rows.size() - visibleRows);
+        list.setScroll(Math.min(index, maxScroll));
+    }
+
     public static String[] oddsLines() {
         if (JobSiteReroller.isRunning()) {
             return null;
@@ -456,6 +480,14 @@ public final class TradePickerUi {
 
         private void setScroll(int scroll) {
             this.scroll = Math.max(0, scroll);
+        }
+
+        private int widgetHeight() {
+            //? if <1.19.3 {
+            /*return height;
+            *///?} else {
+            return getHeight();
+            //?}
         }
 
         private int left() {
