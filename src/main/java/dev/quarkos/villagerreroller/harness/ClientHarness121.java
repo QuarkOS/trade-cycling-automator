@@ -75,6 +75,7 @@ public final class ClientHarness121 {
     private static boolean jobSiteShot;
     private static boolean cyclingPanelShot;
     private static boolean rerollShot;
+    private static boolean unsupportedShot;
     private static int lecternsBefore;
     private static String stopReason = "running";
     private static final java.util.ArrayDeque<String> COMMANDS = new java.util.ArrayDeque<>();
@@ -196,12 +197,7 @@ public final class ClientHarness121 {
             }
             return;
         }
-        Screen config;
-        //? if forge {
-        /*config = new dev.quarkos.villagerreroller.config.ForgeConfigScreen(McBridge.currentScreen(client));
-        *///?} else {
-        config = dev.quarkos.villagerreroller.config.AutomatorConfigScreen.create(McBridge.currentScreen(client));
-        //?}
+        Screen config = new dev.quarkos.villagerreroller.config.ForgeConfigScreen(McBridge.currentScreen(client));
         if (config == null) {
             fail("config screen factory returned null");
             return;
@@ -463,7 +459,7 @@ public final class ClientHarness121 {
             return;
         }
         RerollMethod.reset();
-        cycling = TradeCyclingHook.installed();
+        cycling = TradeCyclingHook.serverSupports();
         if (!cycling) {
             shot(client, "merchant-button");
         }
@@ -505,6 +501,23 @@ public final class ClientHarness121 {
     }
 
     private static void waitScroll(Minecraft client) {
+        if (TradeCyclingHook.installed() && !TradeCyclingHook.serverSupports() && !unsupportedShot) {
+            if (!TradePickerUi.hasMethodButton()) {
+                fail("Trade Cycling toggle was not shown");
+                return;
+            }
+            if (TradePickerUi.methodButtonActive()) {
+                fail("Trade Cycling toggle was clickable on a server without the channel");
+                return;
+            }
+            TradePickerUi.aimCursorAtMethodButton();
+            if (ticks < 8) {
+                return;
+            }
+            unsupportedShot = true;
+            shot(client, "trade-cycling-unsupported");
+            TradePickerUi.clearAim();
+        }
         ScrollSpot spot = scrollSpot(client);
         if (!cycling && spot == ScrollSpot.MID && !midShot) {
             midShot = true;

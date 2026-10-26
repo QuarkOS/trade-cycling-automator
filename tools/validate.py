@@ -30,7 +30,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MOD_VERSION = "1.0.0"
+MOD_VERSION = "1.1.0"
 CHECKS = (
     ("modLoaded", "villager_reroller harness check mod-loaded"),
     ("configScreen", "villager_reroller harness check config-screen"),
@@ -201,8 +201,6 @@ def load_matrix(root: Path) -> dict:
             "version": version,
             "fabricLoader": loader,
             "fabricApi": table["fabric_api"],
-            "modmenu": table["modmenu"],
-            "clothConfig": table["cloth_config"],
             "fabricTradeCycling": table["trade_cycling"],
             "forgeCoordinate": forge["coordinate"],
             "forgeTradeCycling": forge["tradeCycling"],
@@ -428,8 +426,6 @@ def dependency_coords(spec: dict, with_trade_cycling: bool) -> list[tuple[str, s
     coords = []
     if spec["loader"] == "fabric":
         coords.append(("net.fabricmc.fabric-api", "fabric-api", spec["fabricApi"]))
-        coords.append(("maven.modrinth", "cloth-config", spec["clothConfig"]))
-        coords.append(("maven.modrinth", "modmenu", spec["modmenu"]))
         if with_trade_cycling:
             coords.append(("maven.modrinth", "trade-cycling", spec["fabricTradeCycling"]))
     elif with_trade_cycling:

@@ -2,8 +2,10 @@ package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
+import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
+import dev.quarkos.villagerreroller.picker.ToolGuard;
 import dev.quarkos.villagerreroller.picker.TradeEntry;
 import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.picker.TradeSession;
@@ -30,6 +32,7 @@ import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.phys.AABB;
 
@@ -68,6 +71,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 })
                 .create()) {
             waitForChunks(world);
+            assertServerChannel(context);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 6;
             int y = feet.getY();
@@ -101,6 +105,8 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             context.waitTicks(5);
             world.getServer().runCommand("gamemode survival @p");
             world.getServer().runCommand("clear @p");
+            assertDurabilityGuard(context, world);
+            world.getServer().runCommand("clear @p");
             world.getServer().runCommand("give @p minecraft:diamond_axe");
             world.getServer().runCommand("give @p minecraft:lectern 16");
             waitForChunks(world);
@@ -129,7 +135,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(10);
             context.runOnClient(client -> RerollMethod.reset());
-            boolean cycling = context.computeOnClient(client -> TradeCyclingHook.installed());
+            boolean cycling = context.computeOnClient(client -> TradeCyclingHook.serverSupports());
             if (!cycling) {
                 saveShot(context, "merchant-button");
             }
@@ -200,7 +206,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 // A villager teleport closes an open merchant screen. Only pull a villager
                 // who has walked off the lectern, and never while that screen is open.
                 boolean running = context.computeOnClient(client -> JobSiteReroller.isRunning());
-                boolean trading = context.computeOnClient(client -> client.screen instanceof MerchantScreen);
+                boolean trading = context.computeOnClient(client -> McBridge.currentScreen(client) instanceof MerchantScreen);
                 if (running && !trading && tick % 10 == 0) {
                     boolean pullBack = context.computeOnClient(client -> {
                         Villager villager = nearestLibrarian(client);
@@ -336,6 +342,69 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             }
         }
         return nearest;
+    }
+
+    /**
+     * The integrated server advertises the cycle channel only when Trade Cycling
+     * is actually loaded there. A client-only install must not look choosable.
+     */
+    private static void assertServerChannel(ClientGameTestContext context) {
+        boolean installed = context.computeOnClient(client -> TradeCyclingHook.installed());
+        if (installed) {
+            context.waitFor(client -> TradeCyclingHook.serverSupports(), 20 * 10);
+        }
+        context.runOnClient(client -> {
+            boolean loaded = TradeCyclingHook.installed();
+            boolean server = TradeCyclingHook.serverSupports();
+            if (loaded != server) {
+                throw new AssertionError("integrated server channel " + server + " but client mod loaded=" + loaded);
+            }
+            RerollMethod.reset();
+            if (!server && RerollMethod.canChoose()) {
+                throw new AssertionError("Trade Cycling was choosable without the server channel");
+            }
+            if (!server) {
+                RerollMethod.toggle();
+                if (RerollMethod.usesTradeCycling()) {
+                    throw new AssertionError("toggle selected Trade Cycling without the server channel");
+                }
+            }
+        });
+    }
+
+    /**
+     * A diamond axe with 6 uses left is under the floor of 10. The slower wooden
+     * axe wins, and the worn axe alone falls back to the bare hand.
+     */
+    private static void assertDurabilityGuard(ClientGameTestContext context, TestSingleplayerContext world) {
+        context.runOnClient(client -> {
+            AutomatorConfig config = AutomatorConfig.get();
+            config.setDurabilityFloor(10);
+            config.setAllowBareHand(true);
+        });
+        world.getServer().runCommand("clear @p");
+        world.getServer().runCommand("give @p minecraft:diamond_axe[damage=1555]");
+        world.getServer().runCommand("give @p minecraft:wooden_axe");
+        context.waitTicks(20);
+        context.runOnClient(client -> {
+            BlockState lectern = Blocks.LECTERN.defaultBlockState();
+            ToolGuard.Choice choice = JobSiteReroller.chooseTool(client.player, lectern);
+            ItemStack chosen = choice.decision() == ToolGuard.Decision.TOOL
+                    ? client.player.getInventory().getItem(choice.slot())
+                    : ItemStack.EMPTY;
+            if (choice.decision() != ToolGuard.Decision.TOOL || !chosen.is(Items.WOODEN_AXE)) {
+                throw new AssertionError("worn diamond axe should lose to the wooden axe, got " + choice.decision() + " " + chosen);
+            }
+        });
+        world.getServer().runCommand("clear @p");
+        world.getServer().runCommand("give @p minecraft:diamond_axe[damage=1555]");
+        context.waitTicks(20);
+        context.runOnClient(client -> {
+            ToolGuard.Choice choice = JobSiteReroller.chooseTool(client.player, Blocks.LECTERN.defaultBlockState());
+            if (choice.decision() != ToolGuard.Decision.HAND) {
+                throw new AssertionError("bare hand should be the fallback for a worn axe, got " + choice.decision());
+            }
+        });
     }
 
     private static Path artifactsDir() {
