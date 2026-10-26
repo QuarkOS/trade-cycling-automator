@@ -77,17 +77,17 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             int y = feet.getY();
             int z = feet.getZ();
 
-            //? if >=26.2 {
-            /*world.getServer().runCommand("gamerule send_command_feedback false");
+            //? if >=1.21.11 {
+            world.getServer().runCommand("gamerule send_command_feedback false");
             world.getServer().runCommand("gamerule advance_time false");
             world.getServer().runCommand("gamerule spawn_mobs false");
             world.getServer().runCommand("gamerule immediate_respawn true");
-            *///?} else {
-            world.getServer().runCommand("gamerule sendCommandFeedback false");
+            //?} else {
+            /*world.getServer().runCommand("gamerule sendCommandFeedback false");
             world.getServer().runCommand("gamerule doDaylightCycle false");
             world.getServer().runCommand("gamerule doMobSpawning false");
             world.getServer().runCommand("gamerule doImmediateRespawn true");
-            //?}
+            *///?}
             world.getServer().runCommand("time set day");
             world.getServer().runCommand("fill " + (x - 2) + " " + (y - 1) + " " + (z - 2) + " " + (x + 3) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
             world.getServer().runCommand("fill " + (x - 2) + " " + y + " " + (z - 2) + " " + (x + 3) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
