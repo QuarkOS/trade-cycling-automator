@@ -18,6 +18,7 @@ repositories {
         filter { groups.forEach(::includeGroup) }
     }
     strictMaven("https://api.modrinth.com/maven", "Modrinth", "maven.modrinth")
+    strictMaven("https://maven.shedaniel.me/", "Shedaniel", "me.shedaniel.cloth")
 }
 
 // Client gametests ship in Fabric API from 1.21.5. Older nodes use the tick harness.
@@ -43,6 +44,10 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties.get<String>("deps.fabric_api")}")
 
     modImplementation("maven.modrinth:cloth-config:${property("deps.cloth_config")}")
+    // Cloth nests basic-math as a jar-in-jar. Fabric Loader does not unpack that from the
+    // remapped dev classpath, so the config screen cannot open in runClient or the gametest.
+    // The published jar still relies on Cloth's own nested copy.
+    modLocalRuntime("me.shedaniel.cloth:basic-math:0.6.1")
     modImplementation("maven.modrinth:modmenu:${property("deps.modmenu")}")
     // Trade Cycling is optional on 1.21.11 and required by the older packet driver.
     // Compile against it, never bundle it. -PwithTradeCycling=true also puts it on the dev runtime.
