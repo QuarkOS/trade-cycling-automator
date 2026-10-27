@@ -16,22 +16,25 @@ import net.minecraft.client.gui.GuiGraphics;
 *///?}
 
 /**
- * Vanilla settings screen shared by Fabric and Forge. Mod Menu opens it when
- * that mod is installed. Forge opens it from the mods list. The same widgets
- * write {@code villager_reroller.json}.
+ * Vanilla settings screen shared by Fabric, Forge, and NeoForge. Mod Menu opens
+ * it when that mod is installed. Forge and NeoForge open it from the mods list.
+ * The same widgets write {@code villager_reroller.json}.
  */
 public final class ForgeConfigScreen extends Screen {
     private final Screen parent;
     private boolean enabled;
     private boolean bareHand;
+    private boolean matchSound;
     private boolean serverFriendly;
     private boolean panic;
     private Button enabledButton;
     private Button bareHandButton;
+    private Button matchButton;
     private Button serverButton;
     private Button panicButton;
     private EditBox attemptsBox;
     private EditBox floorBox;
+    private EditBox volumeBox;
     private EditBox ticksBox;
     private EditBox timeoutBox;
     private EditBox lookBox;
@@ -42,6 +45,7 @@ public final class ForgeConfigScreen extends Screen {
         AutomatorConfig config = AutomatorConfig.get();
         this.enabled = config.enabled();
         this.bareHand = config.allowBareHand();
+        this.matchSound = config.matchSound();
         this.serverFriendly = config.serverFriendly();
     }
 
@@ -61,6 +65,11 @@ public final class ForgeConfigScreen extends Screen {
         });
         attemptsBox = field(left, y + 62, column, attemptsLabel(), Integer.toString(AutomatorConfig.get().maxAttempts()), 5);
         floorBox = field(left, y + 98, column, floorLabel(), Integer.toString(AutomatorConfig.get().durabilityFloor()), 5);
+        matchButton = button(left, y + 134, column, matchLabel(), pressed -> {
+            matchSound = !matchSound;
+            pressed.setMessage(matchLabel());
+        });
+        volumeBox = field(left, y + 170, column, volumeLabel(), Integer.toString(AutomatorConfig.get().matchVolume()), 3);
 
         serverButton = button(right, y, column, serverLabel(), pressed -> {
             serverFriendly = !serverFriendly;
@@ -106,6 +115,8 @@ public final class ForgeConfigScreen extends Screen {
         AutomatorConfig config = AutomatorConfig.get();
         config.setEnabled(enabled);
         config.setAllowBareHand(bareHand);
+        config.setMatchSound(matchSound);
+        config.setMatchVolume(parseInt(volumeBox.getValue(), config.matchVolume()));
         config.setServerFriendly(serverFriendly);
         config.setMaxAttempts(parseInt(attemptsBox.getValue(), config.maxAttempts()));
         config.setDurabilityFloor(parseInt(floorBox.getValue(), config.durabilityFloor()));
@@ -132,6 +143,10 @@ public final class ForgeConfigScreen extends Screen {
         return onOff("text." + VillagerReroller.MOD_ID + ".config.bare_hand", bareHand);
     }
 
+    private Component matchLabel() {
+        return onOff("text." + VillagerReroller.MOD_ID + ".config.match_sound", matchSound);
+    }
+
     private Component serverLabel() {
         return onOff("text." + VillagerReroller.MOD_ID + ".config.server_friendly", serverFriendly);
     }
@@ -148,6 +163,10 @@ public final class ForgeConfigScreen extends Screen {
 
     private static Component floorLabel() {
         return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.durability_floor");
+    }
+
+    private static Component volumeLabel() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_volume");
     }
 
     private static Component ticksLabel() {
@@ -198,6 +217,12 @@ public final class ForgeConfigScreen extends Screen {
         if (overField(floorBox, mouseX, mouseY)) {
             return tip("durability_floor");
         }
+        if (over(matchButton, mouseX, mouseY)) {
+            return tip("match_sound");
+        }
+        if (overField(volumeBox, mouseX, mouseY)) {
+            return tip("match_volume");
+        }
         if (over(serverButton, mouseX, mouseY)) {
             return tip("server_friendly");
         }
@@ -226,6 +251,7 @@ public final class ForgeConfigScreen extends Screen {
         super.render(pose, mouseX, mouseY, partialTick);
         drawFieldLabel(pose, attemptsBox, attemptsLabel());
         drawFieldLabel(pose, floorBox, floorLabel());
+        drawFieldLabel(pose, volumeBox, volumeLabel());
         drawFieldLabel(pose, ticksBox, ticksLabel());
         drawFieldLabel(pose, timeoutBox, timeoutLabel());
         drawFieldLabel(pose, lookBox, lookLabel());
@@ -248,6 +274,7 @@ public final class ForgeConfigScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
         drawFieldLabel(graphics, attemptsBox, attemptsLabel());
         drawFieldLabel(graphics, floorBox, floorLabel());
+        drawFieldLabel(graphics, volumeBox, volumeLabel());
         drawFieldLabel(graphics, ticksBox, ticksLabel());
         drawFieldLabel(graphics, timeoutBox, timeoutLabel());
         drawFieldLabel(graphics, lookBox, lookLabel());
@@ -275,6 +302,7 @@ public final class ForgeConfigScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         drawFieldLabel(graphics, attemptsBox, attemptsLabel());
         drawFieldLabel(graphics, floorBox, floorLabel());
+        drawFieldLabel(graphics, volumeBox, volumeLabel());
         drawFieldLabel(graphics, ticksBox, ticksLabel());
         drawFieldLabel(graphics, timeoutBox, timeoutLabel());
         drawFieldLabel(graphics, lookBox, lookLabel());

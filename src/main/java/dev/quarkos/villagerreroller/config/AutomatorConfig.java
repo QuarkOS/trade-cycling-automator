@@ -34,6 +34,8 @@ public final class AutomatorConfig {
 
     private boolean enabled = true;
     private int maxAttempts = 500;
+    private boolean matchSound = true;
+    private int matchVolume = MatchSound.DEFAULT_VOLUME;
     private int durabilityFloor = DEFAULT_DURABILITY_FLOOR;
     private boolean allowBareHand = true;
     private boolean serverFriendly = false;
@@ -77,6 +79,12 @@ public final class AutomatorConfig {
         if (integer(object, "maxAttempts") != null) {
             config.maxAttempts = Math.max(1, integer(object, "maxAttempts"));
         }
+        if (bool(object, "matchSound") != null) {
+            config.matchSound = bool(object, "matchSound");
+        }
+        if (integer(object, "matchVolume") != null) {
+            config.matchVolume = MatchSound.clampPercent(integer(object, "matchVolume"));
+        }
         if (integer(object, "durabilityFloor") != null) {
             config.durabilityFloor = Math.max(0, integer(object, "durabilityFloor"));
         }
@@ -102,6 +110,8 @@ public final class AutomatorConfig {
         JsonObject object = new JsonObject();
         object.addProperty("enabled", enabled);
         object.addProperty("maxAttempts", maxAttempts);
+        object.addProperty("matchSound", matchSound);
+        object.addProperty("matchVolume", MatchSound.clampPercent(matchVolume));
         object.addProperty("durabilityFloor", durabilityFloor);
         object.addProperty("allowBareHand", allowBareHand);
         object.addProperty("serverFriendly", serverFriendly);
@@ -185,6 +195,22 @@ public final class AutomatorConfig {
 
     public void setMaxAttempts(int maxAttempts) {
         this.maxAttempts = Math.max(1, maxAttempts);
+    }
+
+    public boolean matchSound() {
+        return matchSound;
+    }
+
+    public void setMatchSound(boolean matchSound) {
+        this.matchSound = matchSound;
+    }
+
+    public int matchVolume() {
+        return MatchSound.clampPercent(matchVolume);
+    }
+
+    public void setMatchVolume(int matchVolume) {
+        this.matchVolume = MatchSound.clampPercent(matchVolume);
     }
 
     public int durabilityFloor() {

@@ -28,6 +28,8 @@ class AutomatorConfigTest {
         assertEquals(AutomatorConfig.NORMAL_TICKS, config.ticksBetweenCycles());
         assertEquals(AutomatorConfig.NORMAL_TIMEOUT, config.timeoutMultiplier());
         assertEquals(AutomatorConfig.NORMAL_LOOK, config.lookDegreesPerTick(), 0.001F);
+        assertTrue(config.matchSound());
+        assertEquals(MatchSound.DEFAULT_VOLUME, config.matchVolume());
         assertFalse(config.toJson().has("enchantment"));
         assertFalse(config.toJson().has("level"));
         assertFalse(config.toJson().has("maxPrice"));
@@ -54,11 +56,15 @@ class AutomatorConfigTest {
                   "serverFriendly": true,
                   "ticksBetweenCycles": 16,
                   "timeoutMultiplier": 3,
-                  "lookDegreesPerTick": 12.5
+                  "lookDegreesPerTick": 12.5,
+                  "matchSound": false,
+                  "matchVolume": 40
                 }
                 """));
         AutomatorConfig again = AutomatorConfig.parse(new StringReader(config.toJson().toString()));
         assertEquals(4, again.durabilityFloor());
+        assertFalse(again.matchSound());
+        assertEquals(40, again.matchVolume());
         assertFalse(again.allowBareHand());
         assertTrue(again.serverFriendly());
         assertEquals(16, again.ticksBetweenCycles());
