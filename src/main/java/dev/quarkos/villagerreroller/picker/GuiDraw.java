@@ -307,6 +307,10 @@ public final class GuiDraw {
             String last = ellipsis(font, text.get(maxLines - 1), maxText);
             text = new ArrayList<>(text.subList(0, maxLines - 1));
             text.add(last);
+            width = 0;
+            for (String value : text) {
+                width = Math.max(width, font.width(value));
+            }
         }
         int boxW = Math.min(width + 6, screenW);
         int height = text.size() * 10 + 4;
