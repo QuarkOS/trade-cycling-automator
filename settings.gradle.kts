@@ -25,6 +25,11 @@ stonecutter {
         branch("forge") {
             versions("1.19", "1.19.1", "1.19.2", "1.19.3", "1.19.4", "1.20.1", "1.20.2", "1.20.4", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.9", "1.21.11", "26.1.2", "26.2", "26.3")
         }
+        // NeoForge's net.neoforged:neoforge line starts at 1.20.2. 1.19–1.19.4 have no NeoForge.
+        // 1.20.1 only has the legacy net.neoforged:forge fork, which is still the Forge packages.
+        branch("neoforge") {
+            versions("1.20.2", "1.20.4", "1.20.6", "1.21", "1.21.1", "1.21.3", "1.21.4", "1.21.5", "1.21.6", "1.21.9", "1.21.11", "26.1.2", "26.2", "26.3")
+        }
     }
 }
 

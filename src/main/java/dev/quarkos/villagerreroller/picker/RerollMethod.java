@@ -24,7 +24,7 @@ public final class RerollMethod {
     }
 
     public static Kind selected() {
-        if (selected == Kind.TRADE_CYCLING && !TradeCyclingHook.installed()) {
+        if (selected == Kind.TRADE_CYCLING && !canChoose()) {
             selected = Kind.JOB_SITE;
         }
         return selected;
@@ -34,8 +34,18 @@ public final class RerollMethod {
         return selected() == Kind.TRADE_CYCLING;
     }
 
-    public static boolean canChoose() {
+    /** The client jar is present, so the toggle can be drawn. */
+    public static boolean showToggle() {
         return TradeCyclingHook.installed();
+    }
+
+    /** The connected server advertised the cycle channel. */
+    public static boolean canChoose() {
+        return TradeCyclingHook.serverSupports();
+    }
+
+    public static Component unsupportedTooltip() {
+        return Component.translatable("text." + VillagerReroller.MOD_ID + ".method.unsupported");
     }
 
     public static void toggle() {
@@ -46,6 +56,9 @@ public final class RerollMethod {
     }
 
     public static Component label() {
+        if (showToggle() && !canChoose()) {
+            return Component.translatable("text." + VillagerReroller.MOD_ID + ".method.trade_cycling");
+        }
         String key = usesTradeCycling() ? "method.trade_cycling" : "method.job_site";
         return Component.translatable("text." + VillagerReroller.MOD_ID + "." + key);
     }

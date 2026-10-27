@@ -188,7 +188,7 @@ public final class TradePickerUi {
         buttons.add(action);
         panelWidgets.add(action);
 
-        if (RerollMethod.canChoose()) {
+        if (RerollMethod.showToggle()) {
             int buttonWidth = Math.max(72, client.font.width(Component.translatable("text." + VillagerReroller.MOD_ID + ".method.trade_cycling").getString()) + 8);
             //? if <1.19.3 {
             /*methodButton = new Button(panelX + PANEL_WIDTH - 6 - buttonWidth, panelY + METHOD_TOP, buttonWidth, 20, RerollMethod.label(), pressed -> {
@@ -236,9 +236,6 @@ public final class TradePickerUi {
     }
 
     /**
-     * Lines drawn above Start while the reroll is idle. Null when there is nothing to estimate.
-     */
-    /**
      * Scrolls the open list so {@code id} is on screen. Used by the client proof
      * so the selected book and its odds are in the same frame.
      */
@@ -278,6 +275,104 @@ public final class TradePickerUi {
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".odds.time", estimate.timeText()).getString()
         };
     }
+
+    private static void syncMethodButton() {
+        if (methodButton == null) {
+            return;
+        }
+        methodButton.active = RerollMethod.canChoose() && !JobSiteReroller.isRunning();
+        methodButton.setMessage(RerollMethod.label());
+    }
+
+    public static boolean hasMethodButton() {
+        return methodButton != null;
+    }
+
+    public static boolean methodButtonActive() {
+        return methodButton != null && methodButton.active;
+    }
+
+    public static void aimCursorAtMethodButton() {
+        if (methodButton == null) {
+            return;
+        }
+        aimedX = widgetX(methodButton) + methodButton.getWidth() / 2;
+        aimedY = widgetY(methodButton) + methodButton.getHeight() / 2;
+    }
+
+    public static void clearAim() {
+        aimedX = Integer.MIN_VALUE;
+        aimedY = Integer.MIN_VALUE;
+    }
+
+    private static final int AIM_UNSET = Integer.MIN_VALUE;
+    private static int aimedX = AIM_UNSET;
+    private static int aimedY = AIM_UNSET;
+
+    private static Component methodTip(int mouseX, int mouseY) {
+        if (methodButton == null || !RerollMethod.showToggle() || RerollMethod.canChoose()) {
+            return null;
+        }
+        int x = aimedX == AIM_UNSET ? mouseX : aimedX;
+        int y = aimedY == AIM_UNSET ? mouseY : aimedY;
+        if (aimedX == AIM_UNSET && !over(methodButton, x, y)) {
+            return null;
+        }
+        return RerollMethod.unsupportedTooltip();
+    }
+
+    private static boolean over(AbstractWidget widget, int mouseX, int mouseY) {
+        int left = widgetX(widget);
+        int top = widgetY(widget);
+        return mouseX >= left && mouseX < left + widget.getWidth() && mouseY >= top && mouseY < top + widget.getHeight();
+    }
+
+    private static int widgetX(AbstractWidget widget) {
+        //? if <1.19.3 {
+        /*return widget.x;
+        *///?} else {
+        return widget.getX();
+        //?}
+    }
+
+    private static int widgetY(AbstractWidget widget) {
+        //? if <1.19.3 {
+        /*return widget.y;
+        *///?} else {
+        return widget.getY();
+        //?}
+    }
+
+    //? if <1.20 {
+    /*private static void drawMethodTip(PoseStack pose, int mouseX, int mouseY) {
+        Component tip = methodTip(mouseX, mouseY);
+        if (tip == null) {
+            return;
+        }
+        int x = aimedX == AIM_UNSET ? mouseX : aimedX;
+        int y = aimedY == AIM_UNSET ? mouseY : aimedY;
+        Minecraft minecraft = Minecraft.getInstance();
+        int width = minecraft.font.width(tip);
+        net.minecraft.client.gui.GuiComponent.fill(pose, x, y - 14, x + width + 6, y - 2, 0xF0100010);
+        minecraft.font.draw(pose, tip, x + 3, y - 12, 0xFFFFFF);
+    }
+    *///?}
+    //? if >=1.20 {
+    private static void drawMethodTip(GuiGraphics graphics, int mouseX, int mouseY) {
+        Component tip = methodTip(mouseX, mouseY);
+        if (tip == null) {
+            return;
+        }
+        int x = aimedX == AIM_UNSET ? mouseX : aimedX;
+        int y = aimedY == AIM_UNSET ? mouseY : aimedY;
+        //? if <1.21.6 {
+        /*graphics.renderTooltip(Minecraft.getInstance().font, tip, x, y);
+        *///?}
+        //? if >=1.21.6 {
+        graphics.setTooltipForNextFrame(Minecraft.getInstance().font, tip, x, y);
+        //?}
+    }
+    //?}
 
     private static Component actionLabel() {
         String key = JobSiteReroller.isRunning() ? "button.stop" : "button.start";
@@ -556,10 +651,7 @@ public final class TradePickerUi {
         @Override
         public void renderButton(PoseStack pose, int mouseX, int mouseY, float partialTick) {
             action.setMessage(actionLabel());
-            if (methodButton != null) {
-                methodButton.active = !JobSiteReroller.isRunning();
-                methodButton.setMessage(RerollMethod.label());
-            }
+            syncMethodButton();
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
             int maxScroll = Math.max(0, rows.size() - visibleRows);
@@ -602,16 +694,14 @@ public final class TradePickerUi {
             int travel = Math.max(1, height - 27);
             int scrollerY = top() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
             fill(pose, left() + width - 6, scrollerY, left() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
+            drawMethodTip(pose, mouseX, mouseY);
         }
         //?}
         //? if >=1.19.4 {
         @Override
         public void renderWidget(PoseStack pose, int mouseX, int mouseY, float partialTick) {
             action.setMessage(actionLabel());
-            if (methodButton != null) {
-                methodButton.active = !JobSiteReroller.isRunning();
-                methodButton.setMessage(RerollMethod.label());
-            }
+            syncMethodButton();
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
             int maxScroll = Math.max(0, rows.size() - visibleRows);
@@ -644,6 +734,7 @@ public final class TradePickerUi {
             int travel = Math.max(1, height - 27);
             int scrollerY = getY() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
             fill(pose, getX() + width - 6, scrollerY, getX() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
+            drawMethodTip(pose, mouseX, mouseY);
         }
         //?}
         *///?}
@@ -677,10 +768,7 @@ public final class TradePickerUi {
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             action.setMessage(actionLabel());
-            if (methodButton != null) {
-                methodButton.active = !JobSiteReroller.isRunning();
-                methodButton.setMessage(RerollMethod.label());
-            }
+            syncMethodButton();
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
             int maxScroll = Math.max(0, rows.size() - visibleRows);
@@ -746,6 +834,7 @@ public final class TradePickerUi {
             //? if <1.20.2 {
             /*graphics.fill(getX() + width - 6, scrollerY, getX() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
             *///?}
+            drawMethodTip(graphics, mouseX, mouseY);
         }
         //?}
 

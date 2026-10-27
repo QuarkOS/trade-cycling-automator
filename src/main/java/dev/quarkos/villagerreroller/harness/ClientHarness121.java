@@ -77,6 +77,7 @@ public final class ClientHarness121 {
     private static boolean rerollShot;
     private static boolean oddsShot;
     private static boolean oddsCleared;
+    private static boolean unsupportedShot;
     private static int lecternsBefore;
     private static String stopReason = "running";
     private static final java.util.ArrayDeque<String> COMMANDS = new java.util.ArrayDeque<>();
@@ -198,12 +199,7 @@ public final class ClientHarness121 {
             }
             return;
         }
-        Screen config;
-        //? if forge {
-        /*config = new dev.quarkos.villagerreroller.config.ForgeConfigScreen(McBridge.currentScreen(client));
-        *///?} else {
-        config = dev.quarkos.villagerreroller.config.AutomatorConfigScreen.create(McBridge.currentScreen(client));
-        //?}
+        Screen config = new dev.quarkos.villagerreroller.config.ForgeConfigScreen(McBridge.currentScreen(client));
         if (config == null) {
             fail("config screen factory returned null");
             return;
@@ -350,17 +346,17 @@ public final class ClientHarness121 {
             z = feet.getZ();
             villagerX = x + 1.15;
             villagerZ = z + 0.5;
-            //? if >=26.2 {
-            /*enqueue("gamerule send_command_feedback false");
+            //? if >=1.21.11 {
+            enqueue("gamerule send_command_feedback false");
             enqueue("gamerule advance_time false");
             enqueue("gamerule spawn_mobs false");
             enqueue("gamerule immediate_respawn true");
-            *///?} else {
-            enqueue("gamerule sendCommandFeedback false");
+            //?} else {
+            /*enqueue("gamerule sendCommandFeedback false");
             enqueue("gamerule doDaylightCycle false");
             enqueue("gamerule doMobSpawning false");
             enqueue("gamerule doImmediateRespawn true");
-            //?}
+            *///?}
             enqueue("time set day");
             enqueue("fill " + (x - 2) + " " + (y - 1) + " " + (z - 2) + " " + (x + 3) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
             enqueue("fill " + (x - 2) + " " + y + " " + (z - 2) + " " + (x + 3) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
@@ -465,7 +461,7 @@ public final class ClientHarness121 {
             return;
         }
         RerollMethod.reset();
-        cycling = TradeCyclingHook.installed();
+        cycling = TradeCyclingHook.serverSupports();
         if (!cycling) {
             shot(client, "merchant-button");
         }
@@ -538,6 +534,23 @@ public final class ClientHarness121 {
         if (!oddsCleared) {
             TradeSession.clearSelection();
             oddsCleared = true;
+        }
+        if (TradeCyclingHook.installed() && !TradeCyclingHook.serverSupports() && !unsupportedShot) {
+            if (!TradePickerUi.hasMethodButton()) {
+                fail("Trade Cycling toggle was not shown");
+                return;
+            }
+            if (TradePickerUi.methodButtonActive()) {
+                fail("Trade Cycling toggle was clickable on a server without the channel");
+                return;
+            }
+            TradePickerUi.aimCursorAtMethodButton();
+            if (ticks < 8) {
+                return;
+            }
+            unsupportedShot = true;
+            shot(client, "trade-cycling-unsupported");
+            TradePickerUi.clearAim();
         }
         ScrollSpot spot = scrollSpot(client);
         if (!cycling && spot == ScrollSpot.MID && !midShot) {
