@@ -204,13 +204,13 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.waitTicks(5);
             saveShot(context, "picker-polished");
             scale(context, 3, 1280, 720);
-            context.waitTicks(40);
-            reopenMerchant(context);
+            context.waitTicks(20);
+            reopenMerchant(context, world, x, y, z);
             openPicker(context);
             saveShot(context, "picker-scale3");
             scale(context, 4, 1280, 960);
-            context.waitTicks(40);
-            reopenMerchant(context);
+            context.waitTicks(20);
+            reopenMerchant(context, world, x, y, z);
             openPicker(context);
             saveShot(context, "picker-scale4");
             context.runOnClient(client -> client.setScreen(null));
@@ -287,9 +287,11 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
         context.waitTicks(5);
     }
 
-    private static void reopenMerchant(ClientGameTestContext context) {
+    private static void reopenMerchant(ClientGameTestContext context, TestSingleplayerContext world, int x, int y, int z) {
         context.runOnClient(client -> client.setScreen(null));
-        context.waitTicks(20);
+        context.waitTicks(10);
+        world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);
+        context.waitTicks(15);
         context.runOnClient(client -> {
             if (client.player == null || client.level == null) {
                 throw new AssertionError("librarian missing");
