@@ -1,6 +1,7 @@
 package dev.quarkos.villagerreroller.client;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
+import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 //? if forge {
 /* *///?} else {
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -17,23 +18,19 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-//? if >=1.19.3 {
-import net.minecraft.core.HolderGetter;
-//?}
-import net.minecraft.core.RegistryAccess;
 //? if <1.19.3 {
 /*import net.minecraft.core.Registry;
 *///?}
-//? if >=1.19.3 {
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-//?}
+//? if >=1.19.3 && <1.21.5 {
+/*import net.minecraft.core.registries.BuiltInRegistries;
+*///?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
-import net.minecraft.resources.Identifier;
+//? if <1.21.5 {
+/*import net.minecraft.resources.Identifier;
+*///?}
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.village.poi.PoiType;
@@ -41,12 +38,10 @@ import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Version-specific Minecraft calls. Stonecutter keeps the 1.21.11 branch live
@@ -73,9 +68,18 @@ public final class McBridge {
     }
 
     public static KeyMapping registerToggle() {
+        // GLFW_KEY_K. 26.3 does not expose org.lwjgl.glfw on the compile classpath.
+        return registerKey("key." + VillagerReroller.MOD_ID + ".toggle", 75);
+    }
+
+    public static KeyMapping registerConfig() {
+        return registerKey("key." + VillagerReroller.MOD_ID + ".config", 74);
+    }
+
+    private static KeyMapping registerKey(String name, int key) {
         KeyMapping mapping = new KeyMapping(
-                "key." + VillagerReroller.MOD_ID + ".toggle",
-                75, // GLFW_KEY_K. 26.3 does not expose org.lwjgl.glfw on the compile classpath.
+                name,
+                key,
                 //? if <1.21.9 {
                 /*"key.categories." + VillagerReroller.MOD_ID
                 *///?} else {
@@ -96,13 +100,13 @@ public final class McBridge {
         //? if <1.21.9 {
         /*ScreenKeyboardEvents.afterKeyPress(screen).register((current, key, scancode, modifiers) -> {
             if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(key, scancode)) {
-                CycleAutomator.toggle();
+                JobSiteReroller.onToggleKey();
             }
         });
         *///?} else {
         ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {
             if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(event)) {
-                CycleAutomator.toggle();
+                JobSiteReroller.onToggleKey();
             }
         });
         //?}
@@ -314,24 +318,6 @@ public final class McBridge {
         gameMode.interact(player, entity, hand);
         //?}
     }
-
-    //? if <1.19.3 {
-    /*public static Enchantment enchantment(String id) {
-        return Registry.ENCHANTMENT.get(new Identifier(id));
-    }
-    *///?}
-    //? if >=1.19.3 {
-    public static Optional<Holder<Enchantment>> enchantmentHolder(RegistryAccess access, String id) {
-        HolderGetter<Enchantment> lookup = access.lookupOrThrow(Registries.ENCHANTMENT);
-        //? if <1.21 {
-        /*Identifier parsed = new Identifier(id);
-        *///?} else {
-        Identifier parsed = Identifier.parse(id);
-        //?}
-        ResourceKey<Enchantment> key = ResourceKey.create(Registries.ENCHANTMENT, parsed);
-        return lookup.get(key).map(holder -> (Holder<Enchantment>) holder);
-    }
-    //?}
 
     private static final class ScreenWidgets extends java.util.AbstractList<AbstractWidget> {
         private final Screen screen;

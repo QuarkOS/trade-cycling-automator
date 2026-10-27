@@ -2,7 +2,9 @@ package dev.quarkos.villagerreroller.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 //? if forge {
 /*import net.minecraftforge.fml.loading.FMLPaths;
 *///?} else {
@@ -16,20 +18,30 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
 
 public final class AutomatorConfig {
+    public static final int NORMAL_TICKS = 8;
+    public static final int FRIENDLY_TICKS = 20;
+    public static final int NORMAL_TIMEOUT = 1;
+    public static final int FRIENDLY_TIMEOUT = 2;
+    public static final float NORMAL_LOOK = 30.0F;
+    public static final float FRIENDLY_LOOK = 8.0F;
+    public static final int DEFAULT_DURABILITY_FLOOR = 10;
+
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static AutomatorConfig instance;
 
     private boolean enabled = true;
-    private String enchantment = "minecraft:mending";
-    private int level = 1;
-    private int maxPrice = 10;
     private int maxAttempts = 500;
     private boolean matchSound = true;
     private int matchVolume = MatchSound.DEFAULT_VOLUME;
+    private int durabilityFloor = DEFAULT_DURABILITY_FLOOR;
+    private boolean allowBareHand = true;
+    private boolean serverFriendly = false;
+    private int ticksBetweenCycles = NORMAL_TICKS;
+    private int timeoutMultiplier = NORMAL_TIMEOUT;
+    private float lookDegreesPerTick = NORMAL_LOOK;
 
     public static AutomatorConfig get() {
         if (instance == null) {
@@ -43,10 +55,82 @@ public final class AutomatorConfig {
         try {
             Files.createDirectories(path.getParent());
             try (Writer writer = Files.newBufferedWriter(path)) {
-                GSON.toJson(get(), writer);
+                GSON.toJson(get().toJson(), writer);
             }
         } catch (IOException e) {
             LOGGER.error("Could not save {}", path, e);
+        }
+    }
+
+    /**
+     * Reads the current keys and drops the legacy enchantment, level, and maxPrice
+     * fields. Missing keys keep the defaults, so an older file still loads.
+     */
+    public static AutomatorConfig parse(Reader reader) {
+        JsonElement parsed = JsonParser.parseReader(reader);
+        if (parsed == null || !parsed.isJsonObject()) {
+            return new AutomatorConfig();
+        }
+        JsonObject object = parsed.getAsJsonObject();
+        AutomatorConfig config = new AutomatorConfig();
+        if (bool(object, "enabled") != null) {
+            config.enabled = bool(object, "enabled");
+        }
+        if (integer(object, "maxAttempts") != null) {
+            config.maxAttempts = Math.max(1, integer(object, "maxAttempts"));
+        }
+        if (bool(object, "matchSound") != null) {
+            config.matchSound = bool(object, "matchSound");
+        }
+        if (integer(object, "matchVolume") != null) {
+            config.matchVolume = MatchSound.clampPercent(integer(object, "matchVolume"));
+        }
+        if (integer(object, "durabilityFloor") != null) {
+            config.durabilityFloor = Math.max(0, integer(object, "durabilityFloor"));
+        }
+        if (bool(object, "allowBareHand") != null) {
+            config.allowBareHand = bool(object, "allowBareHand");
+        }
+        if (bool(object, "serverFriendly") != null) {
+            config.serverFriendly = bool(object, "serverFriendly");
+        }
+        if (integer(object, "ticksBetweenCycles") != null) {
+            config.ticksBetweenCycles = Math.max(1, integer(object, "ticksBetweenCycles"));
+        }
+        if (integer(object, "timeoutMultiplier") != null) {
+            config.timeoutMultiplier = Math.max(1, integer(object, "timeoutMultiplier"));
+        }
+        if (decimal(object, "lookDegreesPerTick") != null) {
+            config.lookDegreesPerTick = Math.max(1.0F, decimal(object, "lookDegreesPerTick"));
+        }
+        return config;
+    }
+
+    public JsonObject toJson() {
+        JsonObject object = new JsonObject();
+        object.addProperty("enabled", enabled);
+        object.addProperty("maxAttempts", maxAttempts);
+        object.addProperty("matchSound", matchSound);
+        object.addProperty("matchVolume", MatchSound.clampPercent(matchVolume));
+        object.addProperty("durabilityFloor", durabilityFloor);
+        object.addProperty("allowBareHand", allowBareHand);
+        object.addProperty("serverFriendly", serverFriendly);
+        object.addProperty("ticksBetweenCycles", ticksBetweenCycles);
+        object.addProperty("timeoutMultiplier", timeoutMultiplier);
+        object.addProperty("lookDegreesPerTick", lookDegreesPerTick);
+        return object;
+    }
+
+    public void applyServerFriendly(boolean enabled) {
+        this.serverFriendly = enabled;
+        if (enabled) {
+            ticksBetweenCycles = FRIENDLY_TICKS;
+            timeoutMultiplier = FRIENDLY_TIMEOUT;
+            lookDegreesPerTick = FRIENDLY_LOOK;
+        } else {
+            ticksBetweenCycles = NORMAL_TICKS;
+            timeoutMultiplier = NORMAL_TIMEOUT;
+            lookDegreesPerTick = NORMAL_LOOK;
         }
     }
 
@@ -54,12 +138,8 @@ public final class AutomatorConfig {
         Path path = path();
         if (Files.isRegularFile(path)) {
             try (Reader reader = Files.newBufferedReader(path)) {
-                AutomatorConfig config = GSON.fromJson(reader, AutomatorConfig.class);
-                if (config != null) {
-                    config.maxAttempts = Math.max(1, config.maxAttempts);
-                    return config;
-                }
-            } catch (IOException e) {
+                return parse(reader);
+            } catch (RuntimeException | IOException e) {
                 LOGGER.error("Could not read {}", path, e);
             }
         }
@@ -77,36 +157,36 @@ public final class AutomatorConfig {
         //?}
     }
 
+    private static Boolean bool(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        if (element == null || !element.isJsonPrimitive()) {
+            return null;
+        }
+        return element.getAsBoolean();
+    }
+
+    private static Integer integer(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            return null;
+        }
+        return element.getAsInt();
+    }
+
+    private static Float decimal(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
+            return null;
+        }
+        return element.getAsFloat();
+    }
+
     public boolean enabled() {
         return enabled;
     }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public String enchantment() {
-        return enchantment;
-    }
-
-    public void setEnchantment(String enchantment) {
-        this.enchantment = enchantment;
-    }
-
-    public int level() {
-        return level;
-    }
-
-    public void setLevel(int level) {
-        this.level = level;
-    }
-
-    public int maxPrice() {
-        return maxPrice;
-    }
-
-    public void setMaxPrice(int maxPrice) {
-        this.maxPrice = maxPrice;
     }
 
     public int maxAttempts() {
@@ -133,21 +213,51 @@ public final class AutomatorConfig {
         this.matchVolume = MatchSound.clampPercent(matchVolume);
     }
 
-    public Optional<LibrarianBookPrices.Problem> problem() {
-        return LibrarianBookPrices.get().validate(enchantment, level, maxPrice);
+    public int durabilityFloor() {
+        return durabilityFloor;
     }
 
-    /**
-     * Picks a listed enchantment so the config screen can open after a version change.
-     */
-    public void ensureListedEnchantment() {
-        LibrarianBookPrices prices = LibrarianBookPrices.get();
-        if (prices.enchantment(enchantment).isPresent()) {
-            return;
-        }
-        LibrarianBookPrices.BookEnchantment fallback = prices.enchantments().iterator().next();
-        enchantment = fallback.id();
-        level = 1;
-        maxPrice = prices.priceRange(enchantment, 1).orElseThrow().max();
+    public void setDurabilityFloor(int durabilityFloor) {
+        this.durabilityFloor = Math.max(0, durabilityFloor);
+    }
+
+    public boolean allowBareHand() {
+        return allowBareHand;
+    }
+
+    public void setAllowBareHand(boolean allowBareHand) {
+        this.allowBareHand = allowBareHand;
+    }
+
+    public boolean serverFriendly() {
+        return serverFriendly;
+    }
+
+    public void setServerFriendly(boolean serverFriendly) {
+        this.serverFriendly = serverFriendly;
+    }
+
+    public int ticksBetweenCycles() {
+        return Math.max(1, ticksBetweenCycles);
+    }
+
+    public void setTicksBetweenCycles(int ticksBetweenCycles) {
+        this.ticksBetweenCycles = Math.max(1, ticksBetweenCycles);
+    }
+
+    public int timeoutMultiplier() {
+        return Math.max(1, timeoutMultiplier);
+    }
+
+    public void setTimeoutMultiplier(int timeoutMultiplier) {
+        this.timeoutMultiplier = Math.max(1, timeoutMultiplier);
+    }
+
+    public float lookDegreesPerTick() {
+        return Math.max(1.0F, lookDegreesPerTick);
+    }
+
+    public void setLookDegreesPerTick(float lookDegreesPerTick) {
+        this.lookDegreesPerTick = Math.max(1.0F, lookDegreesPerTick);
     }
 }

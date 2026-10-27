@@ -1,9 +1,9 @@
-//? if forge {
+//? if forge && !neoforge {
 /*
 package dev.quarkos.villagerreroller;
 
 import dev.quarkos.villagerreroller.client.AutomatorKeys;
-import dev.quarkos.villagerreroller.client.CycleAutomator;
+import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
@@ -69,6 +69,9 @@ public final class ForgeVillagerReroller {
         if (AutomatorKeys.TOGGLE != null) {
             event.register(AutomatorKeys.TOGGLE);
         }
+        if (AutomatorKeys.CONFIG != null) {
+            event.register(AutomatorKeys.CONFIG);
+        }
     }
 
     //? if <1.21.6 {
@@ -88,7 +91,7 @@ public final class ForgeVillagerReroller {
             return;
         }
         if (AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode())) {
-            CycleAutomator.toggle();
+            JobSiteReroller.onToggleKey();
             event.setCanceled(true);
         }
     }
@@ -114,7 +117,7 @@ public final class ForgeVillagerReroller {
         if (!matches) {
             return false;
         }
-        CycleAutomator.toggle();
+        JobSiteReroller.onToggleKey();
         return true;
     }
     //?}

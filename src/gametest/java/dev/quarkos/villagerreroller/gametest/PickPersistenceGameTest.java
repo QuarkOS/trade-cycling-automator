@@ -2,7 +2,7 @@ package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
-import dev.quarkos.villagerreroller.config.AutomatorConfigScreen;
+import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
 import dev.quarkos.villagerreroller.picker.TradeEntry;
@@ -168,7 +168,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             context.runOnClient(client -> assertRemembered(client, "minecraft:librarian"));
             context.runOnClient(client -> McBridge.playMatchFound(client, 1.0F));
 
-            context.runOnClient(client -> McBridge.setScreen(client, AutomatorConfigScreen.create(McBridge.currentScreen(client))));
+            context.runOnClient(client -> McBridge.setScreen(client, new ForgeConfigScreen(McBridge.currentScreen(client))));
             context.waitTicks(20);
             saveShot(context, "match-sound-settings");
             String title = context.computeOnClient(client -> {
