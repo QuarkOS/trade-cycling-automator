@@ -79,6 +79,11 @@ public final class VillagerRosterClient {
         if (!TradeHall.menuLocked(menu)) {
             return;
         }
+        // The hall rebuilds the open menu every tick. Cataloguing and writing
+        // the file there stalls the client long enough for the job-site break to time out.
+        if (TradeHall.isActive() || JobSiteReroller.isRunning()) {
+            return;
+        }
         List<TradeEntry> catalog = new ArrayList<>();
         int traderLevel = Math.max(1, menu.getTraderLevel());
         for (int level = 1; level <= traderLevel; level++) {
