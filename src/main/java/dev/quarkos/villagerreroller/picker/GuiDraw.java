@@ -287,7 +287,9 @@ public final class GuiDraw {
         }
         int screenW = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledWidth());
         int screenH = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledHeight());
-        int maxText = Math.max(8, screenW - 8);
+        // A long trade list must stay on screen. Cap the box so it remains a
+        // tooltip instead of covering the panel, and ellipsize whatever remains.
+        int maxText = Math.min(240, Math.max(8, screenW - 12));
         Font font = canvas.font();
         List<String> text = new ArrayList<>();
         int width = 0;
@@ -300,17 +302,14 @@ public final class GuiDraw {
         if (text.isEmpty()) {
             return;
         }
+        int maxLines = Math.max(1, Math.min(8, (screenH - 8) / 10));
+        if (text.size() > maxLines) {
+            String last = ellipsis(font, text.get(maxLines - 1), maxText);
+            text = new ArrayList<>(text.subList(0, maxLines - 1));
+            text.add(last);
+        }
         int boxW = Math.min(width + 6, screenW);
         int height = text.size() * 10 + 4;
-        if (height > screenH) {
-            int fit = Math.max(1, (screenH - 4) / 10);
-            if (text.size() > fit) {
-                String last = ellipsis(font, text.get(fit - 1), maxText);
-                text = new ArrayList<>(text.subList(0, fit - 1));
-                text.add(last);
-            }
-            height = text.size() * 10 + 4;
-        }
         int x = mouseX + 8;
         int y = mouseY + 8;
         if (x + boxW > screenW) {
