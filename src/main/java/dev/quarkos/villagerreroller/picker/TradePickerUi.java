@@ -2,6 +2,7 @@ package dev.quarkos.villagerreroller.picker;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
+import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.text.ScrollingNames;
 import dev.quarkos.villagerreroller.text.TradeNameLayout;
 import net.minecraft.client.Minecraft;
@@ -47,16 +48,28 @@ public final class TradePickerUi {
     private static final int MERCHANT_WIDTH = 276;
     private static final int MERCHANT_HEIGHT = 166;
     private static final int PANEL_WIDTH = 168;
-    private static final int PANEL_HEIGHT = 220;
-    private static final int LIST_TOP = 42;
-    private static final int LIST_HEIGHT = 80;
+    private static final int COMPACT_PANEL_WIDTH = 144;
+    private static final int WIDE_AT = 452;
+    private static final int PANEL_HEIGHT = 200;
+    private static final int LIST_TOP = 35;
+    private static final int LIST_HEIGHT = 82;
     private static final int LIST_WIDTH = PANEL_WIDTH - 12;
-    private static final int STATUS_TOP = 126;
-    private static final int ODDS_SECOND = 136;
-    private static final int METHOD_TOP = 152;
-    private static final int QUEUE_TOP = 174;
-    private static final int START_TOP = 196;
+    private static final int STATUS_TOP = 120;
+    private static final int ODDS_SECOND = 133;
+    private static final int METHOD_TOP = 146;
+    private static final int QUEUE_TOP = 163;
+    private static final int START_TOP = 180;
     private static final int ROW_HEIGHT = 20;
+    private static final int SELECTED_NAME = 0xFF164A1A;
+    private static int layoutListH = LIST_HEIGHT;
+    private static int layoutStatus = STATUS_TOP;
+    private static int layoutOdds = ODDS_SECOND;
+    private static int layoutMethod = METHOD_TOP;
+    private static int layoutQueue = QUEUE_TOP;
+    private static int layoutStart = START_TOP;
+    private static int merchantShift;
+    private static int savedMerchantLeft = Integer.MIN_VALUE;
+    private static int savedMerchantTop = Integer.MIN_VALUE;
     private static final int TEXT = 0xFF404040;
     private static final int CURSE = 0xFFAA0000;
     //? if <1.21 {
@@ -78,6 +91,7 @@ public final class TradePickerUi {
     private static Button methodButton;
     private static Button queueButton;
     private static Button hallButton;
+    private static Button listButton;
 
     private TradePickerUi() {
     }
@@ -88,6 +102,7 @@ public final class TradePickerUi {
         methodButton = null;
         queueButton = null;
         hallButton = null;
+        listButton = null;
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
@@ -139,26 +154,83 @@ public final class TradePickerUi {
         if (villager != null && client.level != null) {
             TradeSession.rebuild(client.level, villager, screen.getMenu());
         }
-        int left = (screen.width - MERCHANT_WIDTH) / 2;
-        int top = (screen.height - MERCHANT_HEIGHT) / 2;
-        int panelX = left + MERCHANT_WIDTH + 4;
-        int panelY = top;
-        if (panelX + PANEL_WIDTH > screen.width - 2) {
-            panelX = Math.max(2, screen.width - PANEL_WIDTH - 2);
+        int naturalLeft = (screen.width - MERCHANT_WIDTH) / 2;
+        int naturalTop = (screen.height - MERCHANT_HEIGHT) / 2;
+        boolean wide = screen.width >= WIDE_AT;
+        int panelW = wide ? PANEL_WIDTH : COMPACT_PANEL_WIDTH;
+        int panelH = Math.min(PANEL_HEIGHT, Math.max(96, screen.height - 4));
+        int overflow = PANEL_HEIGHT - panelH;
+        int listH = LIST_HEIGHT;
+        int statusH = 23;
+        if (overflow > 0) {
+            int cut = Math.min(overflow, listH - ROW_HEIGHT);
+            listH -= cut;
+            overflow -= cut;
+        }
+        if (overflow > 0) {
+            int cut = Math.min(overflow, 11);
+            statusH -= cut;
+            overflow -= cut;
+        }
+        layoutListH = listH;
+        layoutStatus = LIST_TOP + listH + 3;
+        layoutOdds = layoutStatus + (statusH >= 20 ? 13 : 8);
+        layoutMethod = layoutStatus + statusH + 3;
+        layoutQueue = layoutMethod + 17;
+        layoutStart = layoutQueue + 17;
+        if (layoutStart + 16 > panelH - 2) {
+            int shift = layoutStart + 16 - (panelH - 2);
+            layoutMethod -= shift;
+            layoutQueue -= shift;
+            layoutStart -= shift;
+        }
+        int combined = MERCHANT_WIDTH + 3 + panelW;
+        boolean sideBySide = screen.width >= combined + 2;
+        int merchantLeft = naturalLeft;
+        if (!wide && sideBySide) {
+            merchantLeft = Math.max(2, (screen.width - combined) / 2);
+        }
+        int panelX;
+        if (!sideBySide) {
+            panelW = Math.min(panelW, Math.max(80, screen.width - 8));
+            panelX = Math.max(2, screen.width - panelW - 2);
+        } else {
+            panelX = merchantLeft + MERCHANT_WIDTH + (wide ? 4 : 3);
+        }
+        if (panelX + panelW > screen.width - 2) {
+            panelX = Math.max(2, screen.width - panelW - 2);
+        }
+        int panelY = Math.max(2, (screen.height - panelH) / 2);
+        if (savedMerchantLeft == Integer.MIN_VALUE) {
+            savedMerchantLeft = McBridge.merchantLeft(screen);
+            savedMerchantTop = McBridge.merchantTop(screen);
+        }
+        McBridge.placeMerchant(screen, merchantLeft, naturalTop);
+        merchantShift = merchantLeft - naturalLeft;
+
+        var buttons = McBridge.buttons(screen);
+        if (merchantShift != 0) {
+            for (AbstractWidget widget : buttons) {
+                FitButton.place(widget, widgetX(widget) + merchantShift, widgetY(widget));
+            }
         }
         int listX = panelX + 6;
         int listY = panelY + LIST_TOP;
-        int listW = LIST_WIDTH;
-        int listH = LIST_HEIGHT;
+        int listW = Math.max(40, panelW - 12);
 
-        var buttons = dev.quarkos.villagerreroller.client.McBridge.buttons(screen);
-        PanelBackground background = new PanelBackground(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, screen.getMenu().getTraderLevel());
+        PanelBackground background = new PanelBackground(panelX, panelY, panelW, panelH, screen.getMenu().getTraderLevel());
         buttons.add(background);
         panelWidgets.add(background);
 
-        EditBox search = new EditBox(client.font, panelX + 6, panelY + 20, PANEL_WIDTH - 12, 16, Component.translatable("gui.recipebook.search_hint"));
+        Component searchHint = Component.translatable("gui.recipebook.search_hint");
+        EditBox search = new EditBox(client.font, panelX + 6, panelY + 17, panelW - 12, 14, searchHint);
         //? if >=1.19.3 {
-        search.setHint(Component.translatable("gui.recipebook.search_hint"));
+        String hint = searchHint.getString();
+        String shown = GuiDraw.ellipsis(client.font, hint, panelW - 20);
+        search.setHint(Component.literal(shown));
+        if (!shown.equals(hint)) {
+            search.setTooltip(net.minecraft.client.gui.components.Tooltip.create(searchHint));
+        }
         //?}
         search.setValue(TradeSession.filter());
         search.setResponder(value -> {
@@ -170,56 +242,44 @@ public final class TradePickerUi {
         buttons.add(search);
         panelWidgets.add(search);
 
-        int half = (PANEL_WIDTH - 18) / 2;
-        //? if <1.19.3 {
-        /*queueButton = new Button(panelX + 6, panelY + QUEUE_TOP, half, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".button.queue"), pressed -> TradeHall.queueCurrent(client));
-        hallButton = new Button(panelX + 12 + half, panelY + QUEUE_TOP, half, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall", TradeHall.size()), pressed -> {
-            if (!TradeHall.isActive()) {
-                dev.quarkos.villagerreroller.client.McBridge.setScreen(client, new TradeHallScreen());
-            }
-        });
-        Button action = new Button(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20, actionLabel(), button -> onAction(client));
-        *///?}
-        //? if >=1.19.3 {
-        queueButton = Button.builder(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.queue"), pressed -> TradeHall.queueCurrent(client))
-                .bounds(panelX + 6, panelY + QUEUE_TOP, half, 20)
-                .build();
-        hallButton = Button.builder(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall", TradeHall.size()), pressed -> {
-            if (!TradeHall.isActive()) {
-                dev.quarkos.villagerreroller.client.McBridge.setScreen(client, new TradeHallScreen());
-            }
-        }).bounds(panelX + 12 + half, panelY + QUEUE_TOP, half, 20).build();
-        Button action = Button.builder(actionLabel(), button -> onAction(client))
-                .bounds(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20)
-                .build();
-        //?}
+        int inner = panelW - 12;
+        int gap = 2;
+        int share = Math.max(0, inner - gap * 2);
+        int queueW = Math.max(24, share * 40 / 128);
+        int hallW = Math.max(24, share * 44 / 128);
+        int listBtnW = Math.max(24, inner - queueW - hallW - gap * 2);
+        queueButton = FitButton.create(panelX + 6, panelY + layoutQueue, queueW, 15,
+                Component.translatable("text." + VillagerReroller.MOD_ID + ".button.queue"),
+                pressed -> TradeHall.queueCurrent(client));
+        hallButton = FitButton.create(panelX + 6 + queueW + gap, panelY + layoutQueue, hallW, 15,
+                Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall", TradeHall.size()),
+                pressed -> {
+                    if (!TradeHall.isActive()) {
+                        McBridge.setScreen(client, new TradeHallScreen());
+                    }
+                });
+        listButton = FitButton.create(panelX + 6 + queueW + hallW + gap * 2, panelY + layoutQueue, listBtnW, 15,
+                Component.translatable("text." + VillagerReroller.MOD_ID + ".button.list", VillagerRosterClient.count(client)),
+                pressed -> McBridge.setScreen(client, new MyVillagersScreen(screen)));
+        Button action = FitButton.create(panelX + 6, panelY + layoutStart, panelW - 12, 16, actionLabel(), button -> onAction(client));
         buttons.add(queueButton);
         panelWidgets.add(queueButton);
         buttons.add(hallButton);
         panelWidgets.add(hallButton);
+        buttons.add(listButton);
+        panelWidgets.add(listButton);
         buttons.add(action);
         panelWidgets.add(action);
 
         if (RerollMethod.showToggle()) {
-            int buttonWidth = Math.max(72, client.font.width(Component.translatable("text." + VillagerReroller.MOD_ID + ".method.trade_cycling").getString()) + 8);
-            //? if <1.19.3 {
-            /*methodButton = new Button(panelX + PANEL_WIDTH - 6 - buttonWidth, panelY + METHOD_TOP, buttonWidth, 20, RerollMethod.label(), pressed -> {
+            int buttonWidth = Math.max(36, panelW - 52);
+            methodButton = FitButton.create(panelX + 46, panelY + layoutMethod, buttonWidth, 15, RerollMethod.label(), pressed -> {
                 if (JobSiteReroller.isRunning() || TradeHall.isActive()) {
                     return;
                 }
                 RerollMethod.toggle();
                 pressed.setMessage(RerollMethod.label());
             });
-            *///?}
-            //? if >=1.19.3 {
-            methodButton = Button.builder(RerollMethod.label(), pressed -> {
-                if (JobSiteReroller.isRunning() || TradeHall.isActive()) {
-                    return;
-                }
-                RerollMethod.toggle();
-                pressed.setMessage(RerollMethod.label());
-            }).bounds(panelX + PANEL_WIDTH - 6 - buttonWidth, panelY + METHOD_TOP, buttonWidth, 20).build();
-            //?}
             buttons.add(methodButton);
             panelWidgets.add(methodButton);
         }
@@ -230,7 +290,19 @@ public final class TradePickerUi {
     }
 
     private static void close(MerchantScreen screen) {
-        var buttons = dev.quarkos.villagerreroller.client.McBridge.buttons(screen);
+        var buttons = McBridge.buttons(screen);
+        if (merchantShift != 0) {
+            for (AbstractWidget widget : List.copyOf(buttons)) {
+                if (!panelWidgets.contains(widget)) {
+                    FitButton.place(widget, widgetX(widget) - merchantShift, widgetY(widget));
+                }
+            }
+            merchantShift = 0;
+        }
+        if (savedMerchantLeft != Integer.MIN_VALUE) {
+            McBridge.placeMerchant(screen, savedMerchantLeft, savedMerchantTop);
+            savedMerchantLeft = Integer.MIN_VALUE;
+        }
         for (AbstractWidget widget : panelWidgets) {
             buttons.remove(widget);
         }
@@ -239,6 +311,7 @@ public final class TradePickerUi {
         methodButton = null;
         queueButton = null;
         hallButton = null;
+        listButton = null;
     }
 
     /**
@@ -270,6 +343,24 @@ public final class TradePickerUi {
             hallButton.active = !TradeHall.isActive();
             hallButton.setMessage(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall", TradeHall.size()));
         }
+        if (listButton != null) {
+            listButton.setMessage(Component.translatable(
+                    "text." + VillagerReroller.MOD_ID + ".button.list",
+                    VillagerRosterClient.count(Minecraft.getInstance())));
+        }
+    }
+
+    private static String priceText(TradeEntry entry, boolean selected) {
+        if (selected && entry.paysEmeralds) {
+            return TradeSession.anyPrice(entry.id)
+                    ? Component.translatable("text." + VillagerReroller.MOD_ID + ".any").getString()
+                    : "\u2264" + TradeSession.chosenMax(entry.id);
+        }
+        String price = entry.priceLabel();
+        if (VillagerRosterClient.owns(Minecraft.getInstance(), entry.id)) {
+            price = "\u2713 " + price;
+        }
+        return price;
     }
 
 
@@ -478,21 +569,21 @@ public final class TradePickerUi {
             String[] odds = oddsLines();
             if (odds != null) {
                 if (odds[0] != null) {
-                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[0], width - 12), left() + 6, top() + STATUS_TOP, TEXT);
+                    minecraft.font.draw(pose, GuiDraw.ellipsis(minecraft.font, odds[0], width - 12), left() + 6, top() + layoutStatus, TEXT);
                 }
                 if (odds.length > 1 && odds[1] != null) {
-                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[1], width - 12), left() + 6, top() + ODDS_SECOND, TEXT);
+                    minecraft.font.draw(pose, GuiDraw.ellipsis(minecraft.font, odds[1], width - 12), left() + 6, top() + layoutOdds, TEXT);
                 }
             } else {
                 Component status = statusLine();
                 if (status != null && !status.getString().isEmpty()) {
-                    String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
-                    minecraft.font.draw(pose, line, left() + 6, top() + STATUS_TOP, TEXT);
+                    String line = GuiDraw.ellipsis(minecraft.font, status.getString(), width - 12);
+                    minecraft.font.draw(pose, line, left() + 6, top() + layoutStatus, TEXT);
                 }
             }
-            minecraft.font.draw(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), left() + 6, top() + METHOD_TOP + 6, TEXT);
+            minecraft.font.draw(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), left() + 6, top() + layoutMethod + 4, TEXT);
             if (methodButton == null) {
-                minecraft.font.draw(pose, RerollMethod.label(), left() + 48, top() + METHOD_TOP + 6, TEXT);
+                minecraft.font.draw(pose, RerollMethod.label(), left() + 48, top() + layoutMethod + 4, TEXT);
             }
         }
         *///?}
@@ -514,90 +605,88 @@ public final class TradePickerUi {
             String[] odds = oddsLines();
             if (odds != null) {
                 if (odds[0] != null) {
-                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[0], width - 12), getX() + 6, getY() + STATUS_TOP, TEXT);
+                    minecraft.font.draw(pose, GuiDraw.ellipsis(minecraft.font, odds[0], width - 12), getX() + 6, getY() + layoutStatus, TEXT);
                 }
                 if (odds.length > 1 && odds[1] != null) {
-                    minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[1], width - 12), getX() + 6, getY() + ODDS_SECOND, TEXT);
+                    minecraft.font.draw(pose, GuiDraw.ellipsis(minecraft.font, odds[1], width - 12), getX() + 6, getY() + layoutOdds, TEXT);
                 }
             } else {
                 Component status = statusLine();
                 if (status != null && !status.getString().isEmpty()) {
-                    String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
-                    minecraft.font.draw(pose, line, getX() + 6, getY() + STATUS_TOP, TEXT);
+                    String line = GuiDraw.ellipsis(minecraft.font, status.getString(), width - 12);
+                    minecraft.font.draw(pose, line, getX() + 6, getY() + layoutStatus, TEXT);
                 }
             }
-            minecraft.font.draw(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), getX() + 6, getY() + METHOD_TOP + 6, TEXT);
+            minecraft.font.draw(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), getX() + 6, getY() + layoutMethod + 4, TEXT);
             if (methodButton == null) {
-                minecraft.font.draw(pose, RerollMethod.label(), getX() + 48, getY() + METHOD_TOP + 6, TEXT);
+                minecraft.font.draw(pose, RerollMethod.label(), getX() + 48, getY() + layoutMethod + 4, TEXT);
             }
         }
         *///?}
         //? if >=1.20 {
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            graphics.fill(getX(), getY(), getX() + width, getY() + height, 0xFF000000);
-            graphics.fill(getX() + 2, getY() + 2, getX() + width - 2, getY() + height - 2, 0xFFC6C6C6);
-            graphics.fill(getX() + 2, getY() + 2, getX() + width - 2, getY() + 3, 0xFFFFFFFF);
-            graphics.fill(getX() + 2, getY() + 2, getX() + 3, getY() + height - 2, 0xFFFFFFFF);
-            graphics.fill(getX() + 3, getY() + height - 3, getX() + width - 2, getY() + height - 2, 0xFF555555);
-            graphics.fill(getX() + width - 3, getY() + 3, getX() + width - 2, getY() + height - 2, 0xFF555555);
+            GuiDraw.Canvas canvas = GuiDraw.of(graphics);
+            GuiDraw.beveled(canvas, getX(), getY(), width, height);
+            GuiDraw.recessed(canvas, getX() + 5, getY() + LIST_TOP - 1, width - 10, layoutListH + 2, 0xFF8E8E8E);
+            int statusH = Math.max(12, layoutMethod - layoutStatus - 3);
+            GuiDraw.recessed(canvas, getX() + 6, getY() + layoutStatus, width - 12, statusH, 0xFFB4B4B4);
             Minecraft minecraft = Minecraft.getInstance();
-            Component title = Component.translatable(
+            String title = Component.translatable(
                     "text." + VillagerReroller.MOD_ID + ".panel.title",
                     Component.translatable("merchant.level." + villagerLevel)
-            );
-            //? if >=26.1 {
-            /*graphics.text(minecraft.font, title, getX() + 6, getY() + 6, TEXT, false);
-            *///?} else {
-            graphics.drawString(minecraft.font, title, getX() + 6, getY() + 6, TEXT, false);
-            //?}
+            ).getString();
+            int picked = TradeSession.selectionCount();
+            String pickedText = picked == 0 ? "" : Component.translatable(
+                    "text." + VillagerReroller.MOD_ID + ".panel.picked", picked).getString();
+            int pillW = pickedText.isEmpty() ? 0 : minecraft.font.width(pickedText) + 8;
+            String titleTip = GuiDraw.fit(canvas, title, getX() + 6, getY() + 6, Math.max(8, width - 12 - pillW), TEXT);
+            if (picked > 0) {
+                GuiDraw.pill(canvas, getX() + width - 6 - pillW, getY() + 4, pickedText, 0xFFD7ECD9, 0xFF388E3C, 0xFF1B5E20);
+            }
+            if (titleTip != null && mouseX >= getX() + 6 && mouseX < getX() + width - pillW && mouseY >= getY() + 4 && mouseY <= getY() + 16) {
+                canvas.tip(List.of(Component.literal(title)), mouseX, mouseY);
+            }
             String[] odds = oddsLines();
-            if (odds != null) {
-                if (odds[0] != null) {
-                    String line = minecraft.font.plainSubstrByWidth(odds[0], width - 12);
-                    //? if >=26.1 {
-                    /*graphics.text(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
-                    *///?} else {
-                    graphics.drawString(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
-                    //?}
-                }
-                if (odds.length > 1 && odds[1] != null) {
-                    String line = minecraft.font.plainSubstrByWidth(odds[1], width - 12);
-                    //? if >=26.1 {
-                    /*graphics.text(minecraft.font, line, getX() + 6, getY() + ODDS_SECOND, TEXT, false);
-                    *///?} else {
-                    graphics.drawString(minecraft.font, line, getX() + 6, getY() + ODDS_SECOND, TEXT, false);
-                    //?}
+            String first;
+            String second = null;
+            if (odds != null && odds[0] != null) {
+                first = odds[0];
+                if (odds.length > 1) {
+                    second = odds[1];
                 }
             } else {
                 Component status = statusLine();
                 if (status != null && !status.getString().isEmpty()) {
-                    String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
-                    //? if >=26.1 {
-                    /*graphics.text(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
-                    *///?} else {
-                    graphics.drawString(minecraft.font, line, getX() + 6, getY() + STATUS_TOP, TEXT, false);
-                    //?}
+                    first = status.getString();
+                } else {
+                    first = Component.translatable("text." + VillagerReroller.MOD_ID + ".odds.idle").getString();
                 }
             }
-            //? if >=26.1 {
-            /*graphics.text(minecraft.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"), getX() + 6, getY() + METHOD_TOP + 6, TEXT, false);
-            *///?} else {
-            graphics.drawString(
-                    minecraft.font,
-                    Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix"),
-                    getX() + 6,
-                    getY() + METHOD_TOP + 6,
-                    TEXT,
-                    false
-            );
-            //?}
+            int textW = Math.max(8, width - 16);
+            String firstShown = GuiDraw.fit(canvas, first, getX() + 8, getY() + layoutStatus + 3, textW, TEXT);
+            String secondShown = null;
+            if (second != null && statusH >= 20) {
+                secondShown = GuiDraw.fit(canvas, second, getX() + 8, getY() + layoutOdds, textW, TEXT);
+            }
+            if (mouseX >= getX() + 6 && mouseX < getX() + width - 6 && mouseY >= getY() + layoutStatus && mouseY < getY() + layoutStatus + statusH) {
+                if (firstShown != null || secondShown != null) {
+                    List<Component> lines = new ArrayList<>();
+                    lines.add(Component.literal(first));
+                    if (second != null) {
+                        lines.add(Component.literal(second));
+                    }
+                    canvas.tip(lines, mouseX, mouseY);
+                }
+            }
+            String method = Component.translatable("text." + VillagerReroller.MOD_ID + ".method.prefix").getString();
+            GuiDraw.fit(canvas, method, getX() + 6, getY() + layoutMethod + 4, 40, TEXT);
             if (methodButton == null) {
-                //? if >=26.1 {
-                /*graphics.text(minecraft.font, RerollMethod.label(), getX() + 48, getY() + METHOD_TOP + 6, TEXT, false);
-                *///?} else {
-                graphics.drawString(minecraft.font, RerollMethod.label(), getX() + 48, getY() + METHOD_TOP + 6, TEXT, false);
-                //?}
+                String label = RerollMethod.label().getString();
+                String labelTip = GuiDraw.fit(canvas, label, getX() + 46, getY() + layoutMethod + 4, Math.max(8, width - 52), TEXT);
+                if (labelTip != null && mouseY >= getY() + layoutMethod && mouseY <= getY() + layoutMethod + 14) {
+                    canvas.tip(List.of(Component.literal(label)), mouseX, mouseY);
+                }
             }
         }
         //?}
@@ -718,23 +807,32 @@ public final class TradePickerUi {
                 TradeEntry entry = rows.get(scroll + i);
                 int rowY = top() + i * ROW_HEIGHT;
                 boolean selected = TradeSession.selected(entry.id);
+                int rowRight = left() + width - 8;
                 if (selected) {
-                    fill(pose, left(), rowY, left() + width - 10, rowY + ROW_HEIGHT - 1, 0xFFB0B0B0);
+                    fill(pose, left(), rowY, rowRight, rowY + ROW_HEIGHT, 0xFFC6E2C8);
+                    fill(pose, left() + 1, rowY, left() + 3, rowY + ROW_HEIGHT, 0xFF2E7D32);
+                    fill(pose, left(), rowY + ROW_HEIGHT - 1, rowRight, rowY + ROW_HEIGHT, 0xFF8FB892);
+                } else {
+                    fill(pose, left(), rowY, rowRight, rowY + ROW_HEIGHT - 1, ((scroll + i) % 2 == 0) ? 0xFFC0C0C0 : 0xFFB8B8B8);
+                    fill(pose, left(), rowY + ROW_HEIGHT - 1, rowRight, rowY + ROW_HEIGHT, 0xFF9E9E9E);
                 }
                 fill(pose, left() + 1, rowY + 4, left() + 13, rowY + 16, 0xFF000000);
                 fill(pose, left() + 2, rowY + 5, left() + 12, rowY + 15, selected ? 0xFF55FF55 : 0xFF8B8B8B);
                 ItemStack icon = entry.icon;
                 minecraft.getItemRenderer().renderGuiItem(icon, left() + 16, rowY + 1);
                 minecraft.getItemRenderer().renderGuiItemDecorations(minecraft.font, icon, left() + 16, rowY + 1);
-                String price = selected && entry.paysEmeralds
-                        ? (TradeSession.anyPrice(entry.id) ? Component.translatable("text." + VillagerReroller.MOD_ID + ".any").getString() : "\u2264" + TradeSession.chosenMax(entry.id))
-                        : entry.priceLabel();
-                int priceWidth = minecraft.font.width(price);
+                String price = priceText(entry, selected);
+                boolean pill = selected && entry.paysEmeralds;
+                int priceWidth = minecraft.font.width(price) + (pill ? 6 : 0);
                 int priceX = TradeNameLayout.priceX(left(), width, priceWidth);
                 int nameLeft = TradeNameLayout.nameLeft(left());
                 int nameRight = TradeNameLayout.nameRight(priceX);
-                drawName(pose, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
-                minecraft.font.draw(pose, price, priceX, rowY + 6, TEXT);
+                drawName(pose, minecraft.font, entry.name, entry.curse ? CURSE : selected ? SELECTED_NAME : 0xFF303030, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
+                if (pill) {
+                    fill(pose, priceX - 2, rowY + 4, priceX + minecraft.font.width(price) + 3, rowY + 15, 0xFF2E7D32);
+                    fill(pose, priceX - 1, rowY + 5, priceX + minecraft.font.width(price) + 2, rowY + 14, 0xFFE6F5E7);
+                }
+                minecraft.font.draw(pose, price, priceX, rowY + 6, pill ? 0xFF1B5E20 : TEXT);
             }
             //? if <1.19.1 {
             unclip();
@@ -764,23 +862,32 @@ public final class TradePickerUi {
                 TradeEntry entry = rows.get(scroll + i);
                 int rowY = getY() + i * ROW_HEIGHT;
                 boolean selected = TradeSession.selected(entry.id);
+                int rowRight = getX() + width - 8;
                 if (selected) {
-                    fill(pose, getX(), rowY, getX() + width - 10, rowY + ROW_HEIGHT - 1, 0xFFB0B0B0);
+                    fill(pose, getX(), rowY, rowRight, rowY + ROW_HEIGHT, 0xFFC6E2C8);
+                    fill(pose, getX() + 1, rowY, getX() + 3, rowY + ROW_HEIGHT, 0xFF2E7D32);
+                    fill(pose, getX(), rowY + ROW_HEIGHT - 1, rowRight, rowY + ROW_HEIGHT, 0xFF8FB892);
+                } else {
+                    fill(pose, getX(), rowY, rowRight, rowY + ROW_HEIGHT - 1, ((scroll + i) % 2 == 0) ? 0xFFC0C0C0 : 0xFFB8B8B8);
+                    fill(pose, getX(), rowY + ROW_HEIGHT - 1, rowRight, rowY + ROW_HEIGHT, 0xFF9E9E9E);
                 }
                 fill(pose, getX() + 1, rowY + 4, getX() + 13, rowY + 16, 0xFF000000);
                 fill(pose, getX() + 2, rowY + 5, getX() + 12, rowY + 15, selected ? 0xFF55FF55 : 0xFF8B8B8B);
                 ItemStack icon = entry.icon;
                 minecraft.getItemRenderer().renderGuiItem(pose, icon, getX() + 16, rowY + 1);
                 minecraft.getItemRenderer().renderGuiItemDecorations(pose, minecraft.font, icon, getX() + 16, rowY + 1);
-                String price = selected && entry.paysEmeralds
-                        ? (TradeSession.anyPrice(entry.id) ? Component.translatable("text." + VillagerReroller.MOD_ID + ".any").getString() : "\u2264" + TradeSession.chosenMax(entry.id))
-                        : entry.priceLabel();
-                int priceWidth = minecraft.font.width(price);
+                String price = priceText(entry, selected);
+                boolean pill = selected && entry.paysEmeralds;
+                int priceWidth = minecraft.font.width(price) + (pill ? 6 : 0);
                 int priceX = TradeNameLayout.priceX(getX(), width, priceWidth);
                 int nameLeft = TradeNameLayout.nameLeft(getX());
                 int nameRight = TradeNameLayout.nameRight(priceX);
-                drawName(pose, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
-                minecraft.font.draw(pose, price, priceX, rowY + 6, TEXT);
+                drawName(pose, minecraft.font, entry.name, entry.curse ? CURSE : selected ? SELECTED_NAME : 0xFF303030, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
+                if (pill) {
+                    fill(pose, priceX - 2, rowY + 4, priceX + minecraft.font.width(price) + 3, rowY + 15, 0xFF2E7D32);
+                    fill(pose, priceX - 1, rowY + 5, priceX + minecraft.font.width(price) + 2, rowY + 14, 0xFFE6F5E7);
+                }
+                minecraft.font.draw(pose, price, priceX, rowY + 6, pill ? 0xFF1B5E20 : TEXT);
             }
             disableScissor();
             int travel = Math.max(1, height - 27);
@@ -832,8 +939,15 @@ public final class TradePickerUi {
                 TradeEntry entry = rows.get(scroll + i);
                 int rowY = getY() + i * ROW_HEIGHT;
                 boolean selected = TradeSession.selected(entry.id);
+                int rowRight = getX() + width - 8;
                 if (selected) {
-                    graphics.fill(getX(), rowY, getX() + width - 10, rowY + ROW_HEIGHT - 1, 0xFFB0B0B0);
+                    graphics.fill(getX(), rowY, rowRight, rowY + ROW_HEIGHT, 0xFFC6E2C8);
+                    graphics.fill(getX() + 1, rowY, getX() + 3, rowY + ROW_HEIGHT, 0xFF2E7D32);
+                    graphics.fill(getX(), rowY + ROW_HEIGHT - 1, rowRight, rowY + ROW_HEIGHT, 0xFF8FB892);
+                } else {
+                    int stripe = ((scroll + i) % 2 == 0) ? 0xFFC0C0C0 : 0xFFB8B8B8;
+                    graphics.fill(getX(), rowY, rowRight, rowY + ROW_HEIGHT - 1, stripe);
+                    graphics.fill(getX(), rowY + ROW_HEIGHT - 1, rowRight, rowY + ROW_HEIGHT, 0xFF9E9E9E);
                 }
                 Identifier checkbox = selected ? CHECKBOX_SELECTED : CHECKBOX;
                 //? if >=1.21.6 {
@@ -857,18 +971,27 @@ public final class TradePickerUi {
                 graphics.renderItem(icon, getX() + 16, rowY + 1);
                 graphics.renderItemDecorations(minecraft.font, icon, getX() + 16, rowY + 1);
                 //?}
-                String price = selected && entry.paysEmeralds
-                        ? (TradeSession.anyPrice(entry.id) ? Component.translatable("text." + VillagerReroller.MOD_ID + ".any").getString() : "\u2264" + TradeSession.chosenMax(entry.id))
-                        : entry.priceLabel();
-                int priceWidth = minecraft.font.width(price);
+                String price = priceText(entry, selected);
+                boolean pill = selected && entry.paysEmeralds;
+                int priceWidth = minecraft.font.width(price) + (pill ? 6 : 0);
                 int priceX = TradeNameLayout.priceX(getX(), width, priceWidth);
                 int nameLeft = TradeNameLayout.nameLeft(getX());
                 int nameRight = TradeNameLayout.nameRight(priceX);
-                drawName(graphics, minecraft.font, entry.name, entry.curse ? CURSE : TEXT, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
+                int nameColor = entry.curse ? CURSE : selected ? SELECTED_NAME : 0xFF303030;
+                drawName(graphics, minecraft.font, entry.name, nameColor, nameLeft, nameRight, rowY, rowY + ROW_HEIGHT);
+                if (minecraft.font.width(entry.name) > nameRight - nameLeft
+                        && mouseX >= nameLeft && mouseX < nameRight && mouseY >= rowY && mouseY < rowY + ROW_HEIGHT) {
+                    GuiDraw.of(graphics).tip(List.of(Component.literal(entry.name)), mouseX, mouseY);
+                }
+                if (pill) {
+                    graphics.fill(priceX - 2, rowY + 4, priceX + minecraft.font.width(price) + 3, rowY + 15, 0xFF2E7D32);
+                    graphics.fill(priceX - 1, rowY + 5, priceX + minecraft.font.width(price) + 2, rowY + 14, 0xFFE6F5E7);
+                }
+                int priceColor = pill ? 0xFF1B5E20 : TEXT;
                 //? if >=26.1 {
-                /*graphics.text(minecraft.font, price, priceX, rowY + 6, TEXT, false);
+                /*graphics.text(minecraft.font, price, priceX, rowY + 6, priceColor, false);
                 *///?} else {
-                graphics.drawString(minecraft.font, price, priceX, rowY + 6, TEXT, false);
+                graphics.drawString(minecraft.font, price, priceX, rowY + 6, priceColor, false);
                 //?}
             }
             graphics.disableScissor();

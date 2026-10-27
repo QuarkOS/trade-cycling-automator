@@ -76,6 +76,23 @@ public final class McBridge {
         return registerKey("key." + VillagerReroller.MOD_ID + ".config", 74);
     }
 
+    public static KeyMapping registerChecklist() {
+        return registerKey("key." + VillagerReroller.MOD_ID + ".checklist", 86);
+    }
+
+    public static void placeMerchant(MerchantScreen screen, int left, int top) {
+        screen.leftPos = left;
+        screen.topPos = top;
+    }
+
+    public static int merchantLeft(MerchantScreen screen) {
+        return screen.leftPos;
+    }
+
+    public static int merchantTop(MerchantScreen screen) {
+        return screen.topPos;
+    }
+
     private static KeyMapping registerKey(String name, int key) {
         KeyMapping mapping = new KeyMapping(
                 name,
@@ -98,15 +115,21 @@ public final class McBridge {
         /*return;
         *///?} else {
         //? if <1.21.9 {
-        /*ScreenKeyboardEvents.afterKeyPress(screen).register((current, key, scancode, modifiers) -> {
+        /*        ScreenKeyboardEvents.afterKeyPress(screen).register((current, key, scancode, modifiers) -> {
             if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(key, scancode)) {
                 JobSiteReroller.onToggleKey();
+            }
+            if (AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(key, scancode)) {
+                VillagerReroller.openChecklist(Minecraft.getInstance());
             }
         });
         *///?} else {
         ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {
             if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(event)) {
                 JobSiteReroller.onToggleKey();
+            }
+            if (AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(event)) {
+                VillagerReroller.openChecklist(Minecraft.getInstance());
             }
         });
         //?}

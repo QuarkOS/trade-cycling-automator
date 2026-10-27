@@ -4,6 +4,7 @@ import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
 import dev.quarkos.villagerreroller.odds.TradeOdds;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.trading.MerchantOffer;
@@ -77,6 +78,16 @@ public final class TradeSession {
     }
 
     public static void rebuild(Level level, Villager villager, MerchantMenu menu) {
+        try {
+            rebuildEntries(level, villager, menu);
+        } finally {
+            if (villager != null && menu != null) {
+                VillagerRosterClient.inspectOpenMerchant(Minecraft.getInstance(), villager, menu);
+            }
+        }
+    }
+
+    private static void rebuildEntries(Level level, Villager villager, MerchantMenu menu) {
         int villagerLevel = menu == null ? 1 : menu.getTraderLevel();
         String next = villager == null ? "" : McBridge.professionId(villager);
         if (known(profession) && !profession.equals(next)) {
@@ -146,6 +157,10 @@ public final class TradeSession {
         return chosenMax.containsKey(id);
     }
 
+    public static int selectionCount() {
+        return chosenMax.size();
+    }
+
     public static int chosenMax(String id) {
         return chosenMax.getOrDefault(id, 0);
     }
@@ -211,10 +226,6 @@ public final class TradeSession {
             builder.append(entry.name);
             if (entry.paysEmeralds && max != ANY_PRICE) {
                 builder.append(" \u2264").append(max);
-            }
-            if (builder.length() > 72) {
-                builder.append("\u2026");
-                break;
             }
         }
         return builder.toString();

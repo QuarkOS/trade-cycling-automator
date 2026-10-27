@@ -9,3 +9,6 @@ accessible field net/minecraft/world/item/trading/VillagerTrade gives Lnet/minec
 accessible field net/minecraft/world/item/trading/VillagerTrade givenItemModifier Ljava/util/Optional;
 accessible field net/minecraft/world/level/storage/loot/functions/EnchantRandomlyFunction options Ljava/util/Optional;
 accessible field net/minecraft/world/level/storage/loot/functions/SequenceFunction functions Lnet/minecraft/core/HolderSet;
+
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen leftPos I
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen topPos I

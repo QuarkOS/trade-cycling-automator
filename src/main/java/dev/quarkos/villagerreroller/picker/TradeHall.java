@@ -56,15 +56,17 @@ public final class TradeHall {
         private final String labelKey;
         private final String description;
         private final Map<String, Integer> selections;
+        private final String place;
         private Outcome outcome = Outcome.PENDING;
         private String detail = "";
         private int attempts;
 
-        private Slot(int villagerId, String labelKey, String description, Map<String, Integer> selections) {
+        private Slot(int villagerId, String labelKey, String description, Map<String, Integer> selections, String place) {
             this.villagerId = villagerId;
             this.labelKey = labelKey;
             this.description = description == null ? "" : description;
             this.selections = Map.copyOf(selections);
+            this.place = place == null ? "" : place;
         }
 
         public int villagerId() {
@@ -77,6 +79,10 @@ public final class TradeHall {
 
         public String description() {
             return description;
+        }
+
+        public String place() {
+            return place;
         }
 
         public Map<String, Integer> selections() {
@@ -147,11 +153,16 @@ public final class TradeHall {
             notice(client, "need_target");
             return false;
         }
+        BlockPos job = JobSiteFinder.find(client, villager);
+        if (job == null) {
+            job = villager.blockPosition();
+        }
         Slot slot = new Slot(
                 villager.getId(),
                 labelKey(villager),
                 TradeSession.describeSelection(),
-                TradeSession.copySelections());
+                TradeSession.copySelections(),
+                "(" + job.getX() + ", " + job.getY() + ", " + job.getZ() + ")");
         for (int i = 0; i < SLOTS.size(); i++) {
             if (SLOTS.get(i).villagerId == villager.getId()) {
                 SLOTS.set(i, slot);
@@ -567,7 +578,7 @@ public final class TradeHall {
         }
     }
 
-    private static boolean menuLocked(MerchantMenu menu) {
+    public static boolean menuLocked(MerchantMenu menu) {
         if (menu.getTraderXp() > 0 || menu.getTraderLevel() > 1) {
             return true;
         }

@@ -60,6 +60,15 @@ public final class TradeEntry {
         if (offer == null || offer.isOutOfStock()) {
             return false;
         }
+        return identifies(offer, chosenMax);
+    }
+
+    /** Same trade, including a sold-out offer, ignoring the player's price ceiling. */
+    public boolean identifies(MerchantOffer offer) {
+        return offer != null && identifies(offer, Integer.MAX_VALUE);
+    }
+
+    private boolean identifies(MerchantOffer offer, int chosenMax) {
         return matcher.test(offer, chosenMax);
     }
 

@@ -9,6 +9,7 @@ import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 //? if forge {
 /*import net.minecraft.world.entity.Entity;
@@ -26,6 +27,7 @@ import net.minecraft.world.InteractionResult;
 public final class VillagerReroller implements ClientModInitializer {
 //?}
     public static final String MOD_ID = "villager_reroller";
+    private static int checklistTick = Integer.MIN_VALUE;
 
     public static void bootstrap() {
         AutomatorConfig.get();
@@ -87,8 +89,39 @@ public final class VillagerReroller implements ClientModInitializer {
                 && !(McBridge.currentScreen(client) instanceof ForgeConfigScreen)) {
             McBridge.setScreen(client, new ForgeConfigScreen(McBridge.currentScreen(client)));
         }
+        if (AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.consumeClick()) {
+            openChecklist(client);
+        }
         dev.quarkos.villagerreroller.picker.JobSiteReroller.tick(client);
         dev.quarkos.villagerreroller.picker.TradeHall.tick(client);
+    }
+
+    /**
+     * Opens the checklist from the world, the trade screen, or the hall.
+     * Pressing it again returns to the previous screen. One press is handled once.
+     */
+    public static void openChecklist(Minecraft client) {
+        if (client == null) {
+            return;
+        }
+        int tick = client.player == null ? 0 : client.player.tickCount;
+        if (tick == checklistTick) {
+            return;
+        }
+        checklistTick = tick;
+        Screen screen = McBridge.currentScreen(client);
+        if (screen != null && screen.getFocused() instanceof EditBox) {
+            return;
+        }
+        if (screen instanceof dev.quarkos.villagerreroller.picker.MyVillagersScreen page) {
+            McBridge.setScreen(client, page.parent());
+            return;
+        }
+        if (screen == null
+                || screen instanceof MerchantScreen
+                || screen instanceof dev.quarkos.villagerreroller.picker.TradeHallScreen) {
+            McBridge.setScreen(client, new dev.quarkos.villagerreroller.picker.MyVillagersScreen(screen));
+        }
     }
 
     public static void onScreen(Minecraft client, Screen screen) {

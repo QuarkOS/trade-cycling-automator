@@ -12,3 +12,6 @@ accessible field net/minecraft/world/level/storage/loot/functions/SequenceFuncti
 
 accessible field net/minecraft/world/item/trading/TradeSet amount Lnet/minecraft/world/level/storage/loot/providers/number/NumberProvider;
 accessible method net/minecraft/world/item/trading/TradeSet allowDuplicates ()Z
+
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen leftPos I
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen topPos I
