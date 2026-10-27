@@ -16,14 +16,14 @@ modId = "forge"
 mandatory = true
 versionRange = "[${forge_dep},)"
 ordering = "NONE"
-side = "CLIENT"
+side = "BOTH"
 
 [[dependencies.villager_reroller]]
 modId = "minecraft"
 mandatory = true
 versionRange = "[${minecraft}]"
 ordering = "NONE"
-side = "CLIENT"
+side = "BOTH"
 
 [[dependencies.villager_reroller]]
 modId = "trade_cycling"

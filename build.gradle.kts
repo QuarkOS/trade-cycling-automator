@@ -84,6 +84,10 @@ loom {
         } else {
             rootProject.file("run/${sc.current.version}")
         }
+        val dedicatedDir = providers.gradleProperty("dedicatedDir").orNull
+        if (!dedicatedDir.isNullOrBlank() && name == "server") {
+            runDirectory = rootProject.file(dedicatedDir)
+        }
     }
 }
 
@@ -167,6 +171,18 @@ tasks {
         systemProperty("villager_reroller.loader", "fabric")
         if (providers.gradleProperty("harness").orNull == "true") {
             systemProperty("villager_reroller.harness", "true")
+        }
+        val serverHarness = providers.gradleProperty("serverHarness").orNull
+        if (!serverHarness.isNullOrBlank()) {
+            systemProperty("villager_reroller.serverHarness", serverHarness)
+        }
+        val serverAddress = providers.gradleProperty("serverAddress").orNull
+        if (!serverAddress.isNullOrBlank()) {
+            systemProperty("villager_reroller.serverAddress", serverAddress)
+        }
+        if (providers.gradleProperty("proofWorld").orNull == "true") {
+            systemProperty("villager_reroller.proofWorld", "true")
+            systemProperty("villager_reroller.serverSelfTest", "true")
         }
         // Integrated servers in this VM fall behind the client. Normal jars leave the property unset.
         systemProperty("villager_reroller.timeoutScale", "8")

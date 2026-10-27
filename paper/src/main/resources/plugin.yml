@@ -1,0 +1,11 @@
+name: VillagerReroller
+main: dev.quarkos.villagerreroller.paper.PaperRerollerPlugin
+version: 1.0.0
+api-version: '1.19'
+author: Emilio Schwaiger
+description: Optional server-side instant villager reroll for the Villager Reroller client mod.
+website: https://github.com/QuarkOS/trade-cycling-automator
+permissions:
+  villager_reroller.reroll:
+    description: Reroll a fresh villager without breaking the job site.
+    default: op

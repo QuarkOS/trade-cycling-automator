@@ -75,6 +75,26 @@ The settings screen has an enabled switch, a durability floor (default 10 uses l
 
 The toggle key is `K`. It starts the selected targets while the trade screen is open, and stops a reroll from anywhere. Change it in Controls, under Miscellaneous. Trade Cycling is offered only when the connected server advertises that mod's channel. Otherwise the toggle is greyed out and the cycle packet is not sent.
 
+## Dedicated server
+
+The same jar loads on a dedicated Fabric, Forge, or NeoForge server. Singleplayer keeps breaking and replacing the job site, because an integrated server never sends the channel. A dedicated server sends a hello on `villager_reroller:v1` only after the client has registered that channel, and the client sends a reroll request only after that hello. If the hello never arrives, Start uses the job block. Forge and NeoForge mark the channel optional, so a player without this mod is not disconnected.
+
+Server operators edit `config/villager_reroller-server.json`:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `true` | Turn the channel off and every client falls back to the job block |
+| `cost` | `free` | `free`, `emeralds`, or `xp` |
+| `costAmount` | `1` | Emeralds removed, or experience points |
+| `cooldownTicks` | `1` | Ticks between accepted rerolls. `0` still waits one tick |
+| `permission` | `villager_reroller.reroll` | Checked when a permissions mod is installed |
+| `requirePermission` | `false` | When true, the player needs the node or op level |
+| `opLevel` | `2` | Vanilla op level used when no permissions mod is installed |
+| `onlyFreshVillagers` | `true` | Reject a villager that has traded, has experience, or is past novice |
+| `maxDistance` | `8.0` | Blocks, same dimension |
+
+The server also checks that the player currently has that villager's trade screen open. A Paper plugin with the same fields in `plugins/VillagerReroller/config.yml` is built from `paper/`. It supports Paper 1.19 through 1.21.x. The 26.x line is the Fabric, Forge, and NeoForge jar only.
+
 ## Emerald price rule
 
 Librarian enchanted-book prices follow the 1.21.11 trade code, which matches the Minecraft Wiki:
