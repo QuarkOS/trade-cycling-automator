@@ -2,8 +2,10 @@ package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
+import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
+import dev.quarkos.villagerreroller.picker.ToolGuard;
 import dev.quarkos.villagerreroller.picker.TradeEntry;
 import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.picker.TradeSession;
@@ -30,6 +32,7 @@ import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.phys.AABB;
 
@@ -68,22 +71,23 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 })
                 .create()) {
             waitForChunks(world);
+            assertServerChannel(context);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 6;
             int y = feet.getY();
             int z = feet.getZ();
 
-            //? if >=26.2 {
-            /*world.getServer().runCommand("gamerule send_command_feedback false");
+            //? if >=1.21.11 {
+            world.getServer().runCommand("gamerule send_command_feedback false");
             world.getServer().runCommand("gamerule advance_time false");
             world.getServer().runCommand("gamerule spawn_mobs false");
             world.getServer().runCommand("gamerule immediate_respawn true");
-            *///?} else {
-            world.getServer().runCommand("gamerule sendCommandFeedback false");
+            //?} else {
+            /*world.getServer().runCommand("gamerule sendCommandFeedback false");
             world.getServer().runCommand("gamerule doDaylightCycle false");
             world.getServer().runCommand("gamerule doMobSpawning false");
             world.getServer().runCommand("gamerule doImmediateRespawn true");
-            //?}
+            *///?}
             world.getServer().runCommand("time set day");
             world.getServer().runCommand("fill " + (x - 2) + " " + (y - 1) + " " + (z - 2) + " " + (x + 3) + " " + (y - 1) + " " + (z + 2) + " minecraft:stone");
             world.getServer().runCommand("fill " + (x - 2) + " " + y + " " + (z - 2) + " " + (x + 3) + " " + (y + 3) + " " + (z + 2) + " minecraft:air");
@@ -100,6 +104,8 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + (x + 1.0) + " " + (y + 1) + " " + z);
             context.waitTicks(5);
             world.getServer().runCommand("gamemode survival @p");
+            world.getServer().runCommand("clear @p");
+            assertDurabilityGuard(context, world);
             world.getServer().runCommand("clear @p");
             world.getServer().runCommand("give @p minecraft:diamond_axe");
             world.getServer().runCommand("give @p minecraft:lectern 16");
@@ -129,7 +135,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(10);
             context.runOnClient(client -> RerollMethod.reset());
-            boolean cycling = context.computeOnClient(client -> TradeCyclingHook.installed());
+            boolean cycling = context.computeOnClient(client -> TradeCyclingHook.serverSupports());
             if (!cycling) {
                 saveShot(context, "merchant-button");
             }
@@ -154,6 +160,46 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("offers button did not leave the merchant screen open");
                 }
             });
+            context.runOnClient(client -> {
+                TradeSession.clearSelection();
+                TradeEntry sample = null;
+                for (TradeEntry entry : TradeSession.entries()) {
+                    if ("enchant:minecraft:mending:1".equals(entry.id)) {
+                        sample = entry;
+                        break;
+                    }
+                }
+                if (sample == null) {
+                    for (TradeEntry entry : TradeSession.entries()) {
+                        if (entry.id.startsWith("enchant:")) {
+                            sample = entry;
+                            break;
+                        }
+                    }
+                }
+                if (sample == null) {
+                    throw new AssertionError("no enchanted book to estimate");
+                }
+                TradeSession.toggle(sample);
+                TradePickerUi.reveal(sample.id);
+            });
+            context.waitTicks(5);
+            context.runOnClient(client -> {
+                String[] lines = TradePickerUi.oddsLines();
+                if (lines == null || lines[0] == null || !lines[0].contains("1 in")) {
+                    throw new AssertionError("odds line missing: " + java.util.Arrays.toString(lines));
+                }
+                try {
+                    Path dir = artifactsDir();
+                    Files.createDirectories(dir);
+                    String time = lines.length > 1 && lines[1] != null ? lines[1] : "";
+                    Files.writeString(dir.resolve("panel-odds.txt"), lines[0] + "\n" + time + "\n");
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+            saveShot(context, "panel-odds");
+            context.runOnClient(client -> TradeSession.clearSelection());
             context.waitFor(client -> scrollSpot(client) == ScrollSpot.MID, 20 * 40);
             if (!cycling) {
                 saveShot(context, "name-scroll-mid");
@@ -200,7 +246,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 // A villager teleport closes an open merchant screen. Only pull a villager
                 // who has walked off the lectern, and never while that screen is open.
                 boolean running = context.computeOnClient(client -> JobSiteReroller.isRunning());
-                boolean trading = context.computeOnClient(client -> client.screen instanceof MerchantScreen);
+                boolean trading = context.computeOnClient(client -> McBridge.currentScreen(client) instanceof MerchantScreen);
                 if (running && !trading && tick % 10 == 0) {
                     boolean pullBack = context.computeOnClient(client -> {
                         Villager villager = nearestLibrarian(client);
@@ -336,6 +382,69 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             }
         }
         return nearest;
+    }
+
+    /**
+     * The integrated server advertises the cycle channel only when Trade Cycling
+     * is actually loaded there. A client-only install must not look choosable.
+     */
+    private static void assertServerChannel(ClientGameTestContext context) {
+        boolean installed = context.computeOnClient(client -> TradeCyclingHook.installed());
+        if (installed) {
+            context.waitFor(client -> TradeCyclingHook.serverSupports(), 20 * 10);
+        }
+        context.runOnClient(client -> {
+            boolean loaded = TradeCyclingHook.installed();
+            boolean server = TradeCyclingHook.serverSupports();
+            if (loaded != server) {
+                throw new AssertionError("integrated server channel " + server + " but client mod loaded=" + loaded);
+            }
+            RerollMethod.reset();
+            if (!server && RerollMethod.canChoose()) {
+                throw new AssertionError("Trade Cycling was choosable without the server channel");
+            }
+            if (!server) {
+                RerollMethod.toggle();
+                if (RerollMethod.usesTradeCycling()) {
+                    throw new AssertionError("toggle selected Trade Cycling without the server channel");
+                }
+            }
+        });
+    }
+
+    /**
+     * A diamond axe with 6 uses left is under the floor of 10. The slower wooden
+     * axe wins, and the worn axe alone falls back to the bare hand.
+     */
+    private static void assertDurabilityGuard(ClientGameTestContext context, TestSingleplayerContext world) {
+        context.runOnClient(client -> {
+            AutomatorConfig config = AutomatorConfig.get();
+            config.setDurabilityFloor(10);
+            config.setAllowBareHand(true);
+        });
+        world.getServer().runCommand("clear @p");
+        world.getServer().runCommand("give @p minecraft:diamond_axe[damage=1555]");
+        world.getServer().runCommand("give @p minecraft:wooden_axe");
+        context.waitTicks(20);
+        context.runOnClient(client -> {
+            BlockState lectern = Blocks.LECTERN.defaultBlockState();
+            ToolGuard.Choice choice = JobSiteReroller.chooseTool(client.player, lectern);
+            ItemStack chosen = choice.decision() == ToolGuard.Decision.TOOL
+                    ? client.player.getInventory().getItem(choice.slot())
+                    : ItemStack.EMPTY;
+            if (choice.decision() != ToolGuard.Decision.TOOL || !chosen.is(Items.WOODEN_AXE)) {
+                throw new AssertionError("worn diamond axe should lose to the wooden axe, got " + choice.decision() + " " + chosen);
+            }
+        });
+        world.getServer().runCommand("clear @p");
+        world.getServer().runCommand("give @p minecraft:diamond_axe[damage=1555]");
+        context.waitTicks(20);
+        context.runOnClient(client -> {
+            ToolGuard.Choice choice = JobSiteReroller.chooseTool(client.player, Blocks.LECTERN.defaultBlockState());
+            if (choice.decision() != ToolGuard.Decision.HAND) {
+                throw new AssertionError("bare hand should be the fallback for a worn axe, got " + choice.decision());
+            }
+        });
     }
 
     private static Path artifactsDir() {

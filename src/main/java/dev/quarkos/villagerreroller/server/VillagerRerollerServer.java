@@ -1,5 +1,22 @@
-//? if forge {
-/*package dev.quarkos.villagerreroller.server;
+//? if neoforge {
+/*
+package dev.quarkos.villagerreroller.server;
+
+import dev.quarkos.villagerreroller.net.NeoForgeChannels;
+import net.neoforged.bus.api.IEventBus;
+
+public final class VillagerRerollerServer {
+    private VillagerRerollerServer() {
+    }
+
+    public static void bootstrap(IEventBus modBus) {
+        NeoForgeChannels.register(modBus);
+        DedicatedProof.hook();
+    }
+}
+*///?} elif forge {
+/*
+package dev.quarkos.villagerreroller.server;
 
 import dev.quarkos.villagerreroller.net.ForgeChannels;
 

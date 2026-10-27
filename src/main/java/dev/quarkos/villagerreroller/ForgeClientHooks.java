@@ -1,11 +1,12 @@
-//? if forge {
+//? if forge && !neoforge {
 /*
 package dev.quarkos.villagerreroller;
 
 import dev.quarkos.villagerreroller.client.AutomatorKeys;
-import dev.quarkos.villagerreroller.client.CycleAutomator;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.net.ForgeChannels;
+import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.TradeHallHud;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -44,12 +45,22 @@ public final class ForgeClientHooks {
         MinecraftForge.EVENT_BUS.addListener(this::onScreenInit);
         MinecraftForge.EVENT_BUS.addListener(this::onKey);
         MinecraftForge.EVENT_BUS.addListener(this::onEntity);
+        //? if <1.20 {
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.client.event.RenderGuiEvent.Post event) -> TradeHallHud.draw(event.getPoseStack()));
+        //?}
+        //? if >=1.20 && <1.20.6 {
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.client.event.RenderGuiEvent.Post event) -> TradeHallHud.draw(event.getGuiGraphics()));
+        //?}
+        //? if >=1.20.6 {
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.client.event.CustomizeGuiOverlayEvent.Chat event) -> TradeHallHud.draw(event.getGuiGraphics()));
+        //?}
         //?}
         //? if >=1.21.6 && <26.1 {
         RegisterKeyMappingsEvent.getBus(FMLJavaModLoadingContext.get().getModBusGroup()).addListener(this::registerKeys);
         TickEvent.ClientTickEvent.Post.BUS.addListener(event -> VillagerReroller.onClientTick(Minecraft.getInstance()));
         ScreenEvent.Init.Post.BUS.addListener(event -> VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
         ScreenEvent.KeyPressed.Pre.BUS.addListener(this::onKeyBus);
+        net.minecraftforge.client.event.CustomizeGuiOverlayEvent.Chat.BUS.addListener((java.util.function.Consumer<net.minecraftforge.client.event.CustomizeGuiOverlayEvent.Chat>) event -> TradeHallHud.draw(event.getGuiGraphics()));
         PlayerInteractEvent.EntityInteract.BUS.addListener(event -> {
             if (event.getLevel().isClientSide()) {
                 VillagerReroller.remember(event.getTarget());
@@ -61,6 +72,9 @@ public final class ForgeClientHooks {
         TickEvent.ClientTickEvent.Post.BUS.addListener(event -> VillagerReroller.onClientTick(Minecraft.getInstance()));
         ScreenEvent.Init.Post.BUS.addListener(event -> VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
         ScreenEvent.KeyPressed.Pre.BUS.addListener(this::onKeyBus);
+        net.minecraftforge.client.event.AddGuiOverlayLayersEvent.BUS.addListener(event -> event.getLayeredDraw().add(
+                net.minecraft.resources.Identifier.fromNamespaceAndPath(VillagerReroller.MOD_ID, "hall"),
+                (graphics, delta) -> TradeHallHud.draw(graphics)));
         PlayerInteractEvent.EntityInteractSpecific.BUS.addListener(event -> {
             if (event.getLevel().isClientSide()) {
                 VillagerReroller.remember(event.getTarget());
@@ -72,6 +86,9 @@ public final class ForgeClientHooks {
     private void registerKeys(RegisterKeyMappingsEvent event) {
         if (AutomatorKeys.TOGGLE != null) {
             event.register(AutomatorKeys.TOGGLE);
+        }
+        if (AutomatorKeys.CONFIG != null) {
+            event.register(AutomatorKeys.CONFIG);
         }
     }
 
@@ -92,7 +109,7 @@ public final class ForgeClientHooks {
             return;
         }
         if (AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode())) {
-            CycleAutomator.toggle();
+            JobSiteReroller.onToggleKey();
             event.setCanceled(true);
         }
     }
@@ -118,7 +135,7 @@ public final class ForgeClientHooks {
         if (!matches) {
             return false;
         }
-        CycleAutomator.toggle();
+        JobSiteReroller.onToggleKey();
         return true;
     }
     //?}

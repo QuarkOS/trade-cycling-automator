@@ -149,7 +149,7 @@ public final class ServerJoinHarness {
         try {
             Class<?> join = Class.forName("net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen");
             Screen next = (Screen) join.getConstructor(Screen.class).newInstance(new TitleScreen());
-            client.setScreen(next);
+            McBridge.setScreen(client, next);
             return true;
         } catch (ReflectiveOperationException ex) {
             return false;

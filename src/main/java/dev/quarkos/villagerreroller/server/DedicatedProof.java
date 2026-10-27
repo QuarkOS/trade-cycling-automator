@@ -145,8 +145,15 @@ public final class DedicatedProof {
         int x = spawn.getX() + 2;
         int z = spawn.getZ();
         level.getChunk(x >> 4, z >> 4);
-        int y = level.getMinY();
-        for (int scan = level.getMaxY() - 1; scan > level.getMinY(); scan--) {
+        //? if <1.21.3 {
+        /*int floor = level.getMinBuildHeight();
+        int top = level.getMaxBuildHeight() - 1;
+        *///?} else {
+        int floor = level.getMinY();
+        int top = level.getMaxY() - 1;
+        //?}
+        int y = floor;
+        for (int scan = top; scan > floor; scan--) {
             if (!level.getBlockState(new BlockPos(x, scan, z)).isAir()) {
                 y = scan + 1;
                 break;
@@ -198,14 +205,19 @@ public final class DedicatedProof {
         } catch (ReflectiveOperationException ignored) {
             // Forge exposes the server through a different hook.
         }
-        try {
-            Class<?> serverType = Class.forName("net.minecraftforge.server.ServerLifecycleHooks");
-            Object server = serverType.getMethod("getCurrentServer").invoke(null);
-            if (server instanceof MinecraftServer minecraft) {
-                return minecraft;
+        for (String name : new String[] {
+                "net.minecraftforge.server.ServerLifecycleHooks",
+                "net.neoforged.neoforge.server.ServerLifecycleHooks"
+        }) {
+            try {
+                Class<?> serverType = Class.forName(name);
+                Object server = serverType.getMethod("getCurrentServer").invoke(null);
+                if (server instanceof MinecraftServer minecraft) {
+                    return minecraft;
+                }
+            } catch (ReflectiveOperationException ignored) {
+                // The other loader's hook is absent on this process.
             }
-        } catch (ReflectiveOperationException ignored) {
-            return null;
         }
         return null;
     }
