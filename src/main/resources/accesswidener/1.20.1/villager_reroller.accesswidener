@@ -54,3 +54,6 @@ accessible field net/minecraft/world/entity/npc/VillagerTrades$TreasureMapForEme
 accessible class net/minecraft/world/entity/npc/VillagerTrades$SuspiciousStewForEmerald
 accessible field net/minecraft/world/entity/npc/VillagerTrades$SuspiciousStewForEmerald effect Lnet/minecraft/world/effect/MobEffect;
 accessible field net/minecraft/world/entity/npc/VillagerTrades$SuspiciousStewForEmerald duration I
+
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen leftPos I
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen topPos I

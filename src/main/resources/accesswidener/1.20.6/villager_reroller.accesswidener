@@ -56,3 +56,6 @@ accessible field net/minecraft/world/entity/npc/VillagerTrades$SuspiciousStewFor
 
 accessible class net/minecraft/world/entity/npc/VillagerTrades$TypeSpecificTrade
 accessible class net/minecraft/world/entity/npc/VillagerTrades$FailureItemListing
+
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen leftPos I
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen topPos I

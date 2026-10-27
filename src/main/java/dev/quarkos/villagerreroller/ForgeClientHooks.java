@@ -6,8 +6,11 @@ import dev.quarkos.villagerreroller.client.AutomatorKeys;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.net.ForgeChannels;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.MyVillagersScreen;
 import dev.quarkos.villagerreroller.picker.TradeHallHud;
+import dev.quarkos.villagerreroller.picker.TradeHallScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.ScreenEvent;
@@ -90,6 +93,9 @@ public final class ForgeClientHooks {
         if (AutomatorKeys.CONFIG != null) {
             event.register(AutomatorKeys.CONFIG);
         }
+        if (AutomatorKeys.CHECKLIST != null) {
+            event.register(AutomatorKeys.CHECKLIST);
+        }
     }
 
     //? if <1.21.6 {
@@ -105,11 +111,21 @@ public final class ForgeClientHooks {
     }
 
     private void onKey(ScreenEvent.KeyPressed.Pre event) {
-        if (!(event.getScreen() instanceof MerchantScreen) || AutomatorKeys.TOGGLE == null) {
+        if (event.getScreen().getFocused() instanceof EditBox) {
             return;
         }
-        if (AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode())) {
+        if (event.getScreen() instanceof MerchantScreen && AutomatorKeys.TOGGLE != null
+                && AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode())) {
             JobSiteReroller.onToggleKey();
+            event.setCanceled(true);
+            return;
+        }
+        if (AutomatorKeys.CHECKLIST != null
+                && AutomatorKeys.CHECKLIST.matches(event.getKeyCode(), event.getScanCode())
+                && (event.getScreen() instanceof MerchantScreen
+                || event.getScreen() instanceof TradeHallScreen
+                || event.getScreen() instanceof MyVillagersScreen)) {
+            VillagerReroller.openChecklist(Minecraft.getInstance());
             event.setCanceled(true);
         }
     }
@@ -123,20 +139,29 @@ public final class ForgeClientHooks {
 
     //? if >=1.21.6 {
     private boolean onKeyBus(ScreenEvent.KeyPressed.Pre event) {
-        if (!(event.getScreen() instanceof MerchantScreen) || AutomatorKeys.TOGGLE == null) {
+        if (event.getScreen().getFocused() instanceof EditBox) {
             return false;
         }
-        boolean matches;
+        boolean toggle;
+        boolean checklist;
         //? if >=1.21.9 {
-        matches = AutomatorKeys.TOGGLE.matches(event.getInfo());
+        toggle = AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.matches(event.getInfo());
+        checklist = AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(event.getInfo());
         //?} else {
-        matches = AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode());
+        toggle = AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode());
+        checklist = AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(event.getKeyCode(), event.getScanCode());
         //?}
-        if (!matches) {
-            return false;
+        if (toggle && event.getScreen() instanceof MerchantScreen) {
+            JobSiteReroller.onToggleKey();
+            return true;
         }
-        JobSiteReroller.onToggleKey();
-        return true;
+        if (checklist && (event.getScreen() instanceof MerchantScreen
+                || event.getScreen() instanceof TradeHallScreen
+                || event.getScreen() instanceof MyVillagersScreen)) {
+            VillagerReroller.openChecklist(Minecraft.getInstance());
+            return true;
+        }
+        return false;
     }
     //?}
 }

@@ -6,8 +6,11 @@ import dev.quarkos.villagerreroller.client.AutomatorKeys;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.net.NeoForgeChannels;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.MyVillagersScreen;
 import dev.quarkos.villagerreroller.picker.TradeHallHud;
+import dev.quarkos.villagerreroller.picker.TradeHallScreen;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModLoadingContext;
@@ -47,6 +50,9 @@ public final class NeoForgeClientHooks {
             if (AutomatorKeys.CONFIG != null) {
                 event.register(AutomatorKeys.CONFIG);
             }
+            if (AutomatorKeys.CHECKLIST != null) {
+                event.register(AutomatorKeys.CHECKLIST);
+            }
         });
         //? if <1.20.6 {
         NeoForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent event) -> {
@@ -63,20 +69,29 @@ public final class NeoForgeClientHooks {
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiEvent.Post event) ->
                 TradeHallHud.draw(event.getGuiGraphics()));
         NeoForge.EVENT_BUS.addListener((ScreenEvent.KeyPressed.Pre event) -> {
-            if (!(event.getScreen() instanceof MerchantScreen) || AutomatorKeys.TOGGLE == null) {
+            if (event.getScreen().getFocused() instanceof EditBox) {
                 return;
             }
-            boolean matches;
+            boolean toggle;
+            boolean checklist;
             //? if >=1.21.9 {
-            matches = AutomatorKeys.TOGGLE.matches(event.getKeyEvent());
+            toggle = AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.matches(event.getKeyEvent());
+            checklist = AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(event.getKeyEvent());
             //?} else {
-            matches = AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode());
+            toggle = AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.matches(event.getKeyCode(), event.getScanCode());
+            checklist = AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(event.getKeyCode(), event.getScanCode());
             //?}
-            if (!matches) {
+            if (toggle && event.getScreen() instanceof MerchantScreen) {
+                JobSiteReroller.onToggleKey();
+                event.setCanceled(true);
                 return;
             }
-            JobSiteReroller.onToggleKey();
-            event.setCanceled(true);
+            if (checklist && (event.getScreen() instanceof MerchantScreen
+                    || event.getScreen() instanceof TradeHallScreen
+                    || event.getScreen() instanceof MyVillagersScreen)) {
+                VillagerReroller.openChecklist(Minecraft.getInstance());
+                event.setCanceled(true);
+            }
         });
         NeoForge.EVENT_BUS.addListener((PlayerInteractEvent.EntityInteract event) -> {
             if (event.getLevel().isClientSide()) {

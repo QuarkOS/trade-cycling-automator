@@ -94,6 +94,14 @@ public final class ProfessionPicks {
         return readable;
     }
 
+    public Map<String, Map<String, Integer>> snapshot() {
+        Map<String, Map<String, Integer>> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, Map<String, Integer>> entry : professions.entrySet()) {
+            copy.put(entry.getKey(), Map.copyOf(entry.getValue()));
+        }
+        return copy;
+    }
+
     public Map<String, Integer> picks(String profession) {
         Map<String, Integer> found = professions.get(profession);
         if (found == null || found.isEmpty()) {
