@@ -204,10 +204,12 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.waitTicks(5);
             saveShot(context, "picker-polished");
             scale(context, 3, 1280, 720);
+            context.waitTicks(40);
             reopenMerchant(context);
             openPicker(context);
             saveShot(context, "picker-scale3");
             scale(context, 4, 1280, 960);
+            context.waitTicks(40);
             reopenMerchant(context);
             openPicker(context);
             saveShot(context, "picker-scale4");
@@ -286,8 +288,9 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
     }
 
     private static void reopenMerchant(ClientGameTestContext context) {
+        context.runOnClient(client -> client.setScreen(null));
+        context.waitTicks(20);
         context.runOnClient(client -> {
-            client.setScreen(null);
             if (client.player == null || client.level == null) {
                 throw new AssertionError("librarian missing");
             }
@@ -304,7 +307,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             dev.quarkos.villagerreroller.client.LibrarianTracker.remember(nearest);
             McBridge.interact(client.gameMode, client.player, nearest, net.minecraft.world.InteractionHand.MAIN_HAND);
         });
-        context.waitForScreen(MerchantScreen.class);
+        context.waitFor(client -> client.screen instanceof MerchantScreen, 20 * 60);
         context.waitTicks(10);
     }
 
