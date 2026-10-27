@@ -418,8 +418,11 @@ public final class JobSiteReroller {
             enter(Phase.PICKUP);
             return;
         }
-        // 1.21.11 predicts the break locally. A lagged server can put the block back
-        // after this phase has already stopped mining, and the villager never changes.
+        // The client predicts the break and then stops mining. Until the server agrees,
+        // the lectern is still there and the villager will not change job.
+        if (phaseTicks >= 20 && phaseTicks % 20 == 0) {
+            dropUnconfirmedPredictions(Minecraft.getInstance());
+        }
         if (jobBlockPresent()) {
             if (breakCorrections >= CORRECTION_LIMIT) {
                 stop(StopReason.TIMEOUT);
@@ -490,6 +493,9 @@ public final class JobSiteReroller {
             enter(Phase.OPEN);
             return;
         }
+        if (phaseTicks >= 20 && phaseTicks % 20 == 0) {
+            dropUnconfirmedPredictions(Minecraft.getInstance());
+        }
         if (!jobBlockPresent()) {
             if (placeCorrections >= CORRECTION_LIMIT) {
                 stop(StopReason.TIMEOUT);
@@ -503,6 +509,49 @@ public final class JobSiteReroller {
         if (phaseTicks > timeout(EMPLOYED_TIMEOUT)) {
             stop(StopReason.TIMEOUT);
         }
+    }
+
+    /**
+     * Puts the client block back to the state the server has acknowledged.
+     * The getter is package-private, so this stays on reflection and compiles on every loader.
+     */
+    private static void dropUnconfirmedPredictions(Minecraft client) {
+        if (client.level == null) {
+            return;
+        }
+        try {
+            java.lang.reflect.Method getter = predictionGetter(client.level.getClass());
+            if (getter == null) {
+                return;
+            }
+            getter.setAccessible(true);
+            Object handler = getter.invoke(client.level);
+            if (handler == null) {
+                return;
+            }
+            for (java.lang.reflect.Method method : handler.getClass().getMethods()) {
+                if (method.getParameterCount() == 2 && (method.getName().equals("endPredictionsUpTo") || method.getName().equals("method_41938"))) {
+                    method.invoke(handler, Integer.MAX_VALUE, client.level);
+                    return;
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // A build without the prediction handler just keeps the normal wait.
+        }
+    }
+
+    private static java.lang.reflect.Method predictionGetter(Class<?> type) {
+        while (type != null) {
+            for (String name : new String[] {"getBlockStatePredictionHandler", "method_41925"}) {
+                try {
+                    return type.getDeclaredMethod(name);
+                } catch (NoSuchMethodException ignored) {
+                    // Named in dev and on Forge, intermediary in a Fabric production jar.
+                }
+            }
+            type = type.getSuperclass();
+        }
+        return null;
     }
 
     /** The job site this attempt is supposed to break or replace, as the client currently sees it. */
