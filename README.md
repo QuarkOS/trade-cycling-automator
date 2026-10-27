@@ -100,6 +100,10 @@ Enchanted gear adds `5 + random.nextInt(15)` to its base cost, so the added emer
 
 `src/main/java/dev/quarkos/villagerreroller/price/VanillaBookPrices.java` is that math with no Minecraft bootstrap. `librarian_book_prices.json` is the same capped table, and the trade list uses it.
 
+## Odds
+
+Before Start, the panel shows the chance that one reroll contains any selected trade at its chosen max price, written as "About 1 in X attempts", plus a time estimate for the method currently selected. Job-site breaking uses a nominal 7 seconds per attempt. Trade Cycling uses the configured gap between retries, 8 ticks normally and 20 with the server-friendly preset. The math follows vanilla offer generation for that profession and level, including the 64 emerald cap, and it treats Trade Rebalance as off unless the world has the experiment on. Assumptions and the version differences are in [docs/odds.md](docs/odds.md).
+
 ## Build
 
 ```bash

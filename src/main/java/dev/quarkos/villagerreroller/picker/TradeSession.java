@@ -3,6 +3,7 @@ package dev.quarkos.villagerreroller.picker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
+import dev.quarkos.villagerreroller.odds.TradeOdds;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.trading.MerchantOffer;
@@ -15,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -30,7 +32,10 @@ public final class TradeSession {
     private static String filter = "";
     private static String profession = "";
     private static List<TradeEntry> entries = List.of();
+    private static TradeOdds.Pool pool = TradeOdds.Pool.EMPTY;
     private static final Map<String, Integer> chosenMax = new LinkedHashMap<>();
+    private static TradeOdds.Estimate cachedEstimate;
+    private static int cachedEstimateKey;
 
     private TradeSession() {
     }
@@ -78,6 +83,8 @@ public final class TradeSession {
             persist();
         }
         entries = TradeCatalog.list(level, villager, villagerLevel);
+        pool = TradePools.from(entries, TradeCatalog.offerCounts(level, villager, villagerLevel), TradeCatalog.allowDuplicates(level, villager, villagerLevel));
+        cachedEstimate = null;
         profession = known(next) ? next : "";
         chosenMax.clear();
         if (!known(profession) || entries.isEmpty()) {
@@ -94,6 +101,31 @@ public final class TradeSession {
                 chosenMax.put(entry.id, fitted);
             }
         }
+    }
+
+    public static TradeOdds.Pool pool() {
+        return pool;
+    }
+
+    /**
+     * Odds for the current selection at the chosen ceilings. Empty when nothing is selected.
+     */
+    public static TradeOdds.Estimate estimate(int ticksPerAttempt) {
+        if (chosenMax.isEmpty() || pool.listings().isEmpty()) {
+            return null;
+        }
+        int key = Objects.hash(chosenMax, pool, ticksPerAttempt);
+        if (cachedEstimate != null && cachedEstimateKey == key) {
+            return cachedEstimate;
+        }
+        cachedEstimateKey = key;
+        cachedEstimate = TradeOdds.estimate(pool, Map.copyOf(chosenMax), ticksPerAttempt);
+        return cachedEstimate;
+    }
+
+    public static void clearSelection() {
+        chosenMax.clear();
+        cachedEstimate = null;
     }
 
     public static List<TradeEntry> visible() {

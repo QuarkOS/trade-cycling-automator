@@ -75,6 +75,8 @@ public final class ClientHarness121 {
     private static boolean jobSiteShot;
     private static boolean cyclingPanelShot;
     private static boolean rerollShot;
+    private static boolean oddsShot;
+    private static boolean oddsCleared;
     private static boolean unsupportedShot;
     private static int lecternsBefore;
     private static String stopReason = "running";
@@ -501,6 +503,38 @@ public final class ClientHarness121 {
     }
 
     private static void waitScroll(Minecraft client) {
+        if (!oddsShot) {
+            if (ticks == 1) {
+                if (!selectOddsSample()) {
+                    fail("no enchanted book to estimate");
+                }
+                return;
+            }
+            if (ticks < 3) {
+                return;
+            }
+            String[] lines = TradePickerUi.oddsLines();
+            if (lines == null || lines[0] == null || !lines[0].contains("1 in")) {
+                fail("odds line missing: " + java.util.Arrays.toString(lines));
+                return;
+            }
+            try {
+                Path dir = artifacts();
+                Files.createDirectories(dir);
+                String time = lines.length > 1 && lines[1] != null ? lines[1] : "";
+                Files.writeString(dir.resolve("panel-odds.txt"), lines[0] + "\n" + time + "\n");
+            } catch (IOException e) {
+                fail("odds text was not written: " + e.getMessage());
+                return;
+            }
+            shot(client, "panel-odds");
+            oddsShot = true;
+            return;
+        }
+        if (!oddsCleared) {
+            TradeSession.clearSelection();
+            oddsCleared = true;
+        }
         if (TradeCyclingHook.installed() && !TradeCyclingHook.serverSupports() && !unsupportedShot) {
             if (!TradePickerUi.hasMethodButton()) {
                 fail("Trade Cycling toggle was not shown");
@@ -563,6 +597,25 @@ public final class ClientHarness121 {
         selectAndRemember(client);
         state = State.START_REROLL;
         ticks = 0;
+    }
+
+    private static boolean selectOddsSample() {
+        TradeSession.clearSelection();
+        for (TradeEntry entry : TradeSession.entries()) {
+            if ("enchant:minecraft:mending:1".equals(entry.id)) {
+                TradeSession.toggle(entry);
+                TradePickerUi.reveal(entry.id);
+                return true;
+            }
+        }
+        for (TradeEntry entry : TradeSession.entries()) {
+            if (entry.id.startsWith("enchant:")) {
+                TradeSession.toggle(entry);
+                TradePickerUi.reveal(entry.id);
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void selectAndRemember(Minecraft client) {

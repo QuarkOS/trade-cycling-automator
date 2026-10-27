@@ -9,3 +9,6 @@ accessible field net/minecraft/world/item/trading/VillagerTrade gives Lnet/minec
 accessible field net/minecraft/world/item/trading/VillagerTrade givenItemModifiers Ljava/util/List;
 accessible field net/minecraft/world/level/storage/loot/functions/EnchantRandomlyFunction options Ljava/util/Optional;
 accessible field net/minecraft/world/level/storage/loot/functions/SequenceFunction functions Ljava/util/List;
+
+accessible field net/minecraft/world/item/trading/TradeSet amount Lnet/minecraft/world/level/storage/loot/providers/number/NumberProvider;
+accessible method net/minecraft/world/item/trading/TradeSet allowDuplicates ()Z

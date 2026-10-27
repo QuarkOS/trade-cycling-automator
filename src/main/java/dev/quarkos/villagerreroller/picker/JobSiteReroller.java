@@ -1,5 +1,6 @@
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.odds.AttemptPace;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
@@ -55,6 +56,13 @@ public final class JobSiteReroller {
         } catch (NumberFormatException ignored) {
             return scaled;
         }
+    }
+    /**
+     * Ticks the odds line uses for one attempt of the method selected on the panel.
+     * Trade Cycling uses the configured pace, including the server-friendly preset.
+     */
+    public static int ticksPerAttempt() {
+        return RerollMethod.usesTradeCycling() ? ticksBetweenCycles() : AttemptPace.JOB_SITE_TICKS;
     }
 
     private static int ticksBetweenCycles() {
