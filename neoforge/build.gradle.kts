@@ -332,8 +332,9 @@ if (neoForgeNode == null) {
         add("testImplementation", "org.junit.jupiter:junit-jupiter")
         add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher")
         add("testImplementation", "com.google.code.gson:gson:2.10.1")
-        add("testImplementation", "org.slf4j:slf4j-api:2.0.16")
-        add("testRuntimeOnly", "org.slf4j:slf4j-simple:2.0.16")
+        // 1.20.2's Minecraft libraries pin slf4j-api strictly to 2.0.7.
+        add("testImplementation", "org.slf4j:slf4j-api:2.0.7")
+        add("testRuntimeOnly", "org.slf4j:slf4j-simple:2.0.7")
     }
 
     tasks.withType<Test>().configureEach {
