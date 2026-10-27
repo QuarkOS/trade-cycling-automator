@@ -13,7 +13,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.villager.Villager;
@@ -33,9 +32,6 @@ import org.slf4j.LoggerFactory;
 /**
  * Breaks and replaces a villager's job site with ordinary client mining and
  * placement. One break packet is started, then continued once per tick.
- * A predicted break is not treated as done while the villager still has the
- * profession: the client keeps sending the vanilla start and stop until the
- * server actually releases the job.
  */
 public final class JobSiteReroller {
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
@@ -46,12 +42,6 @@ public final class JobSiteReroller {
     private static final int EMPLOYED_TIMEOUT = 300;
     private static final int OPEN_TIMEOUT = 120;
     private static final int OFFER_TIMEOUT = 40;
-    /**
-     * Ticks between a fresh start and the matching stop when the client has
-     * already predicted the block away. Long enough for the server's 0.7
-     * progress check once those packets land on different ticks.
-     */
-    private static final int CONFIRM_BREAK_TICKS = 12;
 
     /** Headless clients stretch these when the integrated server falls behind. Unset for normal play. */
     private static int timeout(int ticks) {
@@ -89,7 +79,6 @@ public final class JobSiteReroller {
     private static int phaseTicks;
     private static int attempts;
     private static boolean breakStarted;
-    private static int confirmTicks;
     private static boolean closingForReroll;
     private static BlockPos jobPos;
     private static Block jobBlock;
@@ -219,7 +208,6 @@ public final class JobSiteReroller {
         phase = Phase.IDLE;
         closingForReroll = false;
         breakStarted = false;
-        confirmTicks = 0;
         packetRun = false;
         pendingSignature = "";
         stopReason = reason;
@@ -372,14 +360,7 @@ public final class JobSiteReroller {
     private static void prepareBreak(Minecraft client, LocalPlayer player) {
         BlockState state = client.level.getBlockState(jobPos);
         if (state.isAir() || state.getBlock() != jobBlock) {
-            Villager villager = villager(client);
-            if (villager != null && McBridge.unemployed(villager)) {
-                enter(Phase.WAIT_UNEMPLOYED);
-            } else {
-                breakStarted = false;
-                confirmTicks = 0;
-                enter(Phase.BREAK);
-            }
+            enter(Phase.WAIT_UNEMPLOYED);
             return;
         }
         if (!hasBlock(player, jobBlock)) {
@@ -393,17 +374,13 @@ public final class JobSiteReroller {
         lookAt(player, aim);
         if (phaseTicks >= 1 && (facing(player, aim) || phaseTicks >= lookBudget())) {
             breakStarted = false;
-            confirmTicks = 0;
             enter(Phase.BREAK);
         }
     }
 
     private static void breaking(Minecraft client, LocalPlayer player) {
         BlockState state = client.level.getBlockState(jobPos);
-        boolean predicted = state.isAir() || state.getBlock() != jobBlock;
-        Villager villager = villager(client);
-        if (predicted && villager != null && McBridge.unemployed(villager)) {
-            confirmTicks = 0;
+        if (state.isAir() || state.getBlock() != jobBlock) {
             enter(Phase.WAIT_UNEMPLOYED);
             return;
         }
@@ -412,19 +389,11 @@ public final class JobSiteReroller {
             stop(StopReason.TIMEOUT);
             return;
         }
-        if (!predicted && !heldIsSafe(player, state) && !prepareTool(client, player, state, true)) {
+        if (!heldIsSafe(player, state) && !prepareTool(client, player, state, true)) {
             client.gameMode.stopDestroyBlock();
             return;
         }
         lookAt(player, Vec3.atCenterOf(jobPos));
-        if (predicted) {
-            // The client world already shows the break. The villager still has the
-            // profession, so the server has not released the job site. Keep the
-            // vanilla start/stop pair going until it does.
-            confirmPredictedBreak(client, player);
-            return;
-        }
-        confirmTicks = 0;
         if (!breakStarted) {
             breakStarted = true;
             client.gameMode.startDestroyBlock(jobPos, Direction.UP);
@@ -433,31 +402,6 @@ public final class JobSiteReroller {
         }
         client.gameMode.continueDestroyBlock(jobPos, Direction.UP);
         McBridge.swing(player, InteractionHand.MAIN_HAND);
-    }
-
-    /**
-     * Sends another start, then a stop after {@link #CONFIRM_BREAK_TICKS}.
-     * {@code continueDestroyBlock} on air only clears the local destroy flag, so
-     * the stop is sent on the same channel the game mode uses.
-     */
-    private static void confirmPredictedBreak(Minecraft client, LocalPlayer player) {
-        confirmTicks++;
-        if (confirmTicks == 1) {
-            breakStarted = true;
-            client.gameMode.startDestroyBlock(jobPos, Direction.UP);
-            McBridge.swing(player, InteractionHand.MAIN_HAND);
-            return;
-        }
-        client.gameMode.continueDestroyBlock(jobPos, Direction.UP);
-        if (confirmTicks < CONFIRM_BREAK_TICKS) {
-            return;
-        }
-        if (player.connection != null) {
-            player.connection.send(new ServerboundPlayerActionPacket(
-                    ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, jobPos, Direction.UP));
-        }
-        confirmTicks = 0;
-        breakStarted = false;
     }
 
     private static void waitUnemployed(Villager villager) {
@@ -653,7 +597,6 @@ public final class JobSiteReroller {
         phase = Phase.IDLE;
         closingForReroll = false;
         breakStarted = false;
-        confirmTicks = 0;
         stopReason = StopReason.FOUND;
         status = message(StopReason.FOUND);
         TradeSession.setPanelOpen(true);
