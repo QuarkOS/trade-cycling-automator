@@ -66,7 +66,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("gamerule doMobSpawning false");
             *///?}
             context.runOnClient(client -> {
-                String worldKey = VillagerRosterClient.currentWorldKey(client);
+                TradeHall.clear();
                 VillagerRoster empty = new VillagerRoster();
                 VillagerRosterClient.replace(empty);
                 saveWanted(Map.of(
@@ -80,12 +80,11 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(10);
             saveShot(context, "checklist-empty");
-            context.runOnClient(client -> {
-                client.options.guiScale().set(4);
-                client.resizeDisplay();
-            });
+            scale(context, 4, 1280, 960);
+            context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
             saveShot(context, "checklist-empty-scale4");
+            scale(context, 3, 1280, 720);
 
             context.runOnClient(client -> {
                 String worldKey = VillagerRosterClient.currentWorldKey(client);
@@ -125,12 +124,17 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             });
             context.waitTicks(5);
             saveShot(context, "checklist-populated-scale2");
+            scale(context, 4, 1280, 960);
+            context.setScreen(() -> new MyVillagersScreen(null));
+            context.waitTicks(5);
             context.runOnClient(client -> {
-                client.options.guiScale().set(4);
-                client.resizeDisplay();
+                if (client.screen instanceof MyVillagersScreen screen) {
+                    screen.scrollTo(1);
+                }
             });
             context.waitTicks(5);
             saveShot(context, "checklist-populated-scale4");
+            scale(context, 3, 1280, 720);
 
             context.runOnClient(client -> {
                 TradeHall.clear();
@@ -140,12 +144,11 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.setScreen(() -> new TradeHallScreen());
             context.waitTicks(8);
             saveShot(context, "hall-empty");
-            context.runOnClient(client -> {
-                client.options.guiScale().set(4);
-                client.resizeDisplay();
-            });
+            scale(context, 4, 1280, 960);
+            context.setScreen(() -> new TradeHallScreen());
             context.waitTicks(5);
             saveShot(context, "hall-empty-scale4");
+            scale(context, 2, 1280, 720);
 
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 4;
@@ -185,8 +188,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             });
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(10);
-            context.clickScreenButton("text.villager_reroller.button.offers");
-            context.waitTicks(5);
+            openPicker(context);
             context.runOnClient(client -> {
                 int toggled = 0;
                 for (TradeEntry entry : TradeSession.entries()) {
@@ -201,17 +203,13 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             });
             context.waitTicks(5);
             saveShot(context, "picker-polished");
-            context.runOnClient(client -> {
-                client.options.guiScale().set(3);
-                client.resizeDisplay();
-            });
-            context.waitTicks(5);
+            scale(context, 3, 1280, 720);
+            reopenMerchant(context);
+            openPicker(context);
             saveShot(context, "picker-scale3");
-            context.runOnClient(client -> {
-                client.options.guiScale().set(4);
-                client.resizeDisplay();
-            });
-            context.waitTicks(5);
+            scale(context, 4, 1280, 960);
+            reopenMerchant(context);
+            openPicker(context);
             saveShot(context, "picker-scale4");
             context.runOnClient(client -> client.setScreen(null));
         } finally {
@@ -264,6 +262,50 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static void scale(ClientGameTestContext context, int gui, int width, int height) {
+        context.getInput().resizeWindow(width, height);
+        context.runOnClient(client -> {
+            client.options.guiScale().set(gui);
+            client.resizeDisplay();
+        });
+        context.waitTicks(5);
+    }
+
+    /**
+     * A merchant opened while the panel was already open gets it for free, and
+     * the offers button would close it. Click only when it is shut.
+     */
+    private static void openPicker(ClientGameTestContext context) {
+        if (Boolean.TRUE.equals(context.computeOnClient(client -> TradeSession.panelOpen()))) {
+            return;
+        }
+        context.clickScreenButton("text.villager_reroller.button.offers");
+        context.waitTicks(5);
+    }
+
+    private static void reopenMerchant(ClientGameTestContext context) {
+        context.runOnClient(client -> {
+            client.setScreen(null);
+            if (client.player == null || client.level == null) {
+                throw new AssertionError("librarian missing");
+            }
+            Villager nearest = null;
+            AABB box = client.player.getBoundingBox().inflate(16.0);
+            for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
+                if (villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)) {
+                    nearest = villager;
+                }
+            }
+            if (nearest == null) {
+                throw new AssertionError("librarian missing");
+            }
+            dev.quarkos.villagerreroller.client.LibrarianTracker.remember(nearest);
+            McBridge.interact(client.gameMode, client.player, nearest, net.minecraft.world.InteractionHand.MAIN_HAND);
+        });
+        context.waitForScreen(MerchantScreen.class);
+        context.waitTicks(10);
     }
 
     private static void saveShot(ClientGameTestContext context, String name) {

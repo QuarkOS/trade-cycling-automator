@@ -235,7 +235,7 @@ public final class MyVillagersScreen extends Screen {
             hover = List.of(Component.literal(titleTip));
         }
 
-        layoutTabs(canvas, frame, hallLeft, mouseX, mouseY);
+        layoutTabs(canvas, frame, frame.left + frame.w - 6, mouseX, mouseY);
         int bodyTop = frame.top + 36;
         int bodyBottom = frame.top + frame.h - 26;
         boolean banner = neededCount == 0 && !checks.isEmpty();
@@ -320,14 +320,34 @@ public final class MyVillagersScreen extends Screen {
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.librarian", counts[2]).getString(),
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.other", counts[3]).getString()
         };
-        int remaining = Math.max(0, limit - x - 4);
-        int gaps = 6;
-        int each = values.length == 0 ? 0 : Math.max(24, (remaining - gaps) / values.length);
+        int remaining = Math.max(0, limit - x);
+        int[] preferred = {44, 62, 74, 53};
+        int[] widths = new int[values.length];
+        int natural = 0;
+        int gap = 2;
         for (int i = 0; i < values.length; i++) {
-            if (x + 24 > limit) {
+            int text = canvas.font().width(labels[i]) + 8;
+            int want = i < preferred.length ? Math.max(preferred[i], text) : text;
+            widths[i] = want;
+            natural += want;
+        }
+        int gaps = gap * Math.max(0, values.length - 1);
+        if (natural + gaps > remaining && natural > 0) {
+            int budget = Math.max(values.length * 16, remaining - gaps);
+            int used = 0;
+            for (int i = 0; i < widths.length; i++) {
+                widths[i] = Math.max(16, widths[i] * budget / natural);
+                used += widths[i];
+            }
+            if (used > budget) {
+                widths[widths.length - 1] = Math.max(16, widths[widths.length - 1] - (used - budget));
+            }
+        }
+        for (int i = 0; i < values.length; i++) {
+            if (x + 16 > limit) {
                 break;
             }
-            int width = Math.min(each, limit - x - 2);
+            int width = Math.min(widths[i], limit - x);
             boolean selected = filter == values[i];
             canvas.fill(x, y, x + width, y + 14, selected ? 0xFF2E7D32 : 0xFF000000);
             canvas.fill(x + 1, y + 1, x + width - 1, y + 13, selected ? 0xFFD7ECD9 : 0xFFC6C6C6);
