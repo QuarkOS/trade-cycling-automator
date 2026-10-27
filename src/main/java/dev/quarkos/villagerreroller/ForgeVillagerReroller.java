@@ -1,4 +1,4 @@
-//? if forge {
+//? if forge && !neoforge {
 /*
 package dev.quarkos.villagerreroller;
 

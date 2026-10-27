@@ -27,13 +27,17 @@ final class TradeCyclingActions {
         if (minecraft.getConnection() == null) {
             return false;
         }
-        //? if forge {
+        //? if neoforge {
+        /*return NeoForgeTradeCycling.serverHasChannel(minecraft.getConnection());
+        *///?}
+        //? if forge && !neoforge {
         /*var channel = ForgeTradeCyclingMod.CYCLE_TRADES_CHANNEL;
         if (channel == null) {
             return false;
         }
         return channel.isRemotePresent(minecraft.getConnection().getConnection());
-        *///?} else {
+        *///?}
+        //? if fabric {
         return ClientPlayNetworking.canSend(channel());
         //?}
     }

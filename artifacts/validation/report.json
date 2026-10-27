@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T17:33:12Z",
+  "generatedAt": "2026-10-26T18:03:59Z",
   "partial": false,
   "results": [
     {
@@ -535,6 +535,44 @@
       "failureReason": ""
     },
     {
+      "version": "1.20.2",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.20.2/build/libs/villager_reroller-neoforge-1.0.0+1.20.2.jar",
+      "sha256": "f0d45ea4a9ea2cbe4bcae5a2c282b8c51ffde6613f214a3b6110e6f8bec300e0",
+      "durationSeconds": 87.4,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.2/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 44.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.2/neoforge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
       "version": "1.20.4",
       "loader": "fabric",
       "jar": "versions/1.20.4/build/libs/villager_reroller-fabric-1.1.0+1.20.4.jar",
@@ -598,6 +636,44 @@
         "durationSeconds": 42.8,
         "attempts": 1,
         "screenshot": "artifacts/validation/screenshots/1.20.4/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.20.4",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.20.4/build/libs/villager_reroller-neoforge-1.0.0+1.20.4.jar",
+      "sha256": "6f84a16565878252a8dbec8e5ca939971e1fbf7062cf7a9b2a39d51bf6a476f5",
+      "durationSeconds": 85.2,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.4/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.4/neoforge/with-tc.png",
         "checks": {
           "modLoaded": true,
           "configScreen": true,
@@ -687,6 +763,44 @@
       "failureReason": ""
     },
     {
+      "version": "1.20.6",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.20.6/build/libs/villager_reroller-neoforge-1.0.0+1.20.6.jar",
+      "sha256": "7141b574ae071bd1b87dd9002c6c054323f26a515a683eaa597f7d9e07552f4a",
+      "durationSeconds": 81.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.6/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.20.6/neoforge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
       "version": "1.21",
       "loader": "fabric",
       "jar": "versions/1.21/build/libs/villager_reroller-fabric-1.1.0+1.21.jar",
@@ -750,6 +864,44 @@
         "durationSeconds": 43.0,
         "attempts": 1,
         "screenshot": "artifacts/validation/screenshots/1.21/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21/build/libs/villager_reroller-neoforge-1.0.0+1.21.jar",
+      "sha256": "d50ee2d73c24453aabc33477c896f296d8402cf989c4c489f903d99672e31e63",
+      "durationSeconds": 83.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21/neoforge/with-tc.png",
         "checks": {
           "modLoaded": true,
           "configScreen": true,
@@ -839,6 +991,44 @@
       "failureReason": ""
     },
     {
+      "version": "1.21.1",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21.1/build/libs/villager_reroller-neoforge-1.0.0+1.21.1.jar",
+      "sha256": "e740f69f003fdb06c8df5a4f69c99f42273950e39b80be7896b349fa361fcb0c",
+      "durationSeconds": 83.4,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.1/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.1/neoforge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
       "version": "1.21.3",
       "loader": "fabric",
       "jar": "versions/1.21.3/build/libs/villager_reroller-fabric-1.1.0+1.21.3.jar",
@@ -902,6 +1092,44 @@
         "durationSeconds": 42.8,
         "attempts": 1,
         "screenshot": "artifacts/validation/screenshots/1.21.3/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.3",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21.3/build/libs/villager_reroller-neoforge-1.0.0+1.21.3.jar",
+      "sha256": "f5e380fb372d44f00ced3cce22e73ed933a18472014b7c0e04dacb7cfe6932f0",
+      "durationSeconds": 93.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 50.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.3/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.3/neoforge/with-tc.png",
         "checks": {
           "modLoaded": true,
           "configScreen": true,
@@ -991,6 +1219,44 @@
       "failureReason": ""
     },
     {
+      "version": "1.21.4",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21.4/build/libs/villager_reroller-neoforge-1.0.0+1.21.4.jar",
+      "sha256": "ddacf1c52cce87314ee59152b8d128165ada74373127410194fa6456dd6e69e2",
+      "durationSeconds": 75.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 48.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.4/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 26.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.4/neoforge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
       "version": "1.21.5",
       "loader": "fabric",
       "jar": "versions/1.21.5/build/libs/villager_reroller-fabric-1.1.0+1.21.5.jar",
@@ -1054,6 +1320,44 @@
         "durationSeconds": 42.9,
         "attempts": 1,
         "screenshot": "artifacts/validation/screenshots/1.21.5/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.5",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21.5/build/libs/villager_reroller-neoforge-1.0.0+1.21.5.jar",
+      "sha256": "12216c797cb55cf89621ce224550003c859b81d1a30228d841e24c78e942db76",
+      "durationSeconds": 67.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.5/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 24.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.5/neoforge/with-tc.png",
         "checks": {
           "modLoaded": true,
           "configScreen": true,
@@ -1143,6 +1447,44 @@
       "failureReason": ""
     },
     {
+      "version": "1.21.6",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21.6/build/libs/villager_reroller-neoforge-1.0.0+1.21.6.jar",
+      "sha256": "df727a695ac474d51b64f5cf1cbcc8102a96096c7f61faec5017f2f900c1f423",
+      "durationSeconds": 89.4,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 46.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.6/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.6/neoforge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
       "version": "1.21.9",
       "loader": "fabric",
       "jar": "versions/1.21.9/build/libs/villager_reroller-fabric-1.1.0+1.21.9.jar",
@@ -1206,6 +1548,44 @@
         "durationSeconds": 43.2,
         "attempts": 1,
         "screenshot": "artifacts/validation/screenshots/1.21.9/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "1.21.9",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21.9/build/libs/villager_reroller-neoforge-1.0.0+1.21.9.jar",
+      "sha256": "b87b9aac48aa3b823dbeefdf067c0a26579e2663b309952167054c2719f75b6f",
+      "durationSeconds": 75.5,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 34.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.9/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.8,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.9/neoforge/with-tc.png",
         "checks": {
           "modLoaded": true,
           "configScreen": true,
@@ -1295,6 +1675,44 @@
       "failureReason": ""
     },
     {
+      "version": "1.21.11",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/1.21.11/build/libs/villager_reroller-neoforge-1.0.0+1.21.11.jar",
+      "sha256": "a026e6618b50c8e0df0ddbe9fc94e8fe32f1d20561fee039e2f0b4440a54a445",
+      "durationSeconds": 81.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 56.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.11/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 24.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/1.21.11/neoforge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
       "version": "26.1.2",
       "loader": "fabric",
       "jar": "versions/26.1.2/build/libs/villager_reroller-fabric-1.1.0+26.1.2.jar",
@@ -1358,6 +1776,44 @@
         "durationSeconds": 42.7,
         "attempts": 1,
         "screenshot": "artifacts/validation/screenshots/26.1.2/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.1.2",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/26.1.2/build/libs/villager_reroller-neoforge-1.0.0+26.1.2.jar",
+      "sha256": "0af699e3b3ada3f4f4aa27defd5a08aaa8363c2b477daa662a9755199649d613",
+      "durationSeconds": 65.1,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 24.5,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.1.2/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 40.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.1.2/neoforge/with-tc.png",
         "checks": {
           "modLoaded": true,
           "configScreen": true,
@@ -1447,6 +1903,44 @@
       "failureReason": ""
     },
     {
+      "version": "26.2",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/26.2/build/libs/villager_reroller-neoforge-1.0.0+26.2.jar",
+      "sha256": "f621082a99988e6b09b197a9f5ab3ad827709c3915da54db4c122c91b554c206",
+      "durationSeconds": 67.3,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.6,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.2/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 24.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.2/neoforge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
       "version": "26.3",
       "loader": "fabric",
       "jar": "versions/26.3/build/libs/villager_reroller-fabric-1.1.0+26.3.jar",
@@ -1510,6 +2004,44 @@
         "durationSeconds": 30.8,
         "attempts": 1,
         "screenshot": "artifacts/validation/screenshots/26.3/forge/with-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "failureReason": ""
+    },
+    {
+      "version": "26.3",
+      "loader": "neoforge",
+      "jar": "neoforge/versions/26.3/build/libs/villager_reroller-neoforge-1.0.0+26.3.jar",
+      "sha256": "0f52e48aab8ed7875e6db0f736cb25dff51d455f005be3a69c6f81050e61ef4d",
+      "durationSeconds": 67.4,
+      "withoutTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 42.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.3/neoforge/without-tc.png",
+        "checks": {
+          "modLoaded": true,
+          "configScreen": true,
+          "tradePanel": true,
+          "rerollMatched": true
+        },
+        "failureReason": null,
+        "exitCode": 0,
+        "logExcerpt": null
+      },
+      "withTradeCycling": {
+        "status": "pass",
+        "durationSeconds": 24.7,
+        "attempts": 1,
+        "screenshot": "artifacts/validation/screenshots/26.3/neoforge/with-tc.png",
         "checks": {
           "modLoaded": true,
           "configScreen": true,

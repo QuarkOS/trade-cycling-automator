@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Launch built Villager Reroller jars in production Minecraft and record the result.
 
-The Gradle dev clients run exploded classes. This tool copies the remapped jar
-into a real Fabric or Forge mods folder, starts that Minecraft version under
-Xvfb, and reads the in-jar harness result.
+The Gradle dev clients run exploded classes. This tool copies the release jar
+into a real Fabric, Forge, or NeoForge mods folder, starts that Minecraft
+version under Xvfb, and reads the in-jar harness result.
 """
 
 from __future__ import annotations
@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate Villager Reroller release jars in production Minecraft.")
     parser.add_argument("--version", action="append", default=[], help="Minecraft version. Repeat or separate with commas.")
-    parser.add_argument("--loader", action="append", default=[], help="fabric, forge, or both. Repeat or separate with commas.")
+    parser.add_argument("--loader", action="append", default=[], help="fabric, forge, neoforge, or a comma-separated mix.")
     parser.add_argument("--jobs", type=int, default=0, help="Parallel clients. 0 picks from CPU and memory, capped at 2.")
     parser.add_argument("--retries", type=int, default=1, help="Extra attempts after a lag timeout.")
     parser.add_argument("--timeout-minutes", type=float, default=40, help="Wall clock for one attempt.")
@@ -158,7 +158,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     args.versions = split_flags(args.version)
     args.loaders = split_flags(args.loader)
-    bad = [loader for loader in args.loaders if loader not in ("fabric", "forge")]
+    bad = [loader for loader in args.loaders if loader not in ("fabric", "forge", "neoforge")]
     if bad:
         parser.error("unknown loader: " + ", ".join(bad))
     return args
@@ -191,6 +191,16 @@ def load_matrix(root: Path) -> dict:
             "coordinate": match.group(2),
             "tradeCycling": match.group(6),
         }
+    neo_text = (root / "neoforge" / "build.gradle.kts").read_text()
+    neo_nodes = {}
+    for match in re.finditer(
+        r'"([^"]+)"\s*->\s*NeoForgeNode\(\s*"([^"]+)"\s*,\s*(\d+)\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"',
+        neo_text,
+    ):
+        neo_nodes[match.group(1)] = {
+            "neoVersion": match.group(2),
+            "tradeCycling": match.group(5),
+        }
     entries = []
     for version in versions:
         table = props[version]["deps"]
@@ -207,6 +217,14 @@ def load_matrix(root: Path) -> dict:
         }
         entries.append({**shared, "loader": "fabric"})
         entries.append({**shared, "loader": "forge"})
+        neo = neo_nodes.get(version)
+        if neo is not None:
+            entries.append({
+                **shared,
+                "loader": "neoforge",
+                "neoVersion": neo["neoVersion"],
+                "neoTradeCycling": neo["tradeCycling"],
+            })
     return {"versions": versions, "vcs": vcs, "entries": entries}
 
 
@@ -228,9 +246,9 @@ def select_matrix(matrix: dict, versions: list[str], loaders: list[str]) -> list
 def gradle_assemble(selected: list[dict], vcs: str) -> None:
     java_home = str(find_java(25).parent.parent)
     tasks = []
-    all_versions = {entry["version"] for entry in load_matrix(ROOT)["entries"]}
+    matrix_entries = load_matrix(ROOT)["entries"]
     selected_keys = {(entry["version"], entry["loader"]) for entry in selected}
-    full = selected_keys == {(version, loader) for version in all_versions for loader in ("fabric", "forge")}
+    full = selected_keys == {(entry["version"], entry["loader"]) for entry in matrix_entries}
     if full:
         tasks = ["assemble"]
     else:
@@ -239,8 +257,10 @@ def gradle_assemble(selected: list[dict], vcs: str) -> None:
                 tasks.append(":assemble")
             elif loader == "fabric":
                 tasks.append(f":{version}:assemble")
-            else:
+            elif loader == "forge":
                 tasks.append(f":forge:{version}:assemble")
+            else:
+                tasks.append(f":neoforge:{version}:assemble")
     env = os.environ.copy()
     env["JAVA_HOME"] = java_home
     env["PATH"] = str(Path(java_home) / "bin") + os.pathsep + env.get("PATH", "")
@@ -327,9 +347,10 @@ def ensure_shim() -> Path:
 def ensure_launcher_lib() -> None:
     try:
         import minecraft_launcher_lib.install  # noqa: F401
+        from minecraft_launcher_lib.mod_loader._neoforge import Neoforge  # noqa: F401
     except ImportError:
         subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--user", "minecraft-launcher-lib>=6.1,<8"],
+            [sys.executable, "-m", "pip", "install", "--user", "minecraft-launcher-lib>=8"],
             check=True,
         )
     import minecraft_launcher_lib.install as install_mod
@@ -340,6 +361,8 @@ def ensure_launcher_lib() -> None:
 def install_runtimes(cache: Path, selected: list[dict]) -> None:
     import minecraft_launcher_lib.fabric as fabric
     import minecraft_launcher_lib.forge as forge
+    from minecraft_launcher_lib.install import install_minecraft_version
+    from minecraft_launcher_lib.mod_loader._neoforge import Neoforge
 
     minecraft_dir = cache / "minecraft"
     minecraft_dir.mkdir(parents=True, exist_ok=True)
@@ -367,6 +390,13 @@ def install_runtimes(cache: Path, selected: list[dict]) -> None:
         try:
             if spec["loader"] == "fabric":
                 fabric.install_fabric(spec["version"], minecraft_dir, spec["fabricLoader"], callback=callback, java=java)
+            elif spec["loader"] == "neoforge":
+                # launcher-lib 8's ModLoader.install rejects 26.x and betas because it
+                # rewrites NeoForge versions as 1.<major>.<minor>. The installer jar
+                # already knows its Minecraft version, so call it directly.
+                install_minecraft_version(spec["version"], minecraft_dir, callback=callback)
+                Neoforge().install(spec["version"], str(minecraft_dir), callback, java, spec["neoVersion"])
+                install_minecraft_version(version_id, minecraft_dir, callback=callback)
             else:
                 forge.install_forge_version(spec["forgeCoordinate"], minecraft_dir, callback=callback, java=java)
         except Exception as error:  # noqa: BLE001 - keep going so the table records the installer failure
@@ -374,7 +404,7 @@ def install_runtimes(cache: Path, selected: list[dict]) -> None:
             print(f"install failed {version_id}: {error}", flush=True)
             continue
         if not marker.is_file():
-            found = list((minecraft_dir / "versions").glob(f"{spec['version']}*{spec['loader']}*"))
+            found = runtime_dirs(minecraft_dir, spec)
             if not found:
                 spec["installError"] = f"installer did not create {marker}"
                 print(spec["installError"], flush=True)
@@ -382,9 +412,25 @@ def install_runtimes(cache: Path, selected: list[dict]) -> None:
             print(f"runtime installed as {found[0].name}", flush=True)
 
 
+def runtime_dirs(minecraft_dir: Path, spec: dict) -> list[Path]:
+    versions_dir = minecraft_dir / "versions"
+    patterns = [f"{spec['version']}*{spec['loader']}*"]
+    if spec["loader"] == "neoforge":
+        patterns.append(f"neoforge-{spec['neoVersion']}")
+        patterns.append(f"*{spec['neoVersion']}*")
+    found = []
+    for pattern in patterns:
+        for path in versions_dir.glob(pattern):
+            if path.is_dir() and path not in found:
+                found.append(path)
+    return found
+
+
 def installed_version_id(spec: dict) -> str:
     if spec["loader"] == "fabric":
         return f"fabric-loader-{spec['fabricLoader']}-{spec['version']}"
+    if spec["loader"] == "neoforge":
+        return f"neoforge-{spec['neoVersion']}"
     vanilla, forge_part = spec["forgeCoordinate"].split("-", 1)
     return f"{vanilla}-forge-{forge_part}"
 
@@ -428,6 +474,9 @@ def dependency_coords(spec: dict, with_trade_cycling: bool) -> list[tuple[str, s
         coords.append(("net.fabricmc.fabric-api", "fabric-api", spec["fabricApi"]))
         if with_trade_cycling:
             coords.append(("maven.modrinth", "trade-cycling", spec["fabricTradeCycling"]))
+    elif spec["loader"] == "neoforge":
+        if with_trade_cycling:
+            coords.append(("maven.modrinth", "trade-cycling", spec["neoTradeCycling"]))
     elif with_trade_cycling:
         coords.append(("maven.modrinth", "trade-cycling", spec["forgeTradeCycling"]))
     return coords
@@ -693,7 +742,7 @@ def launch_command(minecraft_dir: Path, spec: dict, game_dir: Path, shots: Path,
 
     version_id = installed_version_id(spec)
     if not (minecraft_dir / "versions" / version_id / f"{version_id}.json").is_file():
-        matches = list((minecraft_dir / "versions").glob(f"{spec['version']}*{spec['loader']}*"))
+        matches = runtime_dirs(minecraft_dir, spec)
         if not matches:
             raise RuntimeError(f"no installed runtime for {spec['version']} {spec['loader']}")
         version_id = matches[0].name
@@ -969,9 +1018,21 @@ def fmt_duration(seconds: float) -> str:
 def self_test() -> None:
     matrix = load_matrix(ROOT)
     assert len(matrix["versions"]) == 20, matrix["versions"]
-    assert len(matrix["entries"]) == 40
+    assert len(matrix["entries"]) == 54
     assert matrix["entries"][0]["loader"] == "fabric"
     assert matrix["entries"][1]["loader"] == "forge"
+    neo_entries = [entry for entry in matrix["entries"] if entry["loader"] == "neoforge"]
+    assert len(neo_entries) == 14
+    neo_versions = {entry["version"] for entry in neo_entries}
+    assert "1.19" not in neo_versions and "1.19.4" not in neo_versions and "1.20.1" not in neo_versions
+    assert {"1.20.2", "1.21.1", "1.21.6", "1.21.9", "26.3"} <= neo_versions
+    neo_by_version = {entry["version"]: entry for entry in neo_entries}
+    assert neo_by_version["1.21.1"]["neoVersion"] == "21.1.265"
+    assert neo_by_version["1.21.6"]["neoVersion"] == "21.6.20-beta"
+    assert neo_by_version["26.3"]["neoTradeCycling"] == "neoforge-1.0.23+26.3"
+    assert installed_version_id(neo_by_version["1.20.2"]) == "neoforge-20.2.93"
+    assert dependency_coords(neo_by_version["1.21.1"], False) == []
+    assert dependency_coords(neo_by_version["1.21.1"], True) == [("maven.modrinth", "trade-cycling", "neoforge-1.21.1-1.0.23")]
     assert matrix["entries"][0]["fabricLoader"]
     assert matrix["entries"][1]["forgeCoordinate"].startswith(matrix["versions"][0])
     filtered = select_matrix(matrix, ["1.21.1"], ["fabric"])
