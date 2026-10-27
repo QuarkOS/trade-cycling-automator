@@ -158,6 +158,10 @@ public final class JobSiteReroller {
     }
 
     public static void onToggleKey() {
+        if (TradeHall.isActive()) {
+            TradeHall.requestStop();
+            return;
+        }
         if (isRunning()) {
             stop(StopReason.STOPPED);
         } else {

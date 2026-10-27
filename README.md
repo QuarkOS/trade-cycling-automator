@@ -14,6 +14,7 @@ This project does not include Trade Cycling. If [Trade Cycling](https://modrinth
 4. Select one or more rows. A buy defaults to the minimum emerald price. Click the price to raise it, or set it to Any. Shift is not required: left click raises, right click lowers. The choices and ceilings are saved for that profession in `config/villager_reroller-picks.json` and come back when you open the panel again, including after a restart or after you trade with a different profession.
 5. Press Start. By default the mod closes the screen, mines the job site with a real tool, waits until the villager is unemployed, places the block, and opens the new offers. It repeats until a target matches, then leaves the trade screen open, plays an experience-orb chime, and still sends the chat line and toast. Names that do not fit the row scroll back and forth, the same way vanilla buttons do, and the price stays in its column. If Trade Cycling is installed, a toggle on the panel switches the reroll to that mod's cycle packet and leaves the job block alone.
 6. Stop, Esc, or the toggle key (default `K`) cancels. Esc while the screen is closed also cancels, and the pause menu is closed so the player stays in the world.
+7. Queue adds the open villager to a trading-hall list. Hall opens that list. Start hall rerolls each villager in place: it looks at the job site and does not walk. Locked villagers and job sites out of reach are skipped.
 
 It refuses to start when:
 

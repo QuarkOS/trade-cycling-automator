@@ -25,8 +25,16 @@ stonecutter parameters {
             replace("net.fabricmc.fabric.api.client.keybinding.v1", "net.fabricmc.fabric.api.client.keymapping.v1")
             replace("KeyBindingHelper", "KeyMappingHelper")
             replace("registerKeyBinding", "registerKeyMapping")
-            replace("GuiGraphics", "GuiGraphicsExtractor")
             replace("renderWidget", "extractWidgetRenderState")
+        }
+        // The type was renamed. A plain substring swap also rewrites getGuiGraphics().
+        regex(current.parsed >= "26.1") {
+            replace(
+                "(?<![A-Za-z0-9_])GuiGraphics\\b",
+                "GuiGraphicsExtractor",
+                "(?<![A-Za-z0-9_])GuiGraphicsExtractor\\b",
+                "GuiGraphics",
+            )
         }
         if (branch.id == "neoforge") {
             string(true) {

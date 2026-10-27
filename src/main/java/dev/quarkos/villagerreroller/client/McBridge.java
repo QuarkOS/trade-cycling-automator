@@ -205,6 +205,18 @@ public final class McBridge {
         //?}
     }
 
+    public static int villagerXp(Villager villager) {
+        return villager.getVillagerXp();
+    }
+
+    public static int villagerLevel(Villager villager) {
+        //? if <1.21.5 {
+        /*return villager.getVillagerData().getLevel();
+        *///?} else {
+        return villager.getVillagerData().level();
+        //?}
+    }
+
     public static String professionId(Villager villager) {
         //? if <1.19.3 {
         /*Identifier id = Registry.VILLAGER_PROFESSION.getKey(villager.getVillagerData().getProfession());

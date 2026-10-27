@@ -47,14 +47,15 @@ public final class TradePickerUi {
     private static final int MERCHANT_WIDTH = 276;
     private static final int MERCHANT_HEIGHT = 166;
     private static final int PANEL_WIDTH = 168;
-    private static final int PANEL_HEIGHT = 200;
+    private static final int PANEL_HEIGHT = 220;
     private static final int LIST_TOP = 42;
     private static final int LIST_HEIGHT = 80;
     private static final int LIST_WIDTH = PANEL_WIDTH - 12;
     private static final int STATUS_TOP = 126;
     private static final int ODDS_SECOND = 136;
     private static final int METHOD_TOP = 152;
-    private static final int START_TOP = 176;
+    private static final int QUEUE_TOP = 174;
+    private static final int START_TOP = 196;
     private static final int ROW_HEIGHT = 20;
     private static final int TEXT = 0xFF404040;
     private static final int CURSE = 0xFFAA0000;
@@ -75,6 +76,8 @@ public final class TradePickerUi {
     private static final List<AbstractWidget> panelWidgets = new ArrayList<>();
     private static OfferList list;
     private static Button methodButton;
+    private static Button queueButton;
+    private static Button hallButton;
 
     private TradePickerUi() {
     }
@@ -83,6 +86,8 @@ public final class TradePickerUi {
         panelWidgets.clear();
         list = null;
         methodButton = null;
+        queueButton = null;
+        hallButton = null;
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
@@ -112,7 +117,7 @@ public final class TradePickerUi {
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".button.offers")
         ));
         //?}
-        if (TradeSession.panelOpen() || JobSiteReroller.isRunning()) {
+        if (TradeSession.panelOpen() || JobSiteReroller.isRunning() || TradeHall.isActive()) {
             TradeSession.setPanelOpen(true);
             open(client, screen);
         }
@@ -165,26 +170,33 @@ public final class TradePickerUi {
         buttons.add(search);
         panelWidgets.add(search);
 
+        int half = (PANEL_WIDTH - 18) / 2;
         //? if <1.19.3 {
-        /*Button action = new Button(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20, actionLabel(), button -> {
-            if (JobSiteReroller.isRunning()) {
-                JobSiteReroller.stop(JobSiteReroller.StopReason.STOPPED);
-            } else {
-                JobSiteReroller.start(client);
+        /*queueButton = new Button(panelX + 6, panelY + QUEUE_TOP, half, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".button.queue"), pressed -> TradeHall.queueCurrent(client));
+        hallButton = new Button(panelX + 12 + half, panelY + QUEUE_TOP, half, 20, Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall", TradeHall.size()), pressed -> {
+            if (!TradeHall.isActive()) {
+                dev.quarkos.villagerreroller.client.McBridge.setScreen(client, new TradeHallScreen());
             }
-            button.setMessage(actionLabel());
         });
+        Button action = new Button(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20, actionLabel(), button -> onAction(client));
         *///?}
         //? if >=1.19.3 {
-        Button action = Button.builder(actionLabel(), button -> {
-            if (JobSiteReroller.isRunning()) {
-                JobSiteReroller.stop(JobSiteReroller.StopReason.STOPPED);
-            } else {
-                JobSiteReroller.start(client);
+        queueButton = Button.builder(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.queue"), pressed -> TradeHall.queueCurrent(client))
+                .bounds(panelX + 6, panelY + QUEUE_TOP, half, 20)
+                .build();
+        hallButton = Button.builder(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall", TradeHall.size()), pressed -> {
+            if (!TradeHall.isActive()) {
+                dev.quarkos.villagerreroller.client.McBridge.setScreen(client, new TradeHallScreen());
             }
-            button.setMessage(actionLabel());
-        }).bounds(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20).build();
+        }).bounds(panelX + 12 + half, panelY + QUEUE_TOP, half, 20).build();
+        Button action = Button.builder(actionLabel(), button -> onAction(client))
+                .bounds(panelX + 6, panelY + START_TOP, PANEL_WIDTH - 12, 20)
+                .build();
         //?}
+        buttons.add(queueButton);
+        panelWidgets.add(queueButton);
+        buttons.add(hallButton);
+        panelWidgets.add(hallButton);
         buttons.add(action);
         panelWidgets.add(action);
 
@@ -192,7 +204,7 @@ public final class TradePickerUi {
             int buttonWidth = Math.max(72, client.font.width(Component.translatable("text." + VillagerReroller.MOD_ID + ".method.trade_cycling").getString()) + 8);
             //? if <1.19.3 {
             /*methodButton = new Button(panelX + PANEL_WIDTH - 6 - buttonWidth, panelY + METHOD_TOP, buttonWidth, 20, RerollMethod.label(), pressed -> {
-                if (JobSiteReroller.isRunning()) {
+                if (JobSiteReroller.isRunning() || TradeHall.isActive()) {
                     return;
                 }
                 RerollMethod.toggle();
@@ -201,7 +213,7 @@ public final class TradePickerUi {
             *///?}
             //? if >=1.19.3 {
             methodButton = Button.builder(RerollMethod.label(), pressed -> {
-                if (JobSiteReroller.isRunning()) {
+                if (JobSiteReroller.isRunning() || TradeHall.isActive()) {
                     return;
                 }
                 RerollMethod.toggle();
@@ -225,6 +237,8 @@ public final class TradePickerUi {
         panelWidgets.clear();
         list = null;
         methodButton = null;
+        queueButton = null;
+        hallButton = null;
     }
 
     /**
@@ -234,6 +248,30 @@ public final class TradePickerUi {
     public static int nameBudget(int priceWidth) {
         return TradeNameLayout.availableWidth(LIST_WIDTH, priceWidth);
     }
+
+    private static void onAction(Minecraft client) {
+        if (TradeHall.isActive()) {
+            TradeHall.requestStop();
+            return;
+        }
+        if (JobSiteReroller.isRunning()) {
+            JobSiteReroller.stop(JobSiteReroller.StopReason.STOPPED);
+            return;
+        }
+        JobSiteReroller.start(client);
+    }
+
+    private static void refreshQueueButtons() {
+        if (queueButton != null) {
+            queueButton.active = !JobSiteReroller.isRunning() && !TradeHall.isActive();
+            queueButton.setMessage(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.queue"));
+        }
+        if (hallButton != null) {
+            hallButton.active = !TradeHall.isActive();
+            hallButton.setMessage(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall", TradeHall.size()));
+        }
+    }
+
 
     /**
      * Scrolls the open list so {@code id} is on screen. Used by the client proof
@@ -260,7 +298,7 @@ public final class TradePickerUi {
     }
 
     public static String[] oddsLines() {
-        if (JobSiteReroller.isRunning()) {
+        if (JobSiteReroller.isRunning() || TradeHall.isActive()) {
             return null;
         }
         dev.quarkos.villagerreroller.odds.TradeOdds.Estimate estimate = TradeSession.estimate(JobSiteReroller.ticksPerAttempt());
@@ -280,7 +318,7 @@ public final class TradePickerUi {
         if (methodButton == null) {
             return;
         }
-        methodButton.active = RerollMethod.canChoose() && !JobSiteReroller.isRunning();
+        methodButton.active = RerollMethod.canChoose() && !JobSiteReroller.isRunning() && !TradeHall.isActive();
         methodButton.setMessage(RerollMethod.label());
     }
 
@@ -375,8 +413,20 @@ public final class TradePickerUi {
     //?}
 
     private static Component actionLabel() {
-        String key = JobSiteReroller.isRunning() ? "button.stop" : "button.start";
+        String key = JobSiteReroller.isRunning() || TradeHall.isActive() ? "button.stop" : "button.start";
         return Component.translatable("text." + VillagerReroller.MOD_ID + "." + key);
+    }
+
+    private static Component statusLine() {
+        if (!TradeHall.isActive()) {
+            return JobSiteReroller.status();
+        }
+        Component hall = TradeHall.hudTitle();
+        Component reroll = JobSiteReroller.status();
+        if (reroll == null || reroll.getString().isEmpty()) {
+            return hall;
+        }
+        return hall.copy().append(" · ").append(reroll);
     }
 
     private static final class PanelBackground extends AbstractWidget {
@@ -434,7 +484,7 @@ public final class TradePickerUi {
                     minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[1], width - 12), left() + 6, top() + ODDS_SECOND, TEXT);
                 }
             } else {
-                Component status = JobSiteReroller.status();
+                Component status = statusLine();
                 if (status != null && !status.getString().isEmpty()) {
                     String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
                     minecraft.font.draw(pose, line, left() + 6, top() + STATUS_TOP, TEXT);
@@ -470,7 +520,7 @@ public final class TradePickerUi {
                     minecraft.font.draw(pose, minecraft.font.plainSubstrByWidth(odds[1], width - 12), getX() + 6, getY() + ODDS_SECOND, TEXT);
                 }
             } else {
-                Component status = JobSiteReroller.status();
+                Component status = statusLine();
                 if (status != null && !status.getString().isEmpty()) {
                     String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
                     minecraft.font.draw(pose, line, getX() + 6, getY() + STATUS_TOP, TEXT);
@@ -520,7 +570,7 @@ public final class TradePickerUi {
                     //?}
                 }
             } else {
-                Component status = JobSiteReroller.status();
+                Component status = statusLine();
                 if (status != null && !status.getString().isEmpty()) {
                     String line = minecraft.font.plainSubstrByWidth(status.getString(), width - 12);
                     //? if >=26.1 {
@@ -651,6 +701,7 @@ public final class TradePickerUi {
         @Override
         public void renderButton(PoseStack pose, int mouseX, int mouseY, float partialTick) {
             action.setMessage(actionLabel());
+            refreshQueueButtons();
             syncMethodButton();
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
@@ -701,6 +752,7 @@ public final class TradePickerUi {
         @Override
         public void renderWidget(PoseStack pose, int mouseX, int mouseY, float partialTick) {
             action.setMessage(actionLabel());
+            refreshQueueButtons();
             syncMethodButton();
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
@@ -768,6 +820,7 @@ public final class TradePickerUi {
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             action.setMessage(actionLabel());
+            refreshQueueButtons();
             syncMethodButton();
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);

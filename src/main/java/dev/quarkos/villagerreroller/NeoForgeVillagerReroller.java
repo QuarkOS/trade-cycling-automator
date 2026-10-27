@@ -5,6 +5,7 @@ package dev.quarkos.villagerreroller;
 import dev.quarkos.villagerreroller.client.AutomatorKeys;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.TradeHallHud;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.neoforged.bus.api.IEventBus;
@@ -69,6 +70,8 @@ public final class NeoForgeVillagerReroller {
         //?}
         NeoForge.EVENT_BUS.addListener((ScreenEvent.Init.Post event) ->
                 VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiEvent.Post event) ->
+                TradeHallHud.draw(event.getGuiGraphics()));
         NeoForge.EVENT_BUS.addListener((ScreenEvent.KeyPressed.Pre event) -> {
             if (!(event.getScreen() instanceof MerchantScreen) || AutomatorKeys.TOGGLE == null) {
                 return;
