@@ -4,6 +4,7 @@ import dev.quarkos.villagerreroller.client.AutomatorKeys;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
+import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
@@ -67,6 +68,10 @@ public final class VillagerReroller implements ClientModInitializer {
         }
         if (McBridge.currentScreen(client) == null && AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.consumeClick()) {
             dev.quarkos.villagerreroller.picker.JobSiteReroller.onToggleKey();
+        }
+        if (AutomatorKeys.CONFIG != null && AutomatorKeys.CONFIG.consumeClick()
+                && !(McBridge.currentScreen(client) instanceof ForgeConfigScreen)) {
+            McBridge.setScreen(client, new ForgeConfigScreen(McBridge.currentScreen(client)));
         }
         dev.quarkos.villagerreroller.picker.JobSiteReroller.tick(client);
         dev.quarkos.villagerreroller.picker.TradeHall.tick(client);

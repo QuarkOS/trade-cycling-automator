@@ -1,10 +1,12 @@
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.odds.AttemptPace;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
+import dev.quarkos.villagerreroller.config.MatchSound;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.player.LocalPlayer;
@@ -43,17 +45,34 @@ public final class JobSiteReroller {
 
     /** Headless clients stretch these when the integrated server falls behind. Unset for normal play. */
     private static int timeout(int ticks) {
+        int scaled = ticks * AutomatorConfig.get().timeoutMultiplier();
         String scale = System.getProperty("villager_reroller.timeoutScale");
         if (scale == null || scale.isBlank()) {
-            return ticks;
+            return scaled;
         }
         try {
-            return Math.max(ticks, ticks * Integer.parseInt(scale));
+            int extra = Integer.parseInt(scale);
+            return Math.max(scaled, scaled * extra);
         } catch (NumberFormatException ignored) {
-            return ticks;
+            return scaled;
         }
     }
-    private static final int TICKS_BETWEEN_CYCLES = 8;
+    /**
+     * Ticks the odds line uses for one attempt of the method selected on the panel.
+     * Trade Cycling uses the configured pace, including the server-friendly preset.
+     */
+    public static int ticksPerAttempt() {
+        return RerollMethod.usesTradeCycling() ? ticksBetweenCycles() : AttemptPace.JOB_SITE_TICKS;
+    }
+
+    private static int ticksBetweenCycles() {
+        return AutomatorConfig.get().ticksBetweenCycles();
+    }
+
+    private static int lookBudget() {
+        float step = Math.max(1.0F, AutomatorConfig.get().lookDegreesPerTick());
+        return (int) Math.ceil(180.0F / step) + 4;
+    }
 
     private static Phase phase = Phase.IDLE;
     private static StopReason stopReason;
@@ -81,6 +100,7 @@ public final class JobSiteReroller {
         OUT_OF_REACH("out_of_reach"),
         NEED_BLOCK("need_block"),
         NEED_TOOL("need_tool"),
+        TOOL_WORN("tool_worn"),
         TIMEOUT("timeout"),
         NO_OFFERS("no_offers"),
         ATTEMPT_CAP("attempt_cap"),
@@ -93,7 +113,8 @@ public final class JobSiteReroller {
         VILLAGER_GONE("villager_gone"),
         NEED_SCREEN("need_screen"),
         CANNOT_CYCLE("cannot_cycle"),
-        MISSING_TRADE_CYCLING("missing_trade_cycling");
+        MISSING_TRADE_CYCLING("missing_trade_cycling"),
+        SERVER_UNSUPPORTED("server_unsupported");
 
         private final String id;
 
@@ -224,8 +245,7 @@ public final class JobSiteReroller {
             fail(client, StopReason.NEED_BLOCK);
             return;
         }
-        if (!client.player.getAbilities().instabuild && toolSlot(client.player, state) < 0) {
-            fail(client, StopReason.NEED_TOOL);
+        if (!prepareTool(client, client.player, state, false)) {
             return;
         }
         professionId = McBridge.professionId(villager);
@@ -282,13 +302,17 @@ public final class JobSiteReroller {
             fail(client, StopReason.MISSING_TRADE_CYCLING);
             return;
         }
+        if (!TradeCyclingHook.serverSupports()) {
+            fail(client, StopReason.SERVER_UNSUPPORTED);
+            return;
+        }
         if (!TradeCyclingHook.canCycle(menu)) {
             fail(client, StopReason.CANNOT_CYCLE);
             return;
         }
         villagerId = villager.getId();
         attempts = 0;
-        ticksSinceSend = TICKS_BETWEEN_CYCLES;
+        ticksSinceSend = ticksBetweenCycles();
         pendingSignature = "";
         packetRun = true;
         stopReason = null;
@@ -308,16 +332,12 @@ public final class JobSiteReroller {
             enter(Phase.PICKUP);
             return;
         }
-        if (!player.getAbilities().instabuild) {
-            int slot = toolSlot(player, state);
-            if (slot < 0) {
-                stop(StopReason.NEED_TOOL);
-                return;
-            }
-            selectSlot(client, slot);
+        if (!prepareTool(client, player, state, true)) {
+            return;
         }
-        lookAt(player, Vec3.atCenterOf(jobPos));
-        if (phaseTicks >= 2) {
+        Vec3 aim = Vec3.atCenterOf(jobPos);
+        lookAt(player, aim);
+        if (phaseTicks >= 1 && (facing(player, aim) || phaseTicks >= lookBudget())) {
             breakStarted = false;
             enter(Phase.BREAK);
         }
@@ -332,6 +352,10 @@ public final class JobSiteReroller {
         if (phaseTicks > timeout(BREAK_TIMEOUT)) {
             client.gameMode.stopDestroyBlock();
             stop(StopReason.TIMEOUT);
+            return;
+        }
+        if (!heldIsSafe(player, state) && !prepareTool(client, player, state, true)) {
+            client.gameMode.stopDestroyBlock();
             return;
         }
         lookAt(player, Vec3.atCenterOf(jobPos));
@@ -372,8 +396,9 @@ public final class JobSiteReroller {
             return;
         }
         selectSlot(client, slot);
-        lookAt(player, Vec3.atCenterOf(jobPos.below()).add(0.0, 0.5, 0.0));
-        if (phaseTicks >= 2) {
+        Vec3 aim = Vec3.atCenterOf(jobPos.below()).add(0.0, 0.5, 0.0);
+        lookAt(player, aim);
+        if (phaseTicks >= 1 && (facing(player, aim) || phaseTicks >= lookBudget())) {
             enter(Phase.PLACE);
         }
     }
@@ -388,12 +413,15 @@ public final class JobSiteReroller {
             stop(StopReason.TIMEOUT);
             return;
         }
-        if (phaseTicks % 4 != 1) {
-            return;
-        }
         BlockPos below = jobPos.below();
         Vec3 hit = Vec3.atCenterOf(below).add(0.0, 0.5, 0.0);
         lookAt(player, hit);
+        if (!facing(player, hit) && phaseTicks < lookBudget()) {
+            return;
+        }
+        if (phaseTicks % 4 != 1) {
+            return;
+        }
         BlockHitResult result = new BlockHitResult(hit, Direction.UP, below, false);
         client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, result);
         McBridge.swing(player, InteractionHand.MAIN_HAND);
@@ -427,8 +455,12 @@ public final class JobSiteReroller {
             }
             return;
         }
+        Vec3 eyes = villager.getEyePosition();
+        lookAt(player, eyes);
+        if (!facing(player, eyes) && phaseTicks < lookBudget()) {
+            return;
+        }
         if (phaseTicks % 10 == 1) {
-            lookAt(player, villager.getEyePosition());
             McBridge.interact(client.gameMode, player, villager, InteractionHand.MAIN_HAND);
         }
     }
@@ -490,12 +522,16 @@ public final class JobSiteReroller {
         String signature = signature(offers);
         if (signature.equals(pendingSignature)) {
             ticksSinceSend++;
-            if (ticksSinceSend < TICKS_BETWEEN_CYCLES) {
+            if (ticksSinceSend < ticksBetweenCycles()) {
                 return;
             }
         }
         if (attempts >= AutomatorConfig.get().maxAttempts()) {
             stop(StopReason.ATTEMPT_CAP);
+            return;
+        }
+        if (!TradeCyclingHook.serverSupports()) {
+            stop(StopReason.SERVER_UNSUPPORTED);
             return;
         }
         if (!TradeCyclingHook.cycle(menu)) {
@@ -530,6 +566,10 @@ public final class JobSiteReroller {
         status = message(StopReason.FOUND);
         TradeSession.setPanelOpen(true);
         announce(client, status);
+        AutomatorConfig config = AutomatorConfig.get();
+        if (MatchSound.audible(config.matchSound(), config.matchVolume())) {
+            McBridge.playMatchFound(client, MatchSound.scale(config.matchVolume()));
+        }
         LOGGER.info("Trade reroll found a target after {} {}", attempts, packetRun ? "cycles" : "replacements");
         packetRun = false;
     }
@@ -603,26 +643,74 @@ public final class JobSiteReroller {
         return -1;
     }
 
-    private static int toolSlot(LocalPlayer player, BlockState state) {
+    public static ToolGuard.Choice chooseTool(LocalPlayer player, BlockState state) {
+        AutomatorConfig config = AutomatorConfig.get();
         Inventory inventory = player.getInventory();
-        int best = -1;
-        float bestSpeed = 1.0F;
+        java.util.ArrayList<ToolGuard.Candidate> tools = new java.util.ArrayList<>();
         for (int i = 0; i < McBridge.storageSize(inventory); i++) {
             ItemStack stack = inventory.getItem(i);
-            if (stack.isEmpty()) {
+            if (stack.isEmpty() || !ToolWear.correct(stack, state)) {
                 continue;
             }
-            float speed = stack.getItem().getDestroySpeed(stack, state);
-            //? if <1.20.5 {
-            /*if (speed > bestSpeed && stack.getItem().isCorrectToolForDrops(state)) {
-            *///?} else {
-            if (speed > bestSpeed && stack.getItem().isCorrectToolForDrops(stack, state)) {
-            //?}
-                bestSpeed = speed;
-                best = i;
+            tools.add(new ToolGuard.Candidate(
+                    i,
+                    ToolWear.speed(stack, state),
+                    ToolWear.remaining(stack),
+                    ToolWear.enchanted(stack),
+                    ToolWear.mending(stack)));
+        }
+        return ToolGuard.choose(tools, config.durabilityFloor(), config.allowBareHand(), ToolWear.handCanMine(state));
+    }
+
+    private static boolean prepareTool(Minecraft client, LocalPlayer player, BlockState state, boolean running) {
+        if (player.getAbilities().instabuild) {
+            return true;
+        }
+        ToolGuard.Choice choice = chooseTool(player, state);
+        if (choice.decision() == ToolGuard.Decision.TOOL) {
+            selectSlot(client, choice.slot());
+            return true;
+        }
+        if (choice.decision() == ToolGuard.Decision.HAND) {
+            int empty = emptySlot(player);
+            if (empty >= 0) {
+                selectSlot(client, empty);
+                return true;
             }
         }
-        return best;
+        StopReason reason = choice.decision() == ToolGuard.Decision.NONE ? StopReason.NEED_TOOL : StopReason.TOOL_WORN;
+        if (running) {
+            stop(reason);
+        } else {
+            fail(client, reason);
+        }
+        return false;
+    }
+
+    private static boolean heldIsSafe(LocalPlayer player, BlockState state) {
+        if (player.getAbilities().instabuild) {
+            return true;
+        }
+        ItemStack held = player.getMainHandItem();
+        AutomatorConfig config = AutomatorConfig.get();
+        if (held.isEmpty()) {
+            return config.allowBareHand() && ToolWear.handCanMine(state);
+        }
+        if (!ToolWear.correct(held, state) || ToolWear.speed(held, state) <= 1.0F) {
+            return false;
+        }
+        return ToolWear.remaining(held) > config.durabilityFloor();
+    }
+
+    private static int emptySlot(LocalPlayer player) {
+        Inventory inventory = player.getInventory();
+        int size = McBridge.storageSize(inventory);
+        for (int i = 0; i < size; i++) {
+            if (inventory.getItem(i).isEmpty()) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static void selectSlot(Minecraft client, int index) {
@@ -637,6 +725,22 @@ public final class JobSiteReroller {
     }
 
     private static void lookAt(LocalPlayer player, Vec3 target) {
+        float[] aim = angles(player, target);
+        float step = AutomatorConfig.get().lookDegreesPerTick();
+        float yaw = LookStep.approach(player.getYRot(), aim[0], step);
+        float pitch = LookStep.approach(player.getXRot(), aim[1], step);
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.setYHeadRot(yaw);
+        McBridge.sendLook(player, yaw, pitch);
+    }
+
+    private static boolean facing(LocalPlayer player, Vec3 target) {
+        float[] aim = angles(player, target);
+        return LookStep.within(player.getYRot(), player.getXRot(), aim[0], aim[1], 3.0F);
+    }
+
+    private static float[] angles(LocalPlayer player, Vec3 target) {
         Vec3 eye = player.getEyePosition();
         double dx = target.x - eye.x;
         double dy = target.y - eye.y;
@@ -644,9 +748,6 @@ public final class JobSiteReroller {
         double horizontal = Math.sqrt(dx * dx + dz * dz);
         float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float pitch = (float) (-Math.toDegrees(Math.atan2(dy, horizontal)));
-        player.setYRot(yaw);
-        player.setXRot(pitch);
-        player.setYHeadRot(yaw);
-        McBridge.sendLook(player, yaw, pitch);
+        return new float[] {yaw, pitch};
     }
 }

@@ -1,5 +1,9 @@
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.config.PickFiles;
+import dev.quarkos.villagerreroller.config.ProfessionPicks;
+import dev.quarkos.villagerreroller.odds.TradeOdds;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.trading.MerchantOffer;
@@ -8,21 +12,30 @@ import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
- * Targets chosen in the merchant panel. The map value is the emerald ceiling,
- * or {@link Integer#MAX_VALUE} for any price.
+ * Targets chosen in the merchant panel for the villager's current profession.
+ * The map value is the emerald ceiling, or {@link Integer#MAX_VALUE} for any price.
+ * Picks are written to {@code config/villager_reroller-picks.json} and loaded again
+ * when that profession's panel opens, including after a client restart.
  */
 public final class TradeSession {
     public static final int ANY_PRICE = Integer.MAX_VALUE;
 
     private static boolean panelOpen;
     private static String filter = "";
+    private static String profession = "";
     private static List<TradeEntry> entries = List.of();
+    private static TradeOdds.Pool pool = TradeOdds.Pool.EMPTY;
     private static final Map<String, Integer> chosenMax = new LinkedHashMap<>();
+    private static TradeOdds.Estimate cachedEstimate;
+    private static int cachedEstimateKey;
 
     private TradeSession() {
     }
@@ -47,10 +60,72 @@ public final class TradeSession {
         return entries;
     }
 
+    public static String profession() {
+        return profession;
+    }
+
+    /**
+     * Drops the in-memory session the way a new client process would.
+     * The picks file is left in place so the next panel open can restore it.
+     */
+    public static void simulateClientRestart() {
+        panelOpen = false;
+        filter = "";
+        profession = "";
+        entries = List.of();
+        chosenMax.clear();
+    }
+
     public static void rebuild(Level level, Villager villager, MerchantMenu menu) {
         int villagerLevel = menu == null ? 1 : menu.getTraderLevel();
+        String next = villager == null ? "" : McBridge.professionId(villager);
+        if (known(profession) && !profession.equals(next)) {
+            persist();
+        }
         entries = TradeCatalog.list(level, villager, villagerLevel);
-        chosenMax.keySet().removeIf(id -> entries.stream().noneMatch(entry -> entry.id.equals(id)));
+        pool = TradePools.from(entries, TradeCatalog.offerCounts(level, villager, villagerLevel), TradeCatalog.allowDuplicates(level, villager, villagerLevel));
+        cachedEstimate = null;
+        profession = known(next) ? next : "";
+        chosenMax.clear();
+        if (!known(profession) || entries.isEmpty()) {
+            return;
+        }
+        Map<String, Integer> saved = ProfessionPicks.load(PickFiles.configFile()).picks(profession);
+        for (TradeEntry entry : entries) {
+            Integer max = saved.get(entry.id);
+            if (max == null) {
+                continue;
+            }
+            int fitted = ProfessionPicks.fitPrice(max, entry.emeraldMin, entry.emeraldMax, entry.paysEmeralds);
+            if (fitted > 0) {
+                chosenMax.put(entry.id, fitted);
+            }
+        }
+    }
+
+    public static TradeOdds.Pool pool() {
+        return pool;
+    }
+
+    /**
+     * Odds for the current selection at the chosen ceilings. Empty when nothing is selected.
+     */
+    public static TradeOdds.Estimate estimate(int ticksPerAttempt) {
+        if (chosenMax.isEmpty() || pool.listings().isEmpty()) {
+            return null;
+        }
+        int key = Objects.hash(chosenMax, pool, ticksPerAttempt);
+        if (cachedEstimate != null && cachedEstimateKey == key) {
+            return cachedEstimate;
+        }
+        cachedEstimateKey = key;
+        cachedEstimate = TradeOdds.estimate(pool, Map.copyOf(chosenMax), ticksPerAttempt);
+        return cachedEstimate;
+    }
+
+    public static void clearSelection() {
+        chosenMax.clear();
+        cachedEstimate = null;
     }
 
     public static List<TradeEntry> visible() {
@@ -151,6 +226,7 @@ public final class TradeSession {
         } else {
             chosenMax.put(entry.id, entry.paysEmeralds ? entry.emeraldMin : ANY_PRICE);
         }
+        persist();
     }
 
     public static void cyclePrice(TradeEntry entry, int direction) {
@@ -160,11 +236,13 @@ public final class TradeSession {
         }
         if (!chosenMax.containsKey(entry.id)) {
             chosenMax.put(entry.id, direction < 0 ? ANY_PRICE : entry.emeraldMin);
+            persist();
             return;
         }
         int current = chosenMax.get(entry.id);
         if (current == ANY_PRICE) {
             chosenMax.put(entry.id, direction < 0 ? entry.emeraldMax : entry.emeraldMin);
+            persist();
             return;
         }
         int next = current + direction;
@@ -175,6 +253,7 @@ public final class TradeSession {
         } else {
             chosenMax.put(entry.id, next);
         }
+        persist();
     }
 
     /**
@@ -189,6 +268,7 @@ public final class TradeSession {
                 chosenMax.put(entry.id, ANY_PRICE);
             }
         }
+        persist();
         return chosenMax.size();
     }
 
@@ -217,5 +297,22 @@ public final class TradeSession {
             }
         }
         return false;
+    }
+
+    private static void persist() {
+        if (!known(profession) || entries.isEmpty()) {
+            return;
+        }
+        Set<String> catalog = new LinkedHashSet<>();
+        for (TradeEntry entry : entries) {
+            catalog.add(entry.id);
+        }
+        ProfessionPicks picks = ProfessionPicks.load(PickFiles.configFile());
+        picks.replaceCatalog(profession, catalog, chosenMax);
+        picks.save(PickFiles.configFile());
+    }
+
+    private static boolean known(String id) {
+        return id != null && !id.isEmpty() && !"unknown".equals(id);
     }
 }

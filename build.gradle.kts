@@ -42,8 +42,8 @@ dependencies {
     // The client gametest and Mod Menu need the Fabric API mod id, not only the split modules.
     modImplementation("net.fabricmc.fabric-api:fabric-api:${sc.properties.get<String>("deps.fabric_api")}")
 
-    modImplementation("maven.modrinth:cloth-config:${property("deps.cloth_config")}")
-    modImplementation("maven.modrinth:modmenu:${property("deps.modmenu")}")
+    // Mod Menu is optional. The class that implements its API is loaded only from the modmenu entrypoint.
+    modCompileOnly("maven.modrinth:modmenu:${property("deps.modmenu")}")
     // Trade Cycling is optional on 1.21.11 and required by the older packet driver.
     // Compile against it, never bundle it. -PwithTradeCycling=true also puts it on the dev runtime.
     val tradeCycling = "maven.modrinth:trade-cycling:${sc.properties.get<String>("deps.trade_cycling")}"

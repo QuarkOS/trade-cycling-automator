@@ -1,6 +1,8 @@
 //? if <26.1 {
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.odds.TradeOdds;
+import dev.quarkos.villagerreroller.odds.VanillaRoll;
 import dev.quarkos.villagerreroller.price.VanillaBookPrices;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.core.Holder;
@@ -106,8 +108,8 @@ public final class ListingTrades {
         HolderLookup.RegistryLookup<Enchantment> enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         //?}
         List<TradeEntry> entries = new ArrayList<>();
-        for (VillagerTrades.ItemListing listing : listings) {
-            expand(listing, villagerType, enchantments, entries);
+        for (int index = 0; index < listings.length; index++) {
+            expand(listings[index], villagerType, enchantments, entries, "listing-" + index);
         }
         entries.sort(Comparator
                 .comparing((TradeEntry entry) -> entry.id.startsWith("enchant:"))
@@ -115,7 +117,7 @@ public final class ListingTrades {
         return List.copyOf(entries);
     }
 
-    private static void expand(VillagerTrades.ItemListing listing, Object type, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
+    private static void expand(VillagerTrades.ItemListing listing, Object type, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {
         if (listing == null || listing.getClass().getSimpleName().equals("FailureItemListing")) {
             return;
         }
@@ -125,34 +127,34 @@ public final class ListingTrades {
                 return;
             }
             //? if <1.21.5 {
-            /*expand(specific.trades().get((VillagerType) type), type, enchantments, entries);
+            /*expand(specific.trades().get((VillagerType) type), type, enchantments, entries, group);
             *///?} else {
-            expand(specific.trades().get((ResourceKey<VillagerType>) type), type, enchantments, entries);
+            expand(specific.trades().get((ResourceKey<VillagerType>) type), type, enchantments, entries, group);
             //?}
             return;
         }
         //?}
         if (listing instanceof VillagerTrades.EnchantBookForEmeralds books) {
-            expandBooks(books, enchantments, entries);
+            expandBooks(books, enchantments, entries, group);
             return;
         }
         //? if <1.20.2 {
         /*if (listing instanceof VillagerTrades.ItemsForEmeralds sale) {
             ItemStack stack = sale.itemStack.copy();
             stack.setCount(sale.numberOfItems);
-            addBuy(entries, stack, sale.emeraldCost);
+            addBuy(entries, stack, sale.emeraldCost, group);
             return;
         }
         *///?}
         //? if >=1.20.2 {
         if (listing instanceof VillagerTrades.ItemsForEmeralds sale) {
-            addBuy(entries, sale.itemStack.copy(), sale.emeraldCost);
+            addBuy(entries, sale.itemStack.copy(), sale.emeraldCost, group);
             return;
         }
         //?}
         //? if <1.20.2 {
         /*if (listing instanceof VillagerTrades.EmeraldForItems purchase) {
-            addSell(entries, new ItemStack(purchase.item, purchase.cost), 1);
+            addSell(entries, new ItemStack(purchase.item, purchase.cost), 1, group);
             return;
         }
         *///?}
@@ -163,7 +165,7 @@ public final class ListingTrades {
             *///?} else {
             ItemStack stack = purchase.itemStack.itemStack().copy();
             //?}
-            addSell(entries, stack, purchase.emeraldAmount);
+            addSell(entries, stack, purchase.emeraldAmount, group);
             return;
         }
         //?}
@@ -176,13 +178,13 @@ public final class ListingTrades {
             entries.add(TradeEntry.buy(id, icon, "Enchanted " + icon.getHoverName().getString(), min, max, (offer, chosenMax) ->
                     TradeEntry.emeraldCostAtMost(offer, chosenMax)
                             && offer.getResult().is(item)
-                            && offer.getResult().isEnchanted()));
+                            && offer.getResult().isEnchanted(), TradeOdds.Roll.gear(group, gear.baseEmeraldCost)));
             return;
         }
         //? if <1.20.2 {
         /*if (listing instanceof VillagerTrades.ItemsAndEmeraldsToItems conversion) {
             ItemStack result = new ItemStack(conversion.toItem.getItem(), conversion.toCount);
-            addBuy(entries, result, conversion.emeraldCost);
+            addBuy(entries, result, conversion.emeraldCost, group);
             return;
         }
         *///?}
@@ -199,7 +201,7 @@ public final class ListingTrades {
             entries.add(TradeEntry.buy(id, result, result.getHoverName().getString(), cost, cost, (offer, chosenMax) ->
                     TradeEntry.emeraldCostAtMost(offer, chosenMax)
                             && offer.getResult().is(result.getItem())
-                            && offer.getResult().getCount() == result.getCount()));
+                            && offer.getResult().getCount() == result.getCount(), TradeOdds.Roll.fixed(group)));
             return;
         }
         //?}
@@ -209,7 +211,7 @@ public final class ListingTrades {
             ItemStack icon = new ItemStack(item);
             String id = "dye:" + TradeEntry.itemId(item) + ":" + cost;
             entries.add(TradeEntry.buy(id, icon, icon.getHoverName().getString(), cost, cost, (offer, chosenMax) ->
-                    TradeEntry.emeraldCostAtMost(offer, chosenMax) && offer.getResult().is(item)));
+                    TradeEntry.emeraldCostAtMost(offer, chosenMax) && offer.getResult().is(item), TradeOdds.Roll.fixed(group)));
             return;
         }
         if (listing instanceof VillagerTrades.TippedArrowForItemsAndEmeralds arrows) {
@@ -219,7 +221,7 @@ public final class ListingTrades {
             entries.add(TradeEntry.buy(id, icon, icon.getHoverName().getString(), cost, cost, (offer, chosenMax) ->
                     TradeEntry.emeraldCostAtMost(offer, chosenMax)
                             && offer.getResult().is(arrows.toItem.getItem())
-                            && offer.getResult().getCount() == arrows.toCount));
+                            && offer.getResult().getCount() == arrows.toCount, TradeOdds.Roll.fixed(group)));
             return;
         }
         if (listing instanceof VillagerTrades.TreasureMapForEmeralds map) {
@@ -232,7 +234,7 @@ public final class ListingTrades {
             //?}
             String id = "map:" + map.displayName + ":" + cost;
             entries.add(TradeEntry.buy(id, icon, icon.getHoverName().getString(), cost, cost, (offer, chosenMax) ->
-                    TradeEntry.emeraldCostAtMost(offer, chosenMax) && TradeEntry.named(offer.getResult(), map.displayName)));
+                    TradeEntry.emeraldCostAtMost(offer, chosenMax) && TradeEntry.named(offer.getResult(), map.displayName), TradeOdds.Roll.fixed(group)));
             return;
         }
         //? if <1.20.2 {
@@ -247,7 +249,7 @@ public final class ListingTrades {
             entries.add(TradeEntry.buy(id, icon, name, 1, 1, (offer, chosenMax) ->
                     TradeEntry.emeraldCostAtMost(offer, chosenMax)
                             && offer.getResult().is(Items.SUSPICIOUS_STEW)
-                            && TradeEntry.stewHas(offer.getResult(), mobEffect)));
+                            && TradeEntry.stewHas(offer.getResult(), mobEffect), TradeOdds.Roll.together(group)));
             return;
         }
         *///?}
@@ -268,7 +270,7 @@ public final class ListingTrades {
                 entries.add(TradeEntry.buy(id, icon, name, 1, 1, (offer, chosenMax) ->
                         TradeEntry.emeraldCostAtMost(offer, chosenMax)
                                 && offer.getResult().is(Items.SUSPICIOUS_STEW)
-                                && TradeEntry.stewHas(offer.getResult(), mobEffect)));
+                                && TradeEntry.stewHas(offer.getResult(), mobEffect), TradeOdds.Roll.together(group)));
             }
             *///?} else {
             for (var effect : stew.effects.effects()) {
@@ -281,7 +283,7 @@ public final class ListingTrades {
                 entries.add(TradeEntry.buy(id, icon, name, 1, 1, (offer, chosenMax) ->
                         TradeEntry.emeraldCostAtMost(offer, chosenMax)
                                 && offer.getResult().is(Items.SUSPICIOUS_STEW)
-                                && TradeEntry.stewHas(offer.getResult(), mobEffect)));
+                                && TradeEntry.stewHas(offer.getResult(), mobEffect), TradeOdds.Roll.together(group)));
             }
             //?}
             return;
@@ -313,24 +315,24 @@ public final class ListingTrades {
             entries.add(TradeEntry.sell(id, icon, icon.getHoverName().getString(), 1, (offer, chosenMax) ->
                     offer.getResult().is(Items.EMERALD)
                             && offer.getResult().getCount() == 1
-                            && offer.getCostA().is(item)));
+                            && offer.getCostA().is(item), TradeOdds.Roll.sell(group)));
         }
     }
 
-    private static void addBuy(List<TradeEntry> entries, ItemStack stack, int cost) {
+    private static void addBuy(List<TradeEntry> entries, ItemStack stack, int cost, String group) {
         String id = "buy:" + TradeEntry.itemId(stack.getItem()) + ":" + stack.getCount() + ":" + cost;
         entries.add(TradeEntry.buy(id, stack, stack.getHoverName().getString(), cost, cost, (offer, chosenMax) ->
                 TradeEntry.emeraldCostAtMost(offer, chosenMax)
                         && offer.getResult().is(stack.getItem())
-                        && offer.getResult().getCount() == stack.getCount()));
+                        && offer.getResult().getCount() == stack.getCount(), TradeOdds.Roll.fixed(group)));
     }
 
-    private static void addSell(List<TradeEntry> entries, ItemStack stack, int payout) {
+    private static void addSell(List<TradeEntry> entries, ItemStack stack, int payout, String group) {
         String id = "sell:" + TradeEntry.itemId(stack.getItem()) + ":" + stack.getCount() + ":" + payout;
         entries.add(TradeEntry.sell(id, stack, stack.getHoverName().getString(), payout, (offer, chosenMax) ->
                 offer.getResult().is(Items.EMERALD)
                         && offer.getResult().getCount() == payout
-                        && offer.getCostA().is(stack.getItem())));
+                        && offer.getCostA().is(stack.getItem()), TradeOdds.Roll.sell(group)));
     }
 
     private static net.minecraft.resources.Identifier mobEffectId(MobEffect effect) {
@@ -343,7 +345,7 @@ public final class ListingTrades {
     }
 
     //? if <1.19.3 {
-    /*private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
+    /*private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {
         for (Enchantment enchantment : Registry.ENCHANTMENT) {
             if (!enchantment.isTradeable()) {
                 continue;
@@ -361,13 +363,14 @@ public final class ListingTrades {
                 if (level != 1 || enchantment.getMaxLevel() != 1) {
                     name = name + " " + Component.translatable("enchantment.level." + level).getString();
                 }
-                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure)));
+                net.minecraft.resources.Identifier key = Registry.ENCHANTMENT.getKey(enchantment);
+                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure), TradeOdds.Roll.book(group, key == null ? "unknown" : key.toString(), VanillaRoll.UNIFORM_ENCHANTMENT_WEIGHT, level, treasure)));
             }
         }
     }
     *///?}
     //? if >=1.19.3 && <1.20.2 {
-    /*private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
+    /*private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {
         for (Enchantment enchantment : BuiltInRegistries.ENCHANTMENT) {
             if (!enchantment.isTradeable()) {
                 continue;
@@ -385,13 +388,14 @@ public final class ListingTrades {
                 if (level != 1 || enchantment.getMaxLevel() != 1) {
                     name = name + " " + Component.translatable("enchantment.level." + level).getString();
                 }
-                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure)));
+                net.minecraft.resources.Identifier key = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);
+                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure), TradeOdds.Roll.book(group, key == null ? "unknown" : key.toString(), VanillaRoll.UNIFORM_ENCHANTMENT_WEIGHT, level, treasure)));
             }
         }
     }
     *///?}
     //? if >=1.20.2 {
-    private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries) {
+    private static void expandBooks(VillagerTrades.EnchantBookForEmeralds books, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {
         //? if >=1.20.2 && <1.21 {
         /*for (Object raw : books.tradeableEnchantments) {
             Enchantment enchantment = (Enchantment) raw;
@@ -408,7 +412,8 @@ public final class ListingTrades {
                 if (level != 1 || enchantment.getMaxLevel() != 1) {
                     name = name + " " + Component.translatable("enchantment.level." + level).getString();
                 }
-                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure)));
+                net.minecraft.resources.Identifier key = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);
+                entries.add(TradeEntry.book(enchantment, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure), TradeOdds.Roll.book(group, key == null ? "unknown" : key.toString(), VanillaRoll.UNIFORM_ENCHANTMENT_WEIGHT, level, treasure)));
             }
         }
         *///?} else {
@@ -432,7 +437,8 @@ public final class ListingTrades {
                 if (level != 1 || enchantment.getMaxLevel() != 1) {
                     name = name + " " + Component.translatable("enchantment.level." + level).getString();
                 }
-                entries.add(TradeEntry.book(holder, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure)));
+                String enchantmentId = holder.unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
+                entries.add(TradeEntry.book(holder, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure), TradeOdds.Roll.book(group, enchantmentId, VanillaRoll.UNIFORM_ENCHANTMENT_WEIGHT, level, treasure)));
             }
         }
         //?}

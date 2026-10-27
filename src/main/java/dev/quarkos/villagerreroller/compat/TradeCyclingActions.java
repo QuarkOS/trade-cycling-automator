@@ -7,6 +7,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 *///?} else {
 import de.maxhenkel.tradecycling.FabricTradeCyclingClientMod;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 //?}
 import de.maxhenkel.tradecycling.gui.CycleTradesButton;
 import net.minecraft.world.inventory.MerchantMenu;
@@ -19,12 +22,42 @@ final class TradeCyclingActions {
     private TradeCyclingActions() {
     }
 
+    static boolean serverHasChannel() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.getConnection() == null) {
+            return false;
+        }
+        //? if neoforge {
+        /*return NeoForgeTradeCycling.serverHasChannel(minecraft.getConnection());
+        *///?}
+        //? if forge && !neoforge {
+        /*var channel = ForgeTradeCyclingMod.CYCLE_TRADES_CHANNEL;
+        if (channel == null) {
+            return false;
+        }
+        return channel.isRemotePresent(minecraft.getConnection().getConnection());
+        *///?}
+        //? if fabric {
+        return ClientPlayNetworking.canSend(channel());
+        //?}
+    }
+
+    //? if fabric {
+    private static Identifier channel() {
+        //? if <1.21 {
+        /*return new Identifier("trade_cycling", "cycle_trades");
+        *///?} else {
+        return Identifier.fromNamespaceAndPath("trade_cycling", "cycle_trades");
+        //?}
+    }
+    //?}
+
     static boolean canCycle(MerchantMenu menu) {
         return CycleTradesButton.canCycle(menu);
     }
 
     static boolean cycle(MerchantMenu menu) {
-        if (!CycleTradesButton.canCycle(menu)) {
+        if (!serverHasChannel() || !CycleTradesButton.canCycle(menu)) {
             return false;
         }
         //? if forge {

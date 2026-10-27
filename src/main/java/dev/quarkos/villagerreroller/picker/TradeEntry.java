@@ -1,5 +1,6 @@
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.odds.TradeOdds;
 import net.minecraft.core.Holder;
 //? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
@@ -39,9 +40,11 @@ public final class TradeEntry {
     public final int emeraldMax;
     /** True when the villager is paid in emeralds. False when the villager pays emeralds. */
     public final boolean paysEmeralds;
+    /** Which vanilla listing produced this row, and how its price is rolled. */
+    public final TradeOdds.Roll roll;
     private final BiPredicate<MerchantOffer, Integer> matcher;
 
-    private TradeEntry(String id, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax, boolean paysEmeralds, BiPredicate<MerchantOffer, Integer> matcher) {
+    private TradeEntry(String id, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax, boolean paysEmeralds, TradeOdds.Roll roll, BiPredicate<MerchantOffer, Integer> matcher) {
         this.id = id;
         this.icon = icon;
         this.name = name;
@@ -49,6 +52,7 @@ public final class TradeEntry {
         this.emeraldMin = emeraldMin;
         this.emeraldMax = emeraldMax;
         this.paysEmeralds = paysEmeralds;
+        this.roll = roll;
         this.matcher = matcher;
     }
 
@@ -70,10 +74,10 @@ public final class TradeEntry {
     }
 
     //? if <1.19.3 {
-    /*public static TradeEntry book(Enchantment enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
+    /*public static TradeEntry book(Enchantment enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax, TradeOdds.Roll roll) {
         Identifier id = Registry.ENCHANTMENT.getKey(enchantment);
         String entryId = "enchant:" + id + ":" + level;
-        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, (offer, chosenMax) -> {
+        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, roll, (offer, chosenMax) -> {
             ItemStack cost = offer.getCostA();
             if (!cost.is(Items.EMERALD) || cost.getCount() <= 0 || cost.getCount() > chosenMax) {
                 return false;
@@ -87,10 +91,10 @@ public final class TradeEntry {
     }
     *///?}
     //? if >=1.19.3 && <1.21 {
-    /*public static TradeEntry book(Enchantment enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
+    /*public static TradeEntry book(Enchantment enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax, TradeOdds.Roll roll) {
         Identifier id = BuiltInRegistries.ENCHANTMENT.getKey(enchantment);
         String entryId = "enchant:" + id + ":" + level;
-        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, (offer, chosenMax) -> {
+        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, roll, (offer, chosenMax) -> {
             ItemStack cost = offer.getCostA();
             if (!cost.is(Items.EMERALD) || cost.getCount() <= 0 || cost.getCount() > chosenMax) {
                 return false;
@@ -104,10 +108,10 @@ public final class TradeEntry {
     }
     *///?}
     //? if >=1.21 {
-    public static TradeEntry book(Holder<Enchantment> enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax) {
+    public static TradeEntry book(Holder<Enchantment> enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax, TradeOdds.Roll roll) {
         Identifier id = enchantment.unwrapKey().orElseThrow().identifier();
         String entryId = "enchant:" + id + ":" + level;
-        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, (offer, chosenMax) -> {
+        return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, roll, (offer, chosenMax) -> {
             ItemStack cost = offer.getCostA();
             if (!cost.is(Items.EMERALD) || cost.getCount() <= 0 || cost.getCount() > chosenMax) {
                 return false;
@@ -123,11 +127,19 @@ public final class TradeEntry {
     //?}
 
     public static TradeEntry buy(String id, ItemStack icon, String name, int emeraldMin, int emeraldMax, BiPredicate<MerchantOffer, Integer> matcher) {
-        return new TradeEntry(id, icon, name, false, emeraldMin, emeraldMax, true, matcher);
+        return buy(id, icon, name, emeraldMin, emeraldMax, matcher, TradeOdds.Roll.fixed(id));
+    }
+
+    public static TradeEntry buy(String id, ItemStack icon, String name, int emeraldMin, int emeraldMax, BiPredicate<MerchantOffer, Integer> matcher, TradeOdds.Roll roll) {
+        return new TradeEntry(id, icon, name, false, emeraldMin, emeraldMax, true, roll, matcher);
     }
 
     public static TradeEntry sell(String id, ItemStack icon, String name, int emeraldsPaidByVillager, BiPredicate<MerchantOffer, Integer> matcher) {
-        return new TradeEntry(id, icon, name, false, emeraldsPaidByVillager, emeraldsPaidByVillager, false, matcher);
+        return sell(id, icon, name, emeraldsPaidByVillager, matcher, TradeOdds.Roll.sell(id));
+    }
+
+    public static TradeEntry sell(String id, ItemStack icon, String name, int emeraldsPaidByVillager, BiPredicate<MerchantOffer, Integer> matcher, TradeOdds.Roll roll) {
+        return new TradeEntry(id, icon, name, false, emeraldsPaidByVillager, emeraldsPaidByVillager, false, roll, matcher);
     }
 
     public static boolean emeraldCostAtMost(MerchantOffer offer, int chosenMax) {
