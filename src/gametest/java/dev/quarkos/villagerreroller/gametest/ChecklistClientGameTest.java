@@ -287,30 +287,56 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
         context.waitTicks(5);
     }
 
+    /**
+     * Closing the merchant and resizing the window lands in the middle of a
+     * server stall often enough that one interact is processed before the
+     * teleport. Keep offering the trade until the screen is actually open.
+     */
     private static void reopenMerchant(ClientGameTestContext context, TestSingleplayerContext world, int x, int y, int z) {
         context.runOnClient(client -> client.setScreen(null));
         context.waitTicks(10);
+        world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + (x + 1.2) + " " + y + " " + (z + 0.5) + " 180 0");
         world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);
-        context.waitTicks(15);
-        context.runOnClient(client -> {
-            if (client.player == null || client.level == null) {
-                throw new AssertionError("librarian missing");
+        boolean sawLibrarian = false;
+        for (int attempt = 0; attempt < 45; attempt++) {
+            context.waitTicks(8);
+            if (Boolean.TRUE.equals(context.computeOnClient(client -> client.screen instanceof MerchantScreen))) {
+                context.waitTicks(10);
+                return;
             }
-            Villager nearest = null;
-            AABB box = client.player.getBoundingBox().inflate(16.0);
-            for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
-                if (villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)) {
-                    nearest = villager;
+            boolean found = Boolean.TRUE.equals(context.computeOnClient(client -> {
+                if (client.player == null || client.level == null || client.gameMode == null) {
+                    return false;
                 }
-            }
-            if (nearest == null) {
-                throw new AssertionError("librarian missing");
-            }
-            dev.quarkos.villagerreroller.client.LibrarianTracker.remember(nearest);
-            McBridge.interact(client.gameMode, client.player, nearest, net.minecraft.world.InteractionHand.MAIN_HAND);
-        });
-        context.waitFor(client -> client.screen instanceof MerchantScreen, 20 * 60);
-        context.waitTicks(10);
+                Villager nearest = null;
+                AABB box = client.player.getBoundingBox().inflate(16.0);
+                for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
+                    if (villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)) {
+                        nearest = villager;
+                    }
+                }
+                if (nearest == null) {
+                    return false;
+                }
+                double dx = nearest.getX() - client.player.getX();
+                double dy = (nearest.getY() + nearest.getEyeHeight()) - client.player.getEyeY();
+                double dz = nearest.getZ() - client.player.getZ();
+                double horizontal = Math.sqrt(dx * dx + dz * dz);
+                float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+                float pitch = (float) (-Math.toDegrees(Math.atan2(dy, Math.max(horizontal, 1.0E-4))));
+                client.player.setYRot(yaw);
+                client.player.setXRot(pitch);
+                McBridge.sendLook(client.player, yaw, pitch);
+                dev.quarkos.villagerreroller.client.LibrarianTracker.remember(nearest);
+                McBridge.interact(client.gameMode, client.player, nearest, net.minecraft.world.InteractionHand.MAIN_HAND);
+                return true;
+            }));
+            sawLibrarian |= found;
+        }
+        if (!sawLibrarian) {
+            throw new AssertionError("librarian missing");
+        }
+        throw new AssertionError("merchant screen did not reopen");
     }
 
     private static void saveShot(ClientGameTestContext context, String name) {

@@ -285,21 +285,87 @@ public final class GuiDraw {
         if (lines == null || lines.isEmpty()) {
             return;
         }
+        int screenW = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledWidth());
+        int screenH = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledHeight());
+        int maxText = Math.max(8, screenW - 8);
+        Font font = canvas.font();
         List<String> text = new ArrayList<>();
         int width = 0;
         for (Component line : lines) {
-            String value = line.getString();
-            text.add(value);
-            width = Math.max(width, canvas.font().width(value));
+            for (String value : wrap(font, line.getString(), maxText)) {
+                text.add(value);
+                width = Math.max(width, font.width(value));
+            }
         }
+        if (text.isEmpty()) {
+            return;
+        }
+        int boxW = Math.min(width + 6, screenW);
         int height = text.size() * 10 + 4;
+        if (height > screenH) {
+            int fit = Math.max(1, (screenH - 4) / 10);
+            if (text.size() > fit) {
+                String last = ellipsis(font, text.get(fit - 1), maxText);
+                text = new ArrayList<>(text.subList(0, fit - 1));
+                text.add(last);
+            }
+            height = text.size() * 10 + 4;
+        }
         int x = mouseX + 8;
         int y = mouseY + 8;
-        canvas.fill(x, y, x + width + 6, y + height, 0xF0100010);
+        if (x + boxW > screenW) {
+            x = mouseX - boxW - 4;
+        }
+        if (x < 0) {
+            x = 0;
+        }
+        if (x + boxW > screenW) {
+            x = Math.max(0, screenW - boxW);
+        }
+        if (y + height > screenH) {
+            y = mouseY - height - 4;
+        }
+        if (y < 0) {
+            y = 0;
+        }
+        if (y + height > screenH) {
+            y = Math.max(0, screenH - height);
+        }
+        canvas.fill(x, y, x + boxW, y + height, 0xF0100010);
         int lineY = y + 2;
         for (String value : text) {
             canvas.text(value, x + 3, lineY, 0xFFFFFFFF);
             lineY += 10;
         }
+    }
+
+    private static List<String> wrap(Font font, String value, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        if (value == null || value.isEmpty()) {
+            lines.add("");
+            return lines;
+        }
+        String rest = value;
+        int guard = 0;
+        while (!rest.isEmpty() && guard++ < 32) {
+            if (font.width(rest) <= maxWidth) {
+                lines.add(rest);
+                break;
+            }
+            String cut = font.plainSubstrByWidth(rest, maxWidth);
+            if (cut.isEmpty()) {
+                cut = rest.substring(0, 1);
+            }
+            int space = cut.lastIndexOf(' ');
+            if (space > 8 && cut.length() < rest.length()) {
+                cut = cut.substring(0, space);
+            }
+            lines.add(cut);
+            rest = rest.substring(cut.length());
+            if (rest.startsWith(" ")) {
+                rest = rest.substring(1);
+            }
+        }
+        return lines;
     }
 }
