@@ -42,8 +42,6 @@ public final class JobSiteReroller {
     private static final int EMPLOYED_TIMEOUT = 300;
     private static final int OPEN_TIMEOUT = 120;
     private static final int OFFER_TIMEOUT = 40;
-    /** Predicted breaks and placements the server put back before this attempt gives up. */
-    private static final int CORRECTION_LIMIT = 40;
 
     /** Headless clients stretch these when the integrated server falls behind. Unset for normal play. */
     private static int timeout(int ticks) {
@@ -81,8 +79,6 @@ public final class JobSiteReroller {
     private static int phaseTicks;
     private static int attempts;
     private static boolean breakStarted;
-    private static int breakCorrections;
-    private static int placeCorrections;
     private static boolean closingForReroll;
     private static BlockPos jobPos;
     private static Block jobBlock;
@@ -212,8 +208,6 @@ public final class JobSiteReroller {
         phase = Phase.IDLE;
         closingForReroll = false;
         breakStarted = false;
-        breakCorrections = 0;
-        placeCorrections = 0;
         packetRun = false;
         pendingSignature = "";
         stopReason = reason;
@@ -229,8 +223,6 @@ public final class JobSiteReroller {
             return;
         }
         packetRun = false;
-        breakCorrections = 0;
-        placeCorrections = 0;
         AutomatorConfig config = AutomatorConfig.get();
         if (!config.enabled()) {
             fail(client, StopReason.DISABLED);
@@ -414,24 +406,7 @@ public final class JobSiteReroller {
 
     private static void waitUnemployed(Villager villager) {
         if (McBridge.unemployed(villager)) {
-            breakCorrections = 0;
             enter(Phase.PICKUP);
-            return;
-        }
-        // The client predicts the break and then stops mining. Until the server agrees,
-        // the lectern is still there and the villager will not change job.
-        if (phaseTicks >= 20 && phaseTicks % 20 == 0) {
-            dropUnconfirmedPredictions(Minecraft.getInstance());
-        }
-        if (jobBlockPresent()) {
-            if (breakCorrections >= CORRECTION_LIMIT) {
-                stop(StopReason.TIMEOUT);
-                return;
-            }
-            breakCorrections++;
-            breakStarted = false;
-            LOGGER.info("Job block returned before the villager was unemployed, breaking again ({})", breakCorrections);
-            enter(Phase.BREAK);
             return;
         }
         if (phaseTicks > timeout(UNEMPLOYED_TIMEOUT)) {
@@ -489,79 +464,12 @@ public final class JobSiteReroller {
 
     private static void waitEmployed(Villager villager) {
         if (McBridge.professionId(villager).equals(professionId)) {
-            placeCorrections = 0;
             enter(Phase.OPEN);
-            return;
-        }
-        if (phaseTicks >= 20 && phaseTicks % 20 == 0) {
-            dropUnconfirmedPredictions(Minecraft.getInstance());
-        }
-        if (!jobBlockPresent()) {
-            if (placeCorrections >= CORRECTION_LIMIT) {
-                stop(StopReason.TIMEOUT);
-                return;
-            }
-            placeCorrections++;
-            LOGGER.info("Job block missing before the villager was employed, placing again ({})", placeCorrections);
-            enter(Phase.PLACE);
             return;
         }
         if (phaseTicks > timeout(EMPLOYED_TIMEOUT)) {
             stop(StopReason.TIMEOUT);
         }
-    }
-
-    /**
-     * Puts the client block back to the state the server has acknowledged.
-     * The getter is package-private, so this stays on reflection and compiles on every loader.
-     */
-    private static void dropUnconfirmedPredictions(Minecraft client) {
-        if (client.level == null) {
-            return;
-        }
-        try {
-            java.lang.reflect.Method getter = predictionGetter(client.level.getClass());
-            if (getter == null) {
-                return;
-            }
-            getter.setAccessible(true);
-            Object handler = getter.invoke(client.level);
-            if (handler == null) {
-                return;
-            }
-            for (java.lang.reflect.Method method : handler.getClass().getMethods()) {
-                if (method.getParameterCount() == 2 && (method.getName().equals("endPredictionsUpTo") || method.getName().equals("method_41938"))) {
-                    method.invoke(handler, Integer.MAX_VALUE, client.level);
-                    return;
-                }
-            }
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-            // A build without the prediction handler just keeps the normal wait.
-        }
-    }
-
-    private static java.lang.reflect.Method predictionGetter(Class<?> type) {
-        while (type != null) {
-            for (String name : new String[] {"getBlockStatePredictionHandler", "method_41925"}) {
-                try {
-                    return type.getDeclaredMethod(name);
-                } catch (NoSuchMethodException ignored) {
-                    // Named in dev and on Forge, intermediary in a Fabric production jar.
-                }
-            }
-            type = type.getSuperclass();
-        }
-        return null;
-    }
-
-    /** The job site this attempt is supposed to break or replace, as the client currently sees it. */
-    private static boolean jobBlockPresent() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.level == null || jobPos == null || jobBlock == null) {
-            return false;
-        }
-        BlockState state = client.level.getBlockState(jobPos);
-        return !state.isAir() && state.getBlock() == jobBlock;
     }
 
     private static void open(Minecraft client, LocalPlayer player, Villager villager) {
