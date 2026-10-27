@@ -326,9 +326,14 @@ if (neoForgeNode == null) {
             add("runtimeOnly", tradeCycling)
         }
         // The shared unit tests are plain JUnit. Stonecutter copies them onto this node.
+        // ModDevGradle does not put Minecraft's libraries on the test classpath, and
+        // AutomatorConfig's JSON helpers need Gson and SLF4J to compile and run.
         add("testImplementation", platform("org.junit:junit-bom:5.13.4"))
         add("testImplementation", "org.junit.jupiter:junit-jupiter")
         add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher")
+        add("testImplementation", "com.google.code.gson:gson:2.10.1")
+        add("testImplementation", "org.slf4j:slf4j-api:2.0.16")
+        add("testRuntimeOnly", "org.slf4j:slf4j-simple:2.0.16")
     }
 
     tasks.withType<Test>().configureEach {
