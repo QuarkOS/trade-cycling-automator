@@ -30,7 +30,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MOD_VERSION = "1.1.0"
+MOD_VERSION = "1.1.1"
 CHECKS = (
     ("modLoaded", "villager_reroller harness check mod-loaded"),
     ("configScreen", "villager_reroller harness check config-screen"),

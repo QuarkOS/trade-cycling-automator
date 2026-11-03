@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- The trade list's scroll bar now works. The thumb is sized to the visible part of the list, dragging it scrolls, clicking the track moves a page, and the mouse wheel moves one row.
+- A focused search box keeps every key except Escape. Typing E, and the other inventory, drop, and hotbar keys, no longer closes the screen or triggers the bind.
+- On the merchant screen the Reroll panel sits beside the trade window. The screen slides left so a panel up to 176 px wide fits. When there is still no room, the panel stays closed instead of covering the result slot.
+
 ## 1.1.0
 
 - Tools at or below a durability floor (default 10 uses left) are skipped. Equally fast tools prefer an unenchanted one, then one without Mending. The bare hand is the fallback when the block allows it. The run stops with a chat message when no safe tool remains.

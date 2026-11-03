@@ -32,26 +32,26 @@ Built with [Stonecutter](https://stonecutter.kikugie.dev/) 0.9.8. The sources in
 
 | Minecraft | Fabric | Forge | NeoForge |
 | --- | --- | --- | --- |
-| 1.19 | `villager_reroller-fabric-1.1.0+1.19.jar` | `villager_reroller-forge-1.1.0+1.19.jar` (Forge 41.1.0) | — |
-| 1.19.1 | `villager_reroller-fabric-1.1.0+1.19.1.jar` | `villager_reroller-forge-1.1.0+1.19.1.jar` (Forge 42.0.9) | — |
-| 1.19.2 | `villager_reroller-fabric-1.1.0+1.19.2.jar` | `villager_reroller-forge-1.1.0+1.19.2.jar` (Forge 43.5.0) | — |
-| 1.19.3 | `villager_reroller-fabric-1.1.0+1.19.3.jar` | `villager_reroller-forge-1.1.0+1.19.3.jar` (Forge 44.1.0) | — |
-| 1.19.4 | `villager_reroller-fabric-1.1.0+1.19.4.jar` | `villager_reroller-forge-1.1.0+1.19.4.jar` (Forge 45.4.0) | — |
-| 1.20.1 | `villager_reroller-fabric-1.1.0+1.20.1.jar` | `villager_reroller-forge-1.1.0+1.20.1.jar` (Forge 47.4.28) | — |
-| 1.20.2 | `villager_reroller-fabric-1.1.0+1.20.2.jar` | `villager_reroller-forge-1.1.0+1.20.2.jar` (Forge 48.1.0) | `villager_reroller-neoforge-1.1.0+1.20.2.jar` (NeoForge 20.2.93) |
-| 1.20.4 | `villager_reroller-fabric-1.1.0+1.20.4.jar` | `villager_reroller-forge-1.1.0+1.20.4.jar` (Forge 49.2.13) | `villager_reroller-neoforge-1.1.0+1.20.4.jar` (NeoForge 20.4.253) |
-| 1.20.6 | `villager_reroller-fabric-1.1.0+1.20.6.jar` | `villager_reroller-forge-1.1.0+1.20.6.jar` (Forge 50.0.8) | `villager_reroller-neoforge-1.1.0+1.20.6.jar` (NeoForge 20.6.144) |
-| 1.21 | `villager_reroller-fabric-1.1.0+1.21.jar` | `villager_reroller-forge-1.1.0+1.21.jar` (Forge 51.0.33) | `villager_reroller-neoforge-1.1.0+1.21.jar` (NeoForge 21.0.167) |
-| 1.21.1 | `villager_reroller-fabric-1.1.0+1.21.1.jar` | `villager_reroller-forge-1.1.0+1.21.1.jar` (Forge 52.1.20) | `villager_reroller-neoforge-1.1.0+1.21.1.jar` (NeoForge 21.1.265) |
-| 1.21.3 | `villager_reroller-fabric-1.1.0+1.21.3.jar` | `villager_reroller-forge-1.1.0+1.21.3.jar` (Forge 53.1.16) | `villager_reroller-neoforge-1.1.0+1.21.3.jar` (NeoForge 21.3.100) |
-| 1.21.4 | `villager_reroller-fabric-1.1.0+1.21.4.jar` | `villager_reroller-forge-1.1.0+1.21.4.jar` (Forge 54.1.22) | `villager_reroller-neoforge-1.1.0+1.21.4.jar` (NeoForge 21.4.161) |
-| 1.21.5 | `villager_reroller-fabric-1.1.0+1.21.5.jar` | `villager_reroller-forge-1.1.0+1.21.5.jar` (Forge 55.1.18) | `villager_reroller-neoforge-1.1.0+1.21.5.jar` (NeoForge 21.5.101) |
-| 1.21.6 | `villager_reroller-fabric-1.1.0+1.21.6.jar` | `villager_reroller-forge-1.1.0+1.21.6.jar` (Forge 56.0.9) | `villager_reroller-neoforge-1.1.0+1.21.6.jar` (NeoForge 21.6.20-beta) |
-| 1.21.9 | `villager_reroller-fabric-1.1.0+1.21.9.jar` | `villager_reroller-forge-1.1.0+1.21.9.jar` (Forge 59.0.5) | `villager_reroller-neoforge-1.1.0+1.21.9.jar` (NeoForge 21.9.16-beta) |
-| 1.21.11 | `villager_reroller-fabric-1.1.0+1.21.11.jar` | `villager_reroller-forge-1.1.0+1.21.11.jar` (Forge 61.2.4) | `villager_reroller-neoforge-1.1.0+1.21.11.jar` (NeoForge 21.11.48) |
-| 26.1.2 | `villager_reroller-fabric-1.1.0+26.1.2.jar` | `villager_reroller-forge-1.1.0+26.1.2.jar` (Forge 64.1.5) | `villager_reroller-neoforge-1.1.0+26.1.2.jar` (NeoForge 26.1.2.124) |
-| 26.2 | `villager_reroller-fabric-1.1.0+26.2.jar` | `villager_reroller-forge-1.1.0+26.2.jar` (Forge 65.1.5) | `villager_reroller-neoforge-1.1.0+26.2.jar` (NeoForge 26.2.0.93) |
-| 26.3 | `villager_reroller-fabric-1.1.0+26.3.jar` | `villager_reroller-forge-1.1.0+26.3.jar` (Forge 66.1.0) | `villager_reroller-neoforge-1.1.0+26.3.jar` (NeoForge 26.3.0.99) |
+| 1.19 | `villager_reroller-fabric-1.1.1+1.19.jar` | `villager_reroller-forge-1.1.1+1.19.jar` (Forge 41.1.0) | — |
+| 1.19.1 | `villager_reroller-fabric-1.1.1+1.19.1.jar` | `villager_reroller-forge-1.1.1+1.19.1.jar` (Forge 42.0.9) | — |
+| 1.19.2 | `villager_reroller-fabric-1.1.1+1.19.2.jar` | `villager_reroller-forge-1.1.1+1.19.2.jar` (Forge 43.5.0) | — |
+| 1.19.3 | `villager_reroller-fabric-1.1.1+1.19.3.jar` | `villager_reroller-forge-1.1.1+1.19.3.jar` (Forge 44.1.0) | — |
+| 1.19.4 | `villager_reroller-fabric-1.1.1+1.19.4.jar` | `villager_reroller-forge-1.1.1+1.19.4.jar` (Forge 45.4.0) | — |
+| 1.20.1 | `villager_reroller-fabric-1.1.1+1.20.1.jar` | `villager_reroller-forge-1.1.1+1.20.1.jar` (Forge 47.4.28) | — |
+| 1.20.2 | `villager_reroller-fabric-1.1.1+1.20.2.jar` | `villager_reroller-forge-1.1.1+1.20.2.jar` (Forge 48.1.0) | `villager_reroller-neoforge-1.1.1+1.20.2.jar` (NeoForge 20.2.93) |
+| 1.20.4 | `villager_reroller-fabric-1.1.1+1.20.4.jar` | `villager_reroller-forge-1.1.1+1.20.4.jar` (Forge 49.2.13) | `villager_reroller-neoforge-1.1.1+1.20.4.jar` (NeoForge 20.4.253) |
+| 1.20.6 | `villager_reroller-fabric-1.1.1+1.20.6.jar` | `villager_reroller-forge-1.1.1+1.20.6.jar` (Forge 50.0.8) | `villager_reroller-neoforge-1.1.1+1.20.6.jar` (NeoForge 20.6.144) |
+| 1.21 | `villager_reroller-fabric-1.1.1+1.21.jar` | `villager_reroller-forge-1.1.1+1.21.jar` (Forge 51.0.33) | `villager_reroller-neoforge-1.1.1+1.21.jar` (NeoForge 21.0.167) |
+| 1.21.1 | `villager_reroller-fabric-1.1.1+1.21.1.jar` | `villager_reroller-forge-1.1.1+1.21.1.jar` (Forge 52.1.20) | `villager_reroller-neoforge-1.1.1+1.21.1.jar` (NeoForge 21.1.265) |
+| 1.21.3 | `villager_reroller-fabric-1.1.1+1.21.3.jar` | `villager_reroller-forge-1.1.1+1.21.3.jar` (Forge 53.1.16) | `villager_reroller-neoforge-1.1.1+1.21.3.jar` (NeoForge 21.3.100) |
+| 1.21.4 | `villager_reroller-fabric-1.1.1+1.21.4.jar` | `villager_reroller-forge-1.1.1+1.21.4.jar` (Forge 54.1.22) | `villager_reroller-neoforge-1.1.1+1.21.4.jar` (NeoForge 21.4.161) |
+| 1.21.5 | `villager_reroller-fabric-1.1.1+1.21.5.jar` | `villager_reroller-forge-1.1.1+1.21.5.jar` (Forge 55.1.18) | `villager_reroller-neoforge-1.1.1+1.21.5.jar` (NeoForge 21.5.101) |
+| 1.21.6 | `villager_reroller-fabric-1.1.1+1.21.6.jar` | `villager_reroller-forge-1.1.1+1.21.6.jar` (Forge 56.0.9) | `villager_reroller-neoforge-1.1.1+1.21.6.jar` (NeoForge 21.6.20-beta) |
+| 1.21.9 | `villager_reroller-fabric-1.1.1+1.21.9.jar` | `villager_reroller-forge-1.1.1+1.21.9.jar` (Forge 59.0.5) | `villager_reroller-neoforge-1.1.1+1.21.9.jar` (NeoForge 21.9.16-beta) |
+| 1.21.11 | `villager_reroller-fabric-1.1.1+1.21.11.jar` | `villager_reroller-forge-1.1.1+1.21.11.jar` (Forge 61.2.4) | `villager_reroller-neoforge-1.1.1+1.21.11.jar` (NeoForge 21.11.48) |
+| 26.1.2 | `villager_reroller-fabric-1.1.1+26.1.2.jar` | `villager_reroller-forge-1.1.1+26.1.2.jar` (Forge 64.1.5) | `villager_reroller-neoforge-1.1.1+26.1.2.jar` (NeoForge 26.1.2.124) |
+| 26.2 | `villager_reroller-fabric-1.1.1+26.2.jar` | `villager_reroller-forge-1.1.1+26.2.jar` (Forge 65.1.5) | `villager_reroller-neoforge-1.1.1+26.2.jar` (NeoForge 26.2.0.93) |
+| 26.3 | `villager_reroller-fabric-1.1.1+26.3.jar` | `villager_reroller-forge-1.1.1+26.3.jar` (Forge 66.1.0) | `villager_reroller-neoforge-1.1.1+26.3.jar` (NeoForge 26.3.0.99) |
 
 NeoForge is skipped on 1.19, 1.19.1, 1.19.2, 1.19.3, and 1.19.4 because that loader did not exist yet. 1.20.1 is skipped because the only NeoForge-named artifact for it is the legacy Forge fork `net.neoforged:forge:1.20.1-47.1.x`, which still uses the Forge packages. The `net.neoforged:neoforge` artifact and the `net.neoforged` packages start at 1.20.2. 1.21.6 and 1.21.9 use the last published NeoForge betas (`21.6.20-beta` and `21.9.16-beta`); those Minecraft versions have no stable NeoForge release, and Trade Cycling publishes a NeoForge jar for both. 1.21.2 is not built. Trade Cycling does not publish a 1.21.2 jar, and Forge has no 1.21.2 promotion. NeoForge 1.21.2 is beta-only and is not one of this repo's versions. 1.19 through 1.20.4 store trades in NBT. 1.20.2 uses the same listing field shapes as 1.20.4. 1.19 through 1.20.1 use the older shapes: an item plus a count, a single stew effect, and every tradeable enchantment. 1.19.4 draws the trade panel with `PoseStack` and `renderWidget`. 1.19.3 still uses `renderButton` and draws items without a pose. 1.19, 1.19.1, and 1.19.2 use `Registry`, public widget coordinates, and `new Button(...)`.
 

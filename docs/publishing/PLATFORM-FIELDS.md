@@ -5,7 +5,7 @@ Do not upload yet. The icon file is not in the repository. `fabric.mod.json` poi
 Project name: Villager Reroller
 Mod id: `villager_reroller`
 Suggested Modrinth slug: `villager-reroller`
-Version: `1.1.0+1.21.11`
+Version: `1.1.1+1.21.11`
 License: MIT
 Author: Emilio Schwaiger
 Sources and issues: https://github.com/QuarkOS/trade-cycling-automator
