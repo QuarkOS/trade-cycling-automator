@@ -7,6 +7,7 @@ import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.net.ForgeChannels;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.MyVillagersScreen;
+import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.picker.TradeHallHud;
 import dev.quarkos.villagerreroller.picker.TradeHallScreen;
 import net.minecraft.client.Minecraft;
@@ -47,6 +48,7 @@ public final class ForgeClientHooks {
         MinecraftForge.EVENT_BUS.addListener(this::onClientTick);
         MinecraftForge.EVENT_BUS.addListener(this::onScreenInit);
         MinecraftForge.EVENT_BUS.addListener(this::onKey);
+        MinecraftForge.EVENT_BUS.addListener(this::onScroll);
         MinecraftForge.EVENT_BUS.addListener(this::onEntity);
         //? if <1.20 {
         MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.client.event.RenderGuiEvent.Post event) -> TradeHallHud.draw(event.getPoseStack()));
@@ -63,6 +65,7 @@ public final class ForgeClientHooks {
         TickEvent.ClientTickEvent.Post.BUS.addListener(event -> VillagerReroller.onClientTick(Minecraft.getInstance()));
         ScreenEvent.Init.Post.BUS.addListener(event -> VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
         ScreenEvent.KeyPressed.Pre.BUS.addListener(this::onKeyBus);
+        ScreenEvent.MouseScrolled.Pre.BUS.addListener(this::onScrollBus);
         net.minecraftforge.client.event.CustomizeGuiOverlayEvent.Chat.BUS.addListener((java.util.function.Consumer<net.minecraftforge.client.event.CustomizeGuiOverlayEvent.Chat>) event -> TradeHallHud.draw(event.getGuiGraphics()));
         PlayerInteractEvent.EntityInteract.BUS.addListener(event -> {
             if (event.getLevel().isClientSide()) {
@@ -75,6 +78,7 @@ public final class ForgeClientHooks {
         TickEvent.ClientTickEvent.Post.BUS.addListener(event -> VillagerReroller.onClientTick(Minecraft.getInstance()));
         ScreenEvent.Init.Post.BUS.addListener(event -> VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
         ScreenEvent.KeyPressed.Pre.BUS.addListener(this::onKeyBus);
+        ScreenEvent.MouseScrolled.Pre.BUS.addListener(this::onScrollBus);
         net.minecraftforge.client.event.AddGuiOverlayLayersEvent.BUS.addListener(event -> event.getLayeredDraw().add(
                 net.minecraft.resources.Identifier.fromNamespaceAndPath(VillagerReroller.MOD_ID, "hall"),
                 (graphics, delta) -> TradeHallHud.draw(graphics)));
@@ -110,6 +114,19 @@ public final class ForgeClientHooks {
         VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen());
     }
 
+    private void onScroll(ScreenEvent.MouseScrolled.Pre event) {
+        double vertical;
+        //? if <1.20.2 {
+        vertical = event.getScrollDelta();
+        //?}
+        //? if >=1.20.2 {
+        vertical = event.getDeltaX();
+        //?}
+        if (TradePickerUi.scrollWheel(event.getScreen(), event.getMouseX(), event.getMouseY(), vertical)) {
+            event.setCanceled(true);
+        }
+    }
+
     private void onKey(ScreenEvent.KeyPressed.Pre event) {
         if (event.getScreen().getFocused() instanceof EditBox) {
             return;
@@ -138,6 +155,13 @@ public final class ForgeClientHooks {
     //?}
 
     //? if >=1.21.6 {
+    private boolean onScrollBus(ScreenEvent.MouseScrolled.Pre event) {
+        if (TradePickerUi.scrollWheel(event.getScreen(), event.getMouseX(), event.getMouseY(), event.getDeltaX())) {
+            return true;
+        }
+        return false;
+    }
+
     private boolean onKeyBus(ScreenEvent.KeyPressed.Pre event) {
         if (event.getScreen().getFocused() instanceof EditBox) {
             return false;

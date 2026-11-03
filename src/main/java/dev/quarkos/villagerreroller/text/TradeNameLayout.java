@@ -6,8 +6,8 @@ package dev.quarkos.villagerreroller.text;
  */
 public final class TradeNameLayout {
     public static final int NAME_LEFT = 36;
-    public static final int PRICE_GAP = 8;
-    public static final int PRICE_RIGHT = 16;
+    public static final int PRICE_GAP = 4;
+    public static final int PRICE_RIGHT = 10;
 
     private TradeNameLayout() {
     }

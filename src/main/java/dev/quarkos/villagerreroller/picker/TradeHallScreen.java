@@ -1,5 +1,6 @@
 package dev.quarkos.villagerreroller.picker;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.McBridge;
 import net.minecraft.client.gui.components.Button;
@@ -26,14 +27,14 @@ public final class TradeHallScreen extends Screen {
     private static final int ROW = 29;
     private final List<Button> removeButtons = new ArrayList<>();
     private final int[] removeSlot = new int[8];
-    private int scroll;
+    private final ListScroll bar = new ListScroll();
+    private int slotCount;
     private int wellX;
     private int wellY;
     private int wellW;
     private int wellH;
     private int visibleRows;
     private int maxScroll;
-    private boolean dragging;
     private List<Component> hover = List.of();
     private Button villagersButton;
 
@@ -192,8 +193,10 @@ public final class TradeHallScreen extends Screen {
         GuiDraw.recessed(canvas, wellX, wellY, wellW, wellH, 0xFF8E8E8E);
         List<TradeHall.Slot> slots = TradeHall.slots();
         visibleRows = Math.max(1, (wellH - 4) / ROW);
-        maxScroll = Math.max(0, slots.size() - visibleRows);
-        scroll = Math.max(0, Math.min(scroll, maxScroll));
+        slotCount = slots.size();
+        maxScroll = ListScroll.maxOffset(slotCount, visibleRows);
+        bar.clamp(maxScroll);
+        int scroll = bar.offset();
         boolean showRemove = !summary && !TradeHall.isActive();
         for (Button button : removeButtons) {
             button.visible = false;
@@ -211,9 +214,9 @@ public final class TradeHallScreen extends Screen {
             paintSlot(canvas, slots.get(scroll + i), scroll + i, i, summary, showRemove, mouseX, mouseY);
         }
         canvas.unscissor();
-        int travel = Math.max(1, wellH - 29);
-        int barY = wellY + 1 + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
-        canvas.scroller(wellX + wellW - 7, barY, maxScroll == 0);
+        int thumb = ListScroll.thumbHeight(wellH, slotCount, visibleRows);
+        int barY = wellY + ListScroll.thumbTop(wellH, thumb, scroll, maxScroll);
+        canvas.scroller(wellX + wellW - 7, barY, thumb, maxScroll == 0);
         canvas.fill(frame.left + 6, frame.top + frame.h - 28, frame.left + frame.w - 6, frame.top + frame.h - 27, 0xFF888888);
         canvas.fill(frame.left + 6, frame.top + frame.h - 27, frame.left + frame.w - 6, frame.top + frame.h - 26, 0xFFE8E8E8);
     }
@@ -357,15 +360,14 @@ public final class TradeHallScreen extends Screen {
         if (delta == 0) {
             return false;
         }
-        scroll = Math.max(0, Math.min(maxScroll, scroll - delta));
-        return true;
+        return bar.wheel(vertical, slotCount, visibleRows);
     }
 
     //? if <1.21.9 {
     /*@Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && inside(mouseX, mouseY, wellX + wellW - 8, wellY, 8, wellH) && maxScroll > 0) {
-            dragging = true;
+        if (button == InputConstants.MOUSE_BUTTON_LEFT && inside(mouseX, mouseY, wellX + wellW - 8, wellY, 8, wellH)) {
+            bar.clickTrack(mouseY, wellY, wellH, slotCount, visibleRows);
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -373,9 +375,7 @@ public final class TradeHallScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (dragging) {
-            int travel = Math.max(1, wellH - 29);
-            scroll = Math.max(0, Math.min(maxScroll, (int) ((mouseY - wellY) / (double) travel * maxScroll)));
+        if (bar.drag(mouseY, wellY, wellH, slotCount, visibleRows)) {
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
@@ -383,14 +383,14 @@ public final class TradeHallScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        dragging = false;
+        bar.stop();
         return super.mouseReleased(mouseX, mouseY, button);
     }
     *///?} else {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        if (event.button() == 0 && inside(event.x(), event.y(), wellX + wellW - 8, wellY, 8, wellH) && maxScroll > 0) {
-            dragging = true;
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && inside(event.x(), event.y(), wellX + wellW - 8, wellY, 8, wellH)) {
+            bar.clickTrack(event.y(), wellY, wellH, slotCount, visibleRows);
             return true;
         }
         return super.mouseClicked(event, doubled);
@@ -398,9 +398,7 @@ public final class TradeHallScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        if (dragging) {
-            int travel = Math.max(1, wellH - 29);
-            scroll = Math.max(0, Math.min(maxScroll, (int) ((event.y() - wellY) / (double) travel * maxScroll)));
+        if (bar.drag(event.y(), wellY, wellH, slotCount, visibleRows)) {
             return true;
         }
         return super.mouseDragged(event, dragX, dragY);
@@ -408,7 +406,7 @@ public final class TradeHallScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        dragging = false;
+        bar.stop();
         return super.mouseReleased(event);
     }
     //?}

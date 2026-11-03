@@ -5,6 +5,7 @@ import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.text.ScrollingNames;
 import dev.quarkos.villagerreroller.text.TradeNameLayout;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 //? if >=1.20 {
@@ -21,14 +22,16 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 //? if >=1.21.9 {
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
 //?}
 //? if >=1.21.6 {
 import net.minecraft.client.renderer.RenderPipelines;
 //?}
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.Mth;
 //? if <1.21.11 {
 /*import net.minecraft.Util;
 *///?} else {
@@ -45,15 +48,17 @@ import java.util.List;
  * The button uses the recipe-book sprite. Rows use the villager scroller and checkbox sprites.
  */
 public final class TradePickerUi {
-    private static final int MERCHANT_WIDTH = 276;
+    private static final int MERCHANT_WIDTH = MerchantLayout.MERCHANT_WIDTH;
     private static final int MERCHANT_HEIGHT = 166;
-    private static final int PANEL_WIDTH = 168;
-    private static final int COMPACT_PANEL_WIDTH = 144;
-    private static final int WIDE_AT = 452;
+    /**
+     * Set by {@code MerchantScreenShiftMixin} once the merchant background follows {@code leftPos}.
+     * Without that, shifting the screen only moves widgets and the texture stays centered.
+     */
+    public static boolean merchantBackgroundFollowsLeftPos;
     private static final int PANEL_HEIGHT = 200;
     private static final int LIST_TOP = 35;
     private static final int LIST_HEIGHT = 82;
-    private static final int LIST_WIDTH = PANEL_WIDTH - 12;
+    private static final int LIST_WIDTH = MerchantLayout.PANEL_WIDTH - 12;
     private static final int STATUS_TOP = 120;
     private static final int ODDS_SECOND = 133;
     private static final int METHOD_TOP = 146;
@@ -88,6 +93,7 @@ public final class TradePickerUi {
 
     private static final List<AbstractWidget> panelWidgets = new ArrayList<>();
     private static OfferList list;
+    private static EditBox searchBox;
     private static Button methodButton;
     private static Button queueButton;
     private static Button hallButton;
@@ -96,13 +102,22 @@ public final class TradePickerUi {
     private TradePickerUi() {
     }
 
+    public static boolean panelShown() {
+        return list != null;
+    }
+
     public static void attach(Minecraft client, MerchantScreen screen) {
+        // init() already rebuilt the vanilla widgets at the centered position.
         panelWidgets.clear();
         list = null;
+        searchBox = null;
         methodButton = null;
         queueButton = null;
         hallButton = null;
         listButton = null;
+        merchantShift = 0;
+        savedMerchantLeft = Integer.MIN_VALUE;
+        savedMerchantTop = Integer.MIN_VALUE;
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
@@ -156,8 +171,12 @@ public final class TradePickerUi {
         }
         int naturalLeft = (screen.width - MERCHANT_WIDTH) / 2;
         int naturalTop = (screen.height - MERCHANT_HEIGHT) / 2;
-        boolean wide = screen.width >= WIDE_AT;
-        int panelW = wide ? PANEL_WIDTH : COMPACT_PANEL_WIDTH;
+        MerchantLayout.Placement placement = MerchantLayout.place(screen.width, merchantBackgroundFollowsLeftPos);
+        if (!placement.shown()) {
+            return;
+        }
+        int panelW = placement.panelWidth();
+        int merchantLeft = placement.merchantLeft();
         int panelH = Math.min(PANEL_HEIGHT, Math.max(96, screen.height - 4));
         int overflow = PANEL_HEIGHT - panelH;
         int listH = LIST_HEIGHT;
@@ -184,22 +203,7 @@ public final class TradePickerUi {
             layoutQueue -= shift;
             layoutStart -= shift;
         }
-        int combined = MERCHANT_WIDTH + 3 + panelW;
-        boolean sideBySide = screen.width >= combined + 2;
-        int merchantLeft = naturalLeft;
-        if (!wide && sideBySide) {
-            merchantLeft = Math.max(2, (screen.width - combined) / 2);
-        }
-        int panelX;
-        if (!sideBySide) {
-            panelW = Math.min(panelW, Math.max(80, screen.width - 8));
-            panelX = Math.max(2, screen.width - panelW - 2);
-        } else {
-            panelX = merchantLeft + MERCHANT_WIDTH + (wide ? 4 : 3);
-        }
-        if (panelX + panelW > screen.width - 2) {
-            panelX = Math.max(2, screen.width - panelW - 2);
-        }
+        int panelX = placement.panelX();
         int panelY = Math.max(2, (screen.height - panelH) / 2);
         if (savedMerchantLeft == Integer.MIN_VALUE) {
             savedMerchantLeft = McBridge.merchantLeft(screen);
@@ -223,7 +227,7 @@ public final class TradePickerUi {
         panelWidgets.add(background);
 
         Component searchHint = Component.translatable("gui.recipebook.search_hint");
-        EditBox search = new EditBox(client.font, panelX + 6, panelY + 17, panelW - 12, 14, searchHint);
+        EditBox search = new SearchBox(client.font, panelX + 6, panelY + 17, panelW - 12, 14, searchHint);
         //? if >=1.19.3 {
         String hint = searchHint.getString();
         String shown = GuiDraw.ellipsis(client.font, hint, panelW - 20);
@@ -241,6 +245,7 @@ public final class TradePickerUi {
         });
         buttons.add(search);
         panelWidgets.add(search);
+        searchBox = search;
 
         int inner = panelW - 12;
         int gap = 2;
@@ -290,6 +295,7 @@ public final class TradePickerUi {
     }
 
     private static void close(MerchantScreen screen) {
+        searchBox = null;
         var buttons = McBridge.buttons(screen);
         if (merchantShift != 0) {
             for (AbstractWidget widget : List.copyOf(buttons)) {
@@ -386,6 +392,60 @@ public final class TradePickerUi {
         int visibleRows = Math.max(1, list.widgetHeight() / ROW_HEIGHT);
         int maxScroll = Math.max(0, rows.size() - visibleRows);
         list.setScroll(Math.min(index, maxScroll));
+    }
+
+    /**
+     * Wheel over the open trade list. Merchant screens swallow {@code mouseScrolled}
+     * before a child widget sees it, so the screen hooks call this first.
+     */
+    public static boolean scrollWheel(net.minecraft.client.gui.screens.Screen screen, double mouseX, double mouseY, double vertical) {
+        if (!(screen instanceof MerchantScreen) || list == null) {
+            return false;
+        }
+        return list.scrollBy(mouseX, mouseY, vertical);
+    }
+
+    /** Drags the trade-list thumb through the merchant screen and returns the new offset. */
+    public static int proveDrag(MerchantScreen screen) {
+        return list == null ? -1 : list.proveDrag(screen);
+    }
+
+    /** Clicks the search box and types {@code text}. False when the screen closes or the value differs. */
+    public static boolean proveType(MerchantScreen screen, String text) {
+        if (searchBox == null || text == null) {
+            return false;
+        }
+        int x = widgetX(searchBox) + 4;
+        int y = widgetY(searchBox) + 4;
+        //? if <1.21.9 {
+        /*screen.mouseClicked(x, y, InputConstants.MOUSE_BUTTON_LEFT);
+        for (int i = 0; i < text.length(); i++) {
+            char typed = text.charAt(i);
+            int key = typed >= 'a' && typed <= 'z' ? typed - 32 : typed;
+            screen.keyPressed(key, 0, 0);
+            screen.charTyped(typed, 0);
+            if (!(McBridge.currentScreen(Minecraft.getInstance()) instanceof MerchantScreen)) {
+                return false;
+            }
+        }
+        *///?} else {
+        MouseButtonInfo info = new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0);
+        screen.mouseClicked(new MouseButtonEvent(x, y, info), false);
+        for (int i = 0; i < text.length(); i++) {
+            char typed = text.charAt(i);
+            int key = typed >= 'a' && typed <= 'z' ? typed - 32 : typed;
+            screen.keyPressed(new KeyEvent(key, 0, 0));
+            //? if >=26.1 {
+            /*screen.charTyped(new CharacterEvent(typed));
+            *///?} else {
+            screen.charTyped(new CharacterEvent(typed, 0));
+            //?}
+            if (!(McBridge.currentScreen(Minecraft.getInstance()) instanceof MerchantScreen)) {
+                return false;
+            }
+        }
+        //?}
+        return text.equals(searchBox.getValue());
     }
 
     public static String[] oddsLines() {
@@ -704,8 +764,9 @@ public final class TradePickerUi {
     }
 
     private static final class OfferList extends AbstractWidget {
+        private static final int BAR = 6;
         private final Button action;
-        private int scroll;
+        private final ListScroll bar = new ListScroll();
 
         private OfferList(int x, int y, int width, int height, Button action) {
             super(x, y, width, height, Component.translatable("text." + VillagerReroller.MOD_ID + ".panel.title", ""));
@@ -713,7 +774,15 @@ public final class TradePickerUi {
         }
 
         private void setScroll(int scroll) {
-            this.scroll = Math.max(0, scroll);
+            bar.setOffset(scroll);
+        }
+
+        private int visibleCount() {
+            return Math.max(1, widgetHeight() / ROW_HEIGHT);
+        }
+
+        private int rowCount() {
+            return TradeSession.visible().size();
         }
 
         private int widgetHeight() {
@@ -795,7 +864,8 @@ public final class TradePickerUi {
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
             int maxScroll = Math.max(0, rows.size() - visibleRows);
-            scroll = Mth.clamp(scroll, 0, maxScroll);
+            bar.clamp(maxScroll);
+            int scroll = bar.offset();
             Minecraft minecraft = Minecraft.getInstance();
             //? if <1.19.1 {
             clip(left(), top(), left() + width - 8, top() + height);
@@ -840,9 +910,9 @@ public final class TradePickerUi {
             //? if >=1.19.1 {
             disableScissor();
             //?}
-            int travel = Math.max(1, height - 27);
-            int scrollerY = top() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
-            fill(pose, left() + width - 6, scrollerY, left() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
+            int thumb = ListScroll.thumbHeight(height, rows.size(), visibleRows);
+            int scrollerY = top() + ListScroll.thumbTop(height, thumb, scroll, maxScroll);
+            fill(pose, left() + width - 6, scrollerY, left() + width, scrollerY + thumb, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
             drawMethodTip(pose, mouseX, mouseY);
         }
         //?}
@@ -855,7 +925,8 @@ public final class TradePickerUi {
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
             int maxScroll = Math.max(0, rows.size() - visibleRows);
-            scroll = Mth.clamp(scroll, 0, maxScroll);
+            bar.clamp(maxScroll);
+            int scroll = bar.offset();
             Minecraft minecraft = Minecraft.getInstance();
             enableScissor(getX(), getY(), getX() + width - 8, getY() + height);
             for (int i = 0; i < visibleRows && scroll + i < rows.size(); i++) {
@@ -890,9 +961,9 @@ public final class TradePickerUi {
                 minecraft.font.draw(pose, price, priceX, rowY + 6, pill ? 0xFF1B5E20 : TEXT);
             }
             disableScissor();
-            int travel = Math.max(1, height - 27);
-            int scrollerY = getY() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
-            fill(pose, getX() + width - 6, scrollerY, getX() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
+            int thumb = ListScroll.thumbHeight(height, rows.size(), visibleRows);
+            int scrollerY = getY() + ListScroll.thumbTop(height, thumb, scroll, maxScroll);
+            fill(pose, getX() + width - 6, scrollerY, getX() + width, scrollerY + thumb, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
             drawMethodTip(pose, mouseX, mouseY);
         }
         //?}
@@ -932,7 +1003,8 @@ public final class TradePickerUi {
             List<TradeEntry> rows = TradeSession.visible();
             int visibleRows = Math.max(1, height / ROW_HEIGHT);
             int maxScroll = Math.max(0, rows.size() - visibleRows);
-            scroll = Mth.clamp(scroll, 0, maxScroll);
+            bar.clamp(maxScroll);
+            int scroll = bar.offset();
             Minecraft minecraft = Minecraft.getInstance();
             graphics.enableScissor(getX(), getY(), getX() + width - 8, getY() + height);
             for (int i = 0; i < visibleRows && scroll + i < rows.size(); i++) {
@@ -996,19 +1068,19 @@ public final class TradePickerUi {
             }
             graphics.disableScissor();
             Identifier scroller = maxScroll == 0 ? SCROLLER_DISABLED : SCROLLER;
-            int travel = Math.max(1, height - 27);
-            int scrollerY = getY() + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
+            int thumb = ListScroll.thumbHeight(height, rows.size(), visibleRows);
+            int scrollerY = getY() + ListScroll.thumbTop(height, thumb, scroll, maxScroll);
             //? if >=1.21.6 {
-            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, scroller, getX() + width - 6, scrollerY, 6, 27);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, scroller, getX() + width - 6, scrollerY, 6, thumb);
             //?}
             //? if >=1.21.2 && <1.21.6 {
-            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, scroller, getX() + width - 6, scrollerY, 6, 27);
+            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, scroller, getX() + width - 6, scrollerY, 6, thumb);
             *///?}
             //? if >=1.20.2 && <1.21.2 {
-            /*graphics.blitSprite(scroller, getX() + width - 6, scrollerY, 6, 27);
+            /*graphics.blitSprite(scroller, getX() + width - 6, scrollerY, 6, thumb);
             *///?}
             //? if <1.20.2 {
-            /*graphics.fill(getX() + width - 6, scrollerY, getX() + width, scrollerY + 27, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
+            /*graphics.fill(getX() + width - 6, scrollerY, getX() + width, scrollerY + thumb, maxScroll == 0 ? 0xFF555555 : 0xFFC6C6C6);
             *///?}
             drawMethodTip(graphics, mouseX, mouseY);
         }
@@ -1030,20 +1102,76 @@ public final class TradePickerUi {
             if (!isMouseOver(mouseX, mouseY)) {
                 return false;
             }
+            if (mouseX >= left() + width - BAR) {
+                bar.clickTrack(mouseY, top(), widgetHeight(), rowCount(), visibleCount());
+                return true;
+            }
             List<TradeEntry> rows = TradeSession.visible();
-            int index = scroll + (int) ((mouseY - top()) / ROW_HEIGHT);
+            int index = bar.offset() + (int) ((mouseY - top()) / ROW_HEIGHT);
             if (index < 0 || index >= rows.size()) {
                 return true;
             }
             TradeEntry entry = rows.get(index);
             int priceColumn = left() + width - 52;
             if (mouseX >= priceColumn) {
-                TradeSession.cyclePrice(entry, button == 1 ? -1 : 1);
+                TradeSession.cyclePrice(entry, button == InputConstants.MOUSE_BUTTON_RIGHT ? -1 : 1);
             } else {
                 TradeSession.toggle(entry);
             }
             playDownSound(Minecraft.getInstance().getSoundManager());
             return true;
+        }
+
+        //? if <1.21.9 {
+        /*@Override
+        public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+            return dragThumb(mouseY);
+        }
+
+        @Override
+        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            bar.stop();
+            return false;
+        }
+        *///?} else {
+        @Override
+        public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+            return dragThumb(event.y());
+        }
+
+        @Override
+        public boolean mouseReleased(MouseButtonEvent event) {
+            bar.stop();
+            return false;
+        }
+        //?}
+
+        private boolean dragThumb(double mouseY) {
+            return bar.drag(mouseY, top(), widgetHeight(), rowCount(), visibleCount());
+        }
+
+        private int proveDrag(MerchantScreen screen) {
+            int max = ListScroll.maxOffset(rowCount(), visibleCount());
+            if (max <= 0) {
+                return -1;
+            }
+            int track = widgetHeight();
+            int thumb = ListScroll.thumbHeight(track, rowCount(), visibleCount());
+            double x = left() + width - BAR / 2.0;
+            double y0 = top() + thumb / 2.0;
+            double y1 = top() + track * 0.55;
+            int button = InputConstants.MOUSE_BUTTON_LEFT;
+            //? if <1.21.9 {
+            /*screen.mouseClicked(x, y0, button);
+            screen.mouseDragged(x, y1, button, 0, y1 - y0);
+            screen.mouseReleased(x, y1, button);
+            *///?} else {
+            MouseButtonInfo info = new MouseButtonInfo(button, 0);
+            screen.mouseClicked(new MouseButtonEvent(x, y0, info), false);
+            screen.mouseDragged(new MouseButtonEvent(x, y1, info), 0, y1 - y0);
+            screen.mouseReleased(new MouseButtonEvent(x, y1, info));
+            //?}
+            return bar.offset();
         }
 
         //? if <1.20.2 {
@@ -1062,10 +1190,7 @@ public final class TradePickerUi {
             if (!isMouseOver(mouseX, mouseY)) {
                 return false;
             }
-            int visibleRows = Math.max(1, height / ROW_HEIGHT);
-            int maxScroll = Math.max(0, TradeSession.visible().size() - visibleRows);
-            scroll = Mth.clamp(scroll - (int) Math.signum(vertical), 0, maxScroll);
-            return true;
+            return bar.wheel(vertical, rowCount(), visibleCount());
         }
 
         //? if <1.19.3 {

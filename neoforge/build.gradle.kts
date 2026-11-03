@@ -367,6 +367,9 @@ authors = "Emilio Schwaiger"
 description = '''Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If Trade Cycling is installed, the list can use that mod's cycle action instead.'''
 displayTest = "IGNORE_ALL_VERSION"
 
+[[mixins]]
+config = "villager_reroller.mixins.json"
+
 [[accessTransformers]]
 file = "META-INF/accesstransformer.cfg"
 
@@ -448,6 +451,15 @@ side = "CLIENT"
         systemProperty("villager_reroller.timeoutScale", "8")
         if (providers.gradleProperty("harness").orNull == "true") {
             systemProperty("villager_reroller.harness", "true")
+        }
+        if (providers.gradleProperty("uiProof").orNull == "true") {
+            systemProperty("villager_reroller.uiProof", "true")
+        }
+        for (proof in listOf("proofWidth", "proofHeight", "proofScale")) {
+            val value = providers.gradleProperty(proof).orNull
+            if (!value.isNullOrBlank()) {
+                systemProperty("villager_reroller.$proof", value)
+            }
         }
         val glShim = rootProject.file("/tmp/libglx-srgb.so")
         if (minecraftVersion == "26.3" && glShim.exists()) {

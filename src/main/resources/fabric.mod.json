@@ -16,6 +16,9 @@
   "icon": "assets/${id}/icon.png",
   "environment": "*",
   "accessWidener": "${accessWidener}",
+  "mixins": [
+    "villager_reroller.mixins.json"
+  ],
   "entrypoints": {
     "main": [
       "dev.quarkos.villagerreroller.server.VillagerRerollerServer"

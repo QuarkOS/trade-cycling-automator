@@ -78,6 +78,19 @@ public final class ClientHarness121 {
     private static boolean oddsShot;
     private static boolean oddsCleared;
     private static boolean unsupportedShot;
+    private static int proofStep;
+    private static int proofTicks;
+    private static int proofLayout;
+    private static boolean proofDone;
+    /** Window width, height, and requested GUI scale. 0 is Minecraft's auto scale. */
+    private static final int[][] PROOF_LAYOUTS = {
+            {854, 480, 2},
+            {854, 480, 3},
+            {854, 480, 0},
+            {1920, 1080, 2},
+            {1920, 1080, 3},
+            {1920, 1080, 0}
+    };
     private static int lecternsBefore;
     private static String stopReason = "running";
     private static final java.util.ArrayDeque<String> COMMANDS = new java.util.ArrayDeque<>();
@@ -103,7 +116,17 @@ public final class ClientHarness121 {
             //? if >=1.21 {
             client.options.menuBackgroundBlurriness().set(0);
             //?}
-            client.options.guiScale().set(2);
+            client.options.tutorialStep = net.minecraft.client.tutorial.TutorialSteps.NONE;
+            client.getTutorial().setStep(net.minecraft.client.tutorial.TutorialSteps.NONE);
+            client.getTutorial().stop();
+            int initialScale = Boolean.getBoolean("villager_reroller.uiProof")
+                    ? PROOF_LAYOUTS[0][2]
+                    : Integer.getInteger("villager_reroller.proofScale", 2);
+            client.options.guiScale().set(initialScale);
+            if (Boolean.getBoolean("villager_reroller.uiProof")) {
+                client.getWindow().setWindowed(PROOF_LAYOUTS[0][0], PROOF_LAYOUTS[0][1]);
+                resizeClient(client);
+            }
             client.options.renderDistance().set(2);
             client.options.simulationDistance().set(5);
             client.options.framerateLimit().set(20);
@@ -477,6 +500,10 @@ public final class ClientHarness121 {
         if (ticks < 5) {
             return;
         }
+        if (Boolean.getBoolean("villager_reroller.uiProof")) {
+            proveUi(client);
+            return;
+        }
         //? if <1.19.4 {
         /*if (false) {
         *///?}
@@ -500,6 +527,154 @@ public final class ClientHarness121 {
         note("villager_reroller harness check trade-panel");
         state = State.WAIT_SCROLL;
         ticks = 0;
+    }
+
+    private static void proveUi(Minecraft client) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
+            fail("ui proof lost the trade screen");
+            return;
+        }
+        if (TradeSession.entries().size() < 8) {
+            if (ticks > timeout(20 * 20)) {
+                fail("ui proof list was short: " + TradeSession.entries().size());
+            }
+            return;
+        }
+        clearChrome(client);
+        if (proofLayout >= PROOF_LAYOUTS.length) {
+            if (!proofDone) {
+                proofDone = true;
+                note("villager_reroller ui proof ok");
+                client.stop();
+            }
+            return;
+        }
+        int[] layout = PROOF_LAYOUTS[proofLayout];
+        String tag = proofTag(layout);
+        if (proofStep == 0 && proofTicks == 0) {
+            TradeSession.setFilter("");
+            applyLayout(client, layout[0], layout[1], layout[2]);
+        }
+        proofTicks++;
+        if (proofStep == 0) {
+            if (proofTicks == 15) {
+                forceScale(client, layout[2]);
+            }
+            if (proofTicks < 20) {
+                return;
+            }
+            shot(client, "screen-" + tag);
+            note("villager_reroller ui proof screen " + tag
+                    + " gui " + client.getWindow().getGuiScaledWidth() + "x" + client.getWindow().getGuiScaledHeight()
+                    + " effective " + client.getWindow().getGuiScale()
+                    + " panel=" + TradePickerUi.panelShown()
+                    + " follows=" + TradePickerUi.merchantBackgroundFollowsLeftPos);
+            if (!TradePickerUi.panelShown()) {
+                nextLayout();
+                return;
+            }
+            int offset = TradePickerUi.proveDrag(screen);
+            if (offset <= 0) {
+                fail("scrollbar drag did not move, offset " + offset + " follows=" + TradePickerUi.merchantBackgroundFollowsLeftPos);
+                return;
+            }
+            note("villager_reroller ui proof scroll " + offset + " " + tag);
+            proofStep = 1;
+            proofTicks = 0;
+            return;
+        }
+        if (proofStep == 1) {
+            if (proofTicks < 12) {
+                return;
+            }
+            shot(client, "scrollbar-" + tag);
+            if (!TradePickerUi.proveType(screen, "eq1")) {
+                fail("search box did not keep eq1");
+                return;
+            }
+            if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
+                fail("search closed the trade screen");
+                return;
+            }
+            note("villager_reroller ui proof typed eq1 " + tag);
+            proofStep = 2;
+            proofTicks = 0;
+            return;
+        }
+        if (proofTicks < 12) {
+            return;
+        }
+        shot(client, "search-" + tag);
+        nextLayout();
+    }
+
+    private static void nextLayout() {
+        proofLayout++;
+        proofStep = 0;
+        proofTicks = 0;
+    }
+
+    private static String proofTag(int[] layout) {
+        String scale = layout[2] == 0 ? "auto" : Integer.toString(layout[2]);
+        return layout[0] + "x" + layout[1] + "-scale" + scale;
+    }
+
+    private static void clearChrome(Minecraft client) {
+        client.options.tutorialStep = net.minecraft.client.tutorial.TutorialSteps.NONE;
+        client.getTutorial().setStep(net.minecraft.client.tutorial.TutorialSteps.NONE);
+        client.getTutorial().stop();
+        //? if >=26.2 {
+        /*client.gui.toastManager().clear();
+        *///?} elif >=1.21.3 {
+        client.getToastManager().clear();
+        //?} else {
+        /*client.getToasts().clear();
+        *///?}
+        client.options.chatVisibility().set(net.minecraft.world.entity.player.ChatVisiblity.HIDDEN);
+        client.options.chatOpacity().set(0.0);
+        client.options.chatHeightUnfocused().set(0.0);
+        client.options.textBackgroundOpacity().set(0.0);
+        //? if <26.2 {
+        client.gui.getChat().clearMessages(false);
+        client.gui.setOverlayMessage(Component.empty(), false);
+        //?}
+    }
+
+    private static void applyLayout(Minecraft client, int width, int height, int scale) {
+        client.options.guiScale().set(scale);
+        client.getWindow().setWindowed(width, height);
+        resizeClient(client);
+        forceScale(client, scale);
+    }
+
+    /**
+     * Vanilla's scale option stops at a 320×240 GUI, so 854×480 cannot select 3.
+     * The window scale is set directly when the proof asked for a larger one.
+     */
+    private static void forceScale(Minecraft client, int scale) {
+        if (scale <= 0 || client.getWindow().getGuiScale() == scale) {
+            return;
+        }
+        client.getWindow().setGuiScale(scale);
+        Screen open = McBridge.currentScreen(client);
+        if (open == null) {
+            return;
+        }
+        int guiW = client.getWindow().getGuiScaledWidth();
+        int guiH = client.getWindow().getGuiScaledHeight();
+        //? if >=1.21.11 {
+        open.resize(guiW, guiH);
+        //?} else {
+        /*open.resize(client, guiW, guiH);
+        *///?}
+    }
+
+    private static void resizeClient(Minecraft client) {
+        //? if >=26.1 {
+        /*client.resizeGui();
+        *///?} else {
+        client.resizeDisplay();
+        //?}
     }
 
     private static void waitScroll(Minecraft client) {

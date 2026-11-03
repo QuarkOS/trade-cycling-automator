@@ -6,6 +6,8 @@ import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 /* *///?} else {
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
+import net.minecraft.client.gui.components.EditBox;
 //?}
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -114,8 +116,13 @@ public final class McBridge {
         //? if forge {
         /*return;
         *///?} else {
+        ScreenMouseEvents.allowMouseScroll(screen).register((current, mouseX, mouseY, horizontal, vertical) ->
+                !dev.quarkos.villagerreroller.picker.TradePickerUi.scrollWheel(current, mouseX, mouseY, vertical));
         //? if <1.21.9 {
         /*        ScreenKeyboardEvents.afterKeyPress(screen).register((current, key, scancode, modifiers) -> {
+            if (current.getFocused() instanceof EditBox) {
+                return;
+            }
             if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(key, scancode)) {
                 JobSiteReroller.onToggleKey();
             }
@@ -125,6 +132,9 @@ public final class McBridge {
         });
         *///?} else {
         ScreenKeyboardEvents.afterKeyPress(screen).register((current, event) -> {
+            if (current.getFocused() instanceof EditBox) {
+                return;
+            }
             if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(event)) {
                 JobSiteReroller.onToggleKey();
             }

@@ -1,5 +1,6 @@
 package dev.quarkos.villagerreroller.picker;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.AutomatorKeys;
 import dev.quarkos.villagerreroller.client.McBridge;
@@ -48,10 +49,11 @@ public final class MyVillagersScreen extends Screen {
     private Button clearButton;
     private String query = "";
     private Filter filter = Filter.ALL;
-    private int scroll;
-    private int neededScroll;
-    private boolean dragging;
-    private boolean draggingNeeded;
+    private final ListScroll rosterBar = new ListScroll();
+    private final ListScroll neededBar = new ListScroll();
+    private int rosterCount;
+    private int neededCount;
+    private int neededVisible;
     private int wellX;
     private int wellY;
     private int wellW;
@@ -74,7 +76,7 @@ public final class MyVillagersScreen extends Screen {
     }
 
     public void scrollTo(int index) {
-        this.scroll = Math.max(0, index);
+        rosterBar.setOffset(index);
     }
 
     @Override
@@ -108,7 +110,7 @@ public final class MyVillagersScreen extends Screen {
         if (frame.w < 280) {
             searchW = Math.max(40, frame.w / 3);
         }
-        search = new EditBox(this.font, frame.left + 8, frame.top + 20, searchW, 14,
+        search = new SearchBox(this.font, frame.left + 8, frame.top + 20, searchW, 14,
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.search"));
         //? if >=1.19.3 {
         String hint = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.search").getString();
@@ -121,7 +123,7 @@ public final class MyVillagersScreen extends Screen {
         search.setValue(query);
         search.setResponder(value -> {
             query = value;
-            scroll = 0;
+            rosterBar.setOffset(0);
         });
         addRenderableWidget(search);
         int buttonY = frame.top + frame.h - 22;
@@ -145,7 +147,7 @@ public final class MyVillagersScreen extends Screen {
                     } else {
                         VillagerRosterClient.pruneDeadLoadedVillagers(this.minecraft);
                     }
-                    scroll = 0;
+                    rosterBar.setOffset(0);
                 }));
         addRenderableWidget(FitButton.create(
                 frame.left + frame.w - doneW - 6,
@@ -272,8 +274,8 @@ public final class MyVillagersScreen extends Screen {
                 ? Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.tip").getString()
                 : Component.translatable(
                         "text." + VillagerReroller.MOD_ID + ".checklist.showing",
-                        scroll + 1,
-                        Math.min(scroll + Math.max(visibleRows, 1), filtered(roster, checks).size()),
+                        rosterBar.offset() + 1,
+                        Math.min(rosterBar.offset() + Math.max(visibleRows, 1), filtered(roster, checks).size()),
                         filtered(roster, checks).size()).getString();
         int footerW = frame.w - 160;
         if (footerW < 20) {
@@ -379,11 +381,15 @@ public final class MyVillagersScreen extends Screen {
         canvas.fill(needX + 6, needY + 12, needX + needW - 4, needY + 13, 0xFFD4A856);
         int rowH = 11;
         int rows = Math.max(1, (needH - 16) / rowH);
-        int max = Math.max(0, needed.size() - rows);
-        neededScroll = Math.max(0, Math.min(neededScroll, max));
-        canvas.scissor(needX + 4, needY + 14, needX + needW - 2, needY + needH - 1);
-        for (int i = 0; i < rows && neededScroll + i < needed.size(); i++) {
-            VillagerRoster.WantedCheck check = needed.get(neededScroll + i);
+        neededCount = needed.size();
+        neededVisible = rows;
+        int trackY = needY + 14;
+        int trackH = Math.max(1, needH - 16);
+        int max = ListScroll.maxOffset(neededCount, neededVisible);
+        neededBar.clamp(max);
+        canvas.scissor(needX + 4, needY + 14, needX + needW - 8, needY + needH - 1);
+        for (int i = 0; i < rows && neededBar.offset() + i < needed.size(); i++) {
+            VillagerRoster.WantedCheck check = needed.get(neededBar.offset() + i);
             int y = needY + 14 + i * rowH;
             int fill = i % 2 == 0 ? 0xFFFFE3A3 : 0xFFFFEAC0;
             canvas.fill(needX + 5, y, needX + needW - 3, y + rowH - 1, fill);
@@ -417,14 +423,21 @@ public final class MyVillagersScreen extends Screen {
             }
         }
         canvas.unscissor();
+        if (max > 0) {
+            int thumb = ListScroll.thumbHeight(trackH, neededCount, neededVisible);
+            int thumbY = trackY + ListScroll.thumbTop(trackH, thumb, neededBar.offset(), max);
+            canvas.scroller(needX + needW - 7, thumbY, thumb, false);
+        }
     }
 
     private void paintRoster(GuiDraw.Canvas canvas, List<VillagerRoster.Entry> roster, List<VillagerRoster.WantedCheck> checks, int mouseX, int mouseY) {
         GuiDraw.recessed(canvas, wellX, wellY, wellW, wellH, 0xFF8E8E8E);
         List<Indexed> rows = filtered(roster, checks);
         visibleRows = Math.max(1, (wellH - 4) / ROW);
-        maxScroll = Math.max(0, rows.size() - visibleRows);
-        scroll = Math.max(0, Math.min(scroll, maxScroll));
+        rosterCount = rows.size();
+        maxScroll = ListScroll.maxOffset(rosterCount, visibleRows);
+        rosterBar.clamp(maxScroll);
+        int scroll = rosterBar.offset();
         if (rows.isEmpty()) {
             if (roster.isEmpty()) {
                 paintEmpty(canvas, mouseX, mouseY);
@@ -444,9 +457,9 @@ public final class MyVillagersScreen extends Screen {
             }
             canvas.unscissor();
         }
-        int travel = Math.max(1, wellH - 29);
-        int barY = wellY + 1 + (maxScroll == 0 ? 0 : (int) (scroll / (float) maxScroll * travel));
-        canvas.scroller(wellX + wellW - 7, barY, maxScroll == 0);
+        int thumb = ListScroll.thumbHeight(wellH, rosterCount, visibleRows);
+        int barY = wellY + ListScroll.thumbTop(wellH, thumb, scroll, maxScroll);
+        canvas.scroller(wellX + wellW - 7, barY, thumb, maxScroll == 0);
     }
 
     private void paintVillager(GuiDraw.Canvas canvas, Indexed indexed, int row, int y, List<VillagerRoster.WantedCheck> checks, int mouseX, int mouseY) {
@@ -790,53 +803,46 @@ public final class MyVillagersScreen extends Screen {
         for (TabHit tab : tabs) {
             if (inside(mouseX, mouseY, tab.x, tab.y, tab.w, tab.h)) {
                 filter = tab.filter;
-                scroll = 0;
+                rosterBar.setOffset(0);
                 return true;
             }
         }
-        if (inside(mouseX, mouseY, wellX + wellW - 8, wellY, 8, wellH) && maxScroll > 0) {
-            dragging = true;
-            int travel = Math.max(1, wellH - 29);
-            int next = (int) ((mouseY - wellY) / (double) travel * maxScroll);
-            scroll = Math.max(0, Math.min(maxScroll, next));
+        if (inside(mouseX, mouseY, wellX + wellW - 8, wellY, 8, wellH)) {
+            rosterBar.clickTrack(mouseY, wellY, wellH, rosterCount, visibleRows);
             return true;
         }
-        if (needH > 16 && inside(mouseX, mouseY, needX, needY, needW, needH)) {
-            draggingNeeded = true;
+        int needTrackY = needY + 14;
+        int needTrackH = Math.max(1, needH - 16);
+        if (needH > 16 && inside(mouseX, mouseY, needX + needW - 8, needTrackY, 8, needTrackH)) {
+            neededBar.clickTrack(mouseY, needTrackY, needTrackH, neededCount, neededVisible);
             return true;
         }
         return false;
     }
 
     private boolean scrollBy(double mouseX, double mouseY, double vertical) {
-        int delta = (int) Math.signum(vertical);
-        if (delta == 0) {
-            return false;
-        }
         if (inside(mouseX, mouseY, wellX, wellY, wellW, wellH)) {
-            scroll = Math.max(0, Math.min(maxScroll, scroll - delta));
-            return true;
+            return rosterBar.wheel(vertical, rosterCount, visibleRows);
         }
         if (inside(mouseX, mouseY, needX, needY, needW, needH)) {
-            neededScroll = Math.max(0, neededScroll - delta);
-            return true;
+            return neededBar.wheel(vertical, neededCount, neededVisible);
         }
         return false;
     }
 
     private boolean drag(double mouseY) {
-        if (!dragging) {
-            return false;
+        if (rosterBar.drag(mouseY, wellY, wellH, rosterCount, visibleRows)) {
+            return true;
         }
-        int travel = Math.max(1, wellH - 29);
-        scroll = Math.max(0, Math.min(maxScroll, (int) ((mouseY - wellY) / (double) travel * maxScroll)));
-        return true;
+        int needTrackY = needY + 14;
+        int needTrackH = Math.max(1, needH - 16);
+        return neededBar.drag(mouseY, needTrackY, needTrackH, neededCount, neededVisible);
     }
 
     //? if <1.21.9 {
     /*@Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && click(mouseX, mouseY)) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT && click(mouseX, mouseY)) {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -852,8 +858,8 @@ public final class MyVillagersScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        dragging = false;
-        draggingNeeded = false;
+        rosterBar.stop();
+        neededBar.stop();
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
@@ -869,7 +875,7 @@ public final class MyVillagersScreen extends Screen {
     *///?} else {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        if (event.button() == 0 && click(event.x(), event.y())) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && click(event.x(), event.y())) {
             return true;
         }
         return super.mouseClicked(event, doubled);
@@ -885,8 +891,8 @@ public final class MyVillagersScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        dragging = false;
-        draggingNeeded = false;
+        rosterBar.stop();
+        neededBar.stop();
         return super.mouseReleased(event);
     }
 
