@@ -48,15 +48,17 @@ import java.util.List;
  * The button uses the recipe-book sprite. Rows use the villager scroller and checkbox sprites.
  */
 public final class TradePickerUi {
-    private static final int MERCHANT_WIDTH = 276;
+    private static final int MERCHANT_WIDTH = MerchantLayout.MERCHANT_WIDTH;
     private static final int MERCHANT_HEIGHT = 166;
-    private static final int PANEL_WIDTH = 168;
-    private static final int COMPACT_PANEL_WIDTH = 144;
-    private static final int WIDE_AT = 452;
+    /**
+     * Set by {@code MerchantScreenShiftMixin} once the merchant background follows {@code leftPos}.
+     * Without that, shifting the screen only moves widgets and the texture stays centered.
+     */
+    public static boolean merchantBackgroundFollowsLeftPos;
     private static final int PANEL_HEIGHT = 200;
     private static final int LIST_TOP = 35;
     private static final int LIST_HEIGHT = 82;
-    private static final int LIST_WIDTH = PANEL_WIDTH - 12;
+    private static final int LIST_WIDTH = MerchantLayout.PANEL_WIDTH - 12;
     private static final int STATUS_TOP = 120;
     private static final int ODDS_SECOND = 133;
     private static final int METHOD_TOP = 146;
@@ -100,7 +102,12 @@ public final class TradePickerUi {
     private TradePickerUi() {
     }
 
+    public static boolean panelShown() {
+        return list != null;
+    }
+
     public static void attach(Minecraft client, MerchantScreen screen) {
+        // init() already rebuilt the vanilla widgets at the centered position.
         panelWidgets.clear();
         list = null;
         searchBox = null;
@@ -108,6 +115,9 @@ public final class TradePickerUi {
         queueButton = null;
         hallButton = null;
         listButton = null;
+        merchantShift = 0;
+        savedMerchantLeft = Integer.MIN_VALUE;
+        savedMerchantTop = Integer.MIN_VALUE;
         LibrarianTracker.bindNearest(client);
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
@@ -161,8 +171,12 @@ public final class TradePickerUi {
         }
         int naturalLeft = (screen.width - MERCHANT_WIDTH) / 2;
         int naturalTop = (screen.height - MERCHANT_HEIGHT) / 2;
-        boolean wide = screen.width >= WIDE_AT;
-        int panelW = wide ? PANEL_WIDTH : COMPACT_PANEL_WIDTH;
+        MerchantLayout.Placement placement = MerchantLayout.place(screen.width, merchantBackgroundFollowsLeftPos);
+        if (!placement.shown()) {
+            return;
+        }
+        int panelW = placement.panelWidth();
+        int merchantLeft = placement.merchantLeft();
         int panelH = Math.min(PANEL_HEIGHT, Math.max(96, screen.height - 4));
         int overflow = PANEL_HEIGHT - panelH;
         int listH = LIST_HEIGHT;
@@ -189,22 +203,7 @@ public final class TradePickerUi {
             layoutQueue -= shift;
             layoutStart -= shift;
         }
-        int combined = MERCHANT_WIDTH + 3 + panelW;
-        boolean sideBySide = screen.width >= combined + 2;
-        int merchantLeft = naturalLeft;
-        if (!wide && sideBySide) {
-            merchantLeft = Math.max(2, (screen.width - combined) / 2);
-        }
-        int panelX;
-        if (!sideBySide) {
-            panelW = Math.min(panelW, Math.max(80, screen.width - 8));
-            panelX = Math.max(2, screen.width - panelW - 2);
-        } else {
-            panelX = merchantLeft + MERCHANT_WIDTH + (wide ? 4 : 3);
-        }
-        if (panelX + panelW > screen.width - 2) {
-            panelX = Math.max(2, screen.width - panelW - 2);
-        }
+        int panelX = placement.panelX();
         int panelY = Math.max(2, (screen.height - panelH) / 2);
         if (savedMerchantLeft == Integer.MIN_VALUE) {
             savedMerchantLeft = McBridge.merchantLeft(screen);

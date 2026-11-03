@@ -664,6 +664,14 @@ if (forgeNode == null) {
         from(forgePack)
     }
 
+    // Userdev discovers the exploded classes directory. MixinPlatformAgentMinecraftForge
+    // rejects that container, so the config is only picked up from MixinConfigs in the manifest.
+    tasks.named<Jar>("jar") {
+        manifest {
+            attributes("MixinConfigs" to "villager_reroller.mixins.json")
+        }
+    }
+
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
     }
@@ -713,6 +721,14 @@ if (forgeNode == null) {
     }
 
     tasks.withType<JavaExec>().configureEach {
+        if (name == "runClient") {
+            val manifest = layout.buildDirectory.file("classes/java/main/META-INF/MANIFEST.MF")
+            doFirst {
+                val file = manifest.get().asFile
+                file.parentFile.mkdirs()
+                file.writeText("Manifest-Version: 1.0\nMixinConfigs: villager_reroller.mixins.json\n\n")
+            }
+        }
         if (name == "runClient" && forgeBefore1204(minecraftVersion)) {
             val modsDir = runDir.dir("mods").asFile
             val builtJar = tasks.named<Jar>("jar").flatMap { it.archiveFile }
@@ -735,6 +751,12 @@ if (forgeNode == null) {
         }
         if (providers.gradleProperty("uiProof").orNull == "true") {
             systemProperty("villager_reroller.uiProof", "true")
+        }
+        for (proof in listOf("proofWidth", "proofHeight", "proofScale")) {
+            val value = providers.gradleProperty(proof).orNull
+            if (!value.isNullOrBlank()) {
+                systemProperty("villager_reroller.$proof", value)
+            }
         }
         val glShim = rootProject.file("/tmp/libglx-srgb.so")
         if (minecraftVersion == "26.3" && glShim.exists()) {

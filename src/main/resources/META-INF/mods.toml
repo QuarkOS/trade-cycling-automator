@@ -11,6 +11,9 @@ authors = "Emilio Schwaiger"
 description = '''Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If Trade Cycling is installed, the list can use that mod's cycle action instead.'''
 displayTest = "IGNORE_ALL_VERSION"
 
+[[mixins]]
+config = "villager_reroller.mixins.json"
+
 [[dependencies.villager_reroller]]
 modId = "forge"
 mandatory = true
