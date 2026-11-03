@@ -172,6 +172,9 @@ tasks {
         if (providers.gradleProperty("harness").orNull == "true") {
             systemProperty("villager_reroller.harness", "true")
         }
+        if (providers.gradleProperty("uiProof").orNull == "true") {
+            systemProperty("villager_reroller.uiProof", "true")
+        }
         val serverHarness = providers.gradleProperty("serverHarness").orNull
         if (!serverHarness.isNullOrBlank()) {
             systemProperty("villager_reroller.serverHarness", serverHarness)

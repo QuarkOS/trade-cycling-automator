@@ -78,6 +78,8 @@ public final class ClientHarness121 {
     private static boolean oddsShot;
     private static boolean oddsCleared;
     private static boolean unsupportedShot;
+    private static int proofStep;
+    private static int proofTicks;
     private static int lecternsBefore;
     private static String stopReason = "running";
     private static final java.util.ArrayDeque<String> COMMANDS = new java.util.ArrayDeque<>();
@@ -477,6 +479,10 @@ public final class ClientHarness121 {
         if (ticks < 5) {
             return;
         }
+        if (Boolean.getBoolean("villager_reroller.uiProof")) {
+            proveUi(client);
+            return;
+        }
         //? if <1.19.4 {
         /*if (false) {
         *///?}
@@ -500,6 +506,64 @@ public final class ClientHarness121 {
         note("villager_reroller harness check trade-panel");
         state = State.WAIT_SCROLL;
         ticks = 0;
+    }
+
+    private static void proveUi(Minecraft client) {
+        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
+            fail("ui proof lost the trade screen");
+            return;
+        }
+        if (TradeSession.entries().size() < 8) {
+            if (ticks > timeout(20 * 20)) {
+                fail("ui proof list was short: " + TradeSession.entries().size());
+            }
+            return;
+        }
+        proofTicks++;
+        if (proofStep == 0) {
+            int offset = TradePickerUi.proveDrag(screen);
+            if (offset <= 0) {
+                fail("scrollbar drag did not move, offset " + offset);
+                return;
+            }
+            note("villager_reroller ui proof scroll " + offset);
+            proofStep = 1;
+            proofTicks = 0;
+            return;
+        }
+        if (proofStep == 1) {
+            if (proofTicks == 8) {
+                shot(client, "scrollbar-dragged");
+            }
+            if (proofTicks < 30) {
+                return;
+            }
+            proofStep = 2;
+            proofTicks = 0;
+            return;
+        }
+        if (proofStep == 2) {
+            if (!TradePickerUi.proveType(screen, "eq1")) {
+                fail("search box did not keep eq1");
+                return;
+            }
+            if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
+                fail("search closed the trade screen");
+                return;
+            }
+            note("villager_reroller ui proof typed eq1");
+            proofStep = 3;
+            proofTicks = 0;
+            return;
+        }
+        if (proofTicks == 1) {
+            shot(client, "search-eq1");
+        }
+        if (proofTicks < 40) {
+            return;
+        }
+        note("villager_reroller ui proof ok");
+        client.stop();
     }
 
     private static void waitScroll(Minecraft client) {

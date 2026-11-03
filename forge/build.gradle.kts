@@ -733,6 +733,9 @@ if (forgeNode == null) {
         if (providers.gradleProperty("harness").orNull == "true") {
             systemProperty("villager_reroller.harness", "true")
         }
+        if (providers.gradleProperty("uiProof").orNull == "true") {
+            systemProperty("villager_reroller.uiProof", "true")
+        }
         val glShim = rootProject.file("/tmp/libglx-srgb.so")
         if (minecraftVersion == "26.3" && glShim.exists()) {
             environment("LD_PRELOAD", glShim.absolutePath)

@@ -48,7 +48,7 @@ public final class GuiDraw {
 
         void tip(List<Component> lines, int mouseX, int mouseY);
 
-        void scroller(int x, int y, boolean disabled);
+        void scroller(int x, int y, int height, boolean disabled);
     }
 
     public static String ellipsis(Font font, String text, int maxWidth) {
@@ -183,8 +183,11 @@ public final class GuiDraw {
         }
 
         @Override
-        public void scroller(int x, int y, boolean disabled) {
-            fill(x, y, x + 6, y + 27, disabled ? 0xFF555555 : 0xFFC6C6C6);
+        public void scroller(int x, int y, int height, boolean disabled) {
+            if (height <= 0) {
+                return;
+            }
+            fill(x, y, x + 6, y + height, disabled ? 0xFF555555 : 0xFFC6C6C6);
         }
     }
     *///?}
@@ -261,21 +264,24 @@ public final class GuiDraw {
         }
 
         @Override
-        public void scroller(int x, int y, boolean disabled) {
+        public void scroller(int x, int y, int height, boolean disabled) {
+            if (height <= 0) {
+                return;
+            }
             Identifier sprite = sprite(disabled
                     ? "container/villager/scroller_disabled"
                     : "container/villager/scroller");
             //? if >=1.21.6 {
-            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, 6, 27);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, 6, height);
             //?}
             //? if >=1.21.2 && <1.21.6 {
-            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, sprite, x, y, 6, 27);
+            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, sprite, x, y, 6, height);
             *///?}
             //? if >=1.20.2 && <1.21.2 {
-            /*graphics.blitSprite(sprite, x, y, 6, 27);
+            /*graphics.blitSprite(sprite, x, y, 6, height);
             *///?}
             //? if <1.20.2 {
-            /*fill(x, y, x + 6, y + 27, disabled ? 0xFF555555 : 0xFFC6C6C6);
+            /*fill(x, y, x + 6, y + height, disabled ? 0xFF555555 : 0xFFC6C6C6);
             *///?}
         }
     }

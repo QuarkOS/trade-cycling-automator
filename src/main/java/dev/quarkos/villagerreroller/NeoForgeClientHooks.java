@@ -7,6 +7,7 @@ import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.net.NeoForgeChannels;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.MyVillagersScreen;
+import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.picker.TradeHallHud;
 import dev.quarkos.villagerreroller.picker.TradeHallScreen;
 import net.minecraft.client.Minecraft;
@@ -68,6 +69,11 @@ public final class NeoForgeClientHooks {
                 VillagerReroller.onScreen(Minecraft.getInstance(), event.getScreen()));
         NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RenderGuiEvent.Post event) ->
                 TradeHallHud.draw(event.getGuiGraphics()));
+        NeoForge.EVENT_BUS.addListener((ScreenEvent.MouseScrolled.Pre event) -> {
+            if (TradePickerUi.scrollWheel(event.getScreen(), event.getMouseX(), event.getMouseY(), event.getScrollDeltaY())) {
+                event.setCanceled(true);
+            }
+        });
         NeoForge.EVENT_BUS.addListener((ScreenEvent.KeyPressed.Pre event) -> {
             if (event.getScreen().getFocused() instanceof EditBox) {
                 return;
