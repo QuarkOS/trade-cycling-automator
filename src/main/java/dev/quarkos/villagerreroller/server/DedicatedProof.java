@@ -11,6 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Runs only when a dedicated server is started with
@@ -18,6 +21,7 @@ import java.lang.reflect.Method;
  */
 public final class DedicatedProof {
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
+    private static final Set<UUID> supplied = new HashSet<>();
     private static boolean hooked;
 
     private DedicatedProof() {
@@ -63,8 +67,9 @@ public final class DedicatedProof {
             }
         });
         if (proofWorld) {
-            // give @a runs before the harness joins. Repeat it until the player is online.
-            for (int i = 0; i < 180; i++) {
+            // The client can take minutes to reach the title screen. Keep offering
+            // the kit until the player is online, then stop changing their gamemode.
+            for (int i = 0; i < 20 * 60; i++) {
                 sleep();
                 sleep();
                 sleep();
@@ -75,12 +80,20 @@ public final class DedicatedProof {
     }
 
     private static void supply(MinecraftServer server) {
-        if (server.getPlayerList().getPlayers().isEmpty()) {
-            return;
+        String mode = System.getProperty("villager_reroller.proofGamemode", "survival");
+        if (!mode.equals("creative") && !mode.equals("adventure") && !mode.equals("spectator")) {
+            mode = "survival";
         }
-        command(server, "gamemode survival @a");
-        command(server, "give @a minecraft:lectern 16");
-        command(server, "give @a minecraft:iron_axe");
+        for (var player : server.getPlayerList().getPlayers()) {
+            if (!supplied.add(player.getUUID())) {
+                continue;
+            }
+            String name = player.getScoreboardName();
+            command(server, "op " + name);
+            command(server, "gamemode " + mode + " " + name);
+            command(server, "give " + name + " minecraft:lectern 16");
+            command(server, "give " + name + " minecraft:iron_axe");
+        }
     }
 
     private static void selfTest(MinecraftServer server) {

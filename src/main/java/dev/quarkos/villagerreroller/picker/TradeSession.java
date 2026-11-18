@@ -191,6 +191,22 @@ public final class TradeSession {
         profession = "minecraft:librarian";
     }
 
+    /** The proof stops on whatever offer is open, which is the lock-in path. */
+    public static void harnessLockAny() {
+        TradeEntry entry = TradeEntry.buy(
+                "harness:any",
+                new ItemStack(Items.EMERALD),
+                "any",
+                1,
+                64,
+                (offer, max) -> offer != null && !offer.isOutOfStock());
+        entries = List.of(entry);
+        pool = TradeOdds.Pool.EMPTY;
+        chosenMax.clear();
+        chosenMax.put(entry.id, ANY_PRICE);
+        profession = "minecraft:librarian";
+    }
+
     public static boolean hasSelection() {
         return !chosenMax.isEmpty();
     }

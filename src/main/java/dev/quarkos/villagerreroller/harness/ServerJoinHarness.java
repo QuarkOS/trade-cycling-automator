@@ -45,9 +45,21 @@ public final class ServerJoinHarness {
     private static State state = State.WAIT_TITLE;
     private static int ticks;
     private static BlockPos lectern;
+    private static final boolean MATRIX = Boolean.getBoolean("villager_reroller.proofMatrix");
+    private static final boolean TRADE_CYCLING = Boolean.getBoolean("villager_reroller.proofTradeCycling");
+
     private static boolean sawAir;
+    private static boolean sawRestored;
     private static boolean shotPanel;
     private static boolean shotResult;
+    private static boolean flightStarted;
+    private static boolean hadPlayer;
+    private static boolean survivalStarted;
+    private static boolean survivalDone;
+    private static boolean creativeDone;
+    private static int missingPlayer;
+    private static Hold hold = Hold.SURVIVAL;
+    private static int phaseTicks;
 
     private ServerJoinHarness() {
     }
@@ -68,6 +80,11 @@ public final class ServerJoinHarness {
         }
         ticks++;
         try {
+            String kicked = disconnect(client);
+            if (kicked != null && state.ordinal() >= State.WAIT_WORLD.ordinal()) {
+                fail("kicked: " + kicked);
+                return;
+            }
             switch (state) {
                 case WAIT_TITLE -> waitTitle(client);
                 case OPEN_MULTIPLAYER -> openMultiplayer(client);
@@ -312,8 +329,13 @@ public final class ServerJoinHarness {
             return;
         }
         TradeSession.harnessSeekUnmatched();
+        if (TRADE_CYCLING) {
+            dev.quarkos.villagerreroller.picker.RerollMethod.selectForProof(
+                    dev.quarkos.villagerreroller.picker.RerollMethod.Kind.TRADE_CYCLING);
+        }
         if (!shotPanel) {
             shotPanel = true;
+            shot(client, "trade-screen");
             shot(client, "server-" + MODE + "-panel");
         }
         JobSiteReroller.start(client);
@@ -326,12 +348,14 @@ public final class ServerJoinHarness {
     }
 
     private static void reroll(Minecraft client) {
-        if (lectern != null && client.level != null && client.level.getBlockState(lectern).isAir()) {
-            sawAir = true;
-        }
+        trackLectern(client);
         if (!shotResult && ticks > timeout(40) && McBridge.currentScreen(client) instanceof MerchantScreen) {
             shotResult = true;
             shot(client, "server-" + MODE + "-reroll");
+        }
+        if (MATRIX) {
+            matrixReroll(client);
+            return;
         }
         int holdSeconds = Integer.getInteger("villager_reroller.proofHoldSeconds", 0);
         if (holdSeconds > 0 && ticks >= holdSeconds * 20 && sawAir && client.player != null) {
@@ -356,6 +380,10 @@ public final class ServerJoinHarness {
     }
 
     private static void finish(Minecraft client) {
+        if (MATRIX) {
+            matrixFinish(client);
+            return;
+        }
         if (ticks < 30) {
             if (ticks == 1) {
                 if (lectern != null && client.level != null && client.level.getBlockState(lectern).isAir()) {
@@ -488,7 +516,7 @@ public final class ServerJoinHarness {
             /*NativeImage image = Screenshot.takeScreenshot(mainTarget(client));
             try {
                 image.writeToFile(dir.resolve(name + ".png"));
-                Files.copy(dir.resolve(name + ".png"), Path.of("/opt/cursor/artifacts/server-reroll").resolve(name + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                publishShot(dir, name);
             } finally {
                 image.close();
             }
@@ -497,9 +525,7 @@ public final class ServerJoinHarness {
                 try {
                     Path file = dir.resolve(name + ".png");
                     image.writeToFile(file);
-                    Path copyDir = Path.of("/opt/cursor/artifacts/server-reroll");
-                    Files.createDirectories(copyDir);
-                    Files.copy(file, copyDir.resolve(name + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    publishShot(dir, name);
                 } catch (IOException ex) {
                     fail("screenshot " + name + " failed: " + ex.getMessage());
                 } finally {
@@ -531,7 +557,7 @@ public final class ServerJoinHarness {
 
     private static void writeResult(String body) {
         try {
-            Path file = Path.of("/opt/cursor/artifacts/server-reroll/harness-result.txt");
+            Path file = artifacts().resolve("harness-result.txt");
             Files.createDirectories(file.getParent());
             Files.writeString(file, body);
         } catch (IOException ignored) {
@@ -542,8 +568,199 @@ public final class ServerJoinHarness {
     private static void fail(String message) {
         LOGGER.error("villager_reroller server harness FAIL {}", message);
         System.err.println("villager_reroller server harness FAIL " + message);
-        writeResult("FAIL\n" + message + "\n");
+        String survival = !survivalStarted ? "not-run" : (survivalDone ? "pass" : "fail");
+        String creative = !survivalDone ? "not-run" : (creativeDone ? "pass" : "fail");
+        writeResult("FAIL\nphase=" + hold.name().toLowerCase()
+                + "\nreason=" + message
+                + "\nsurvival=" + survival
+                + "\ncreative=" + creative
+                + "\ntradeCycling=" + TRADE_CYCLING
+                + "\nattempts=" + JobSiteReroller.attempts()
+                + "\nbroke=" + sawAir
+                + "\nreplaced=" + sawRestored
+                + "\n");
         System.exit(1);
+    }
+
+    private static void trackLectern(Minecraft client) {
+        if (lectern == null || client.level == null) {
+            return;
+        }
+        if (client.level.getBlockState(lectern).isAir()) {
+            sawAir = true;
+            return;
+        }
+        if (sawAir && client.level.getBlockState(lectern).is(Blocks.LECTERN)) {
+            sawRestored = true;
+        }
+    }
+
+    private static void matrixReroll(Minecraft client) {
+        survivalStarted = true;
+        if (TRADE_CYCLING && sawAir) {
+            fail("trade cycling broke the lectern");
+            return;
+        }
+        JobSiteReroller.StopReason reason = JobSiteReroller.stopReason();
+        if (!JobSiteReroller.isRunning() && reason != null && reason != JobSiteReroller.StopReason.FOUND) {
+            fail("reroll stopped with " + reason + " after " + JobSiteReroller.attempts() + " attempts");
+            return;
+        }
+        int holdTicks = Math.max(1, Integer.getInteger("villager_reroller.proofHoldSeconds", 30)) * 20;
+        if (hold == Hold.SURVIVAL) {
+            phaseTicks++;
+            if (phaseTicks >= holdTicks) {
+                survivalDone = true;
+                note("villager_reroller server harness survival held " + (holdTicks / 20) + "s attempts=" + JobSiteReroller.attempts());
+                if (!command(client, "gamemode creative")) {
+                    fail("could not request creative mode");
+                    return;
+                }
+                hold = Hold.CREATIVE;
+                phaseTicks = 0;
+            }
+            return;
+        }
+        if (hold == Hold.CREATIVE) {
+            if (!hover(client)) {
+                phaseTicks++;
+                if (phaseTicks > timeout(20 * 20)) {
+                    fail("creative flight was not granted");
+                }
+                return;
+            }
+            if (!flightStarted) {
+                flightStarted = true;
+                phaseTicks = 0;
+            }
+            phaseTicks++;
+            if (phaseTicks >= holdTicks) {
+                creativeDone = true;
+                note("villager_reroller server harness creative held " + (holdTicks / 20) + "s flying attempts=" + JobSiteReroller.attempts());
+                TradeSession.harnessLockAny();
+                hold = Hold.LOCK;
+                phaseTicks = 0;
+            }
+            return;
+        }
+        phaseTicks++;
+        if (!JobSiteReroller.isRunning() && reason == JobSiteReroller.StopReason.FOUND) {
+            state = State.DONE;
+            ticks = 0;
+            return;
+        }
+        if (phaseTicks > timeout(20 * 90)) {
+            fail("target trade did not lock");
+        }
+    }
+
+    private static void matrixFinish(Minecraft client) {
+        if (ticks < 20) {
+            if (ticks == 1) {
+                trackLectern(client);
+                shot(client, "trade-screen-locked");
+                if (!survivalDone || !creativeDone) {
+                    fail("survival and creative holds did not both finish");
+                    return;
+                }
+                if (TRADE_CYCLING) {
+                    if (sawAir || (lectern != null && client.level != null && !client.level.getBlockState(lectern).is(Blocks.LECTERN))) {
+                        fail("trade cycling broke the lectern");
+                        return;
+                    }
+                    if (JobSiteReroller.attempts() < 1) {
+                        fail("trade cycling matched without a cycle");
+                        return;
+                    }
+                } else if (!sawAir || !sawRestored) {
+                    fail("job block break=" + sawAir + " replace=" + sawRestored);
+                    return;
+                }
+                if (JobSiteReroller.stopReason() != JobSiteReroller.StopReason.FOUND) {
+                    fail("target trade did not lock, reason=" + JobSiteReroller.stopReason());
+                    return;
+                }
+                note("villager_reroller server harness PASS mode=" + MODE
+                        + " survival=pass creative=pass lock=pass attempts=" + JobSiteReroller.attempts());
+                writeResult("PASS\nsurvival=pass\ncreative=pass\nlock=pass\ntradeCycling=" + TRADE_CYCLING
+                        + "\nattempts=" + JobSiteReroller.attempts()
+                        + "\nbroke=" + sawAir
+                        + "\nreplaced=" + sawRestored
+                        + "\n");
+            }
+            return;
+        }
+        System.exit(0);
+    }
+
+    private static boolean hover(Minecraft client) {
+        var player = client.player;
+        if (player == null || !player.isCreative() || !player.getAbilities().mayfly) {
+            return false;
+        }
+        player.getAbilities().flying = true;
+        player.setDeltaMovement(0.0, 0.0, 0.0);
+        player.onUpdateAbilities();
+        return player.getAbilities().flying;
+    }
+
+    private static boolean command(Minecraft client, String command) {
+        if (client.player == null) {
+            return false;
+        }
+        //? if <1.19.1 {
+        /*client.player.command(command);
+        *///?}
+        //? if >=1.19.1 && <1.19.3 {
+        /*client.player.commandSigned(command, null);
+        *///?}
+        //? if >=1.19.3 {
+        client.player.connection.sendCommand(command);
+        //?}
+        return true;
+    }
+
+    private static String disconnect(Minecraft client) {
+        Screen screen = McBridge.currentScreen(client);
+        if (screen != null) {
+            String type = screen.getClass().getSimpleName().toLowerCase();
+            String title = screen.getTitle().getString();
+            String lower = title.toLowerCase();
+            if (type.contains("disconnect") || lower.contains("invalid move") || lower.contains("disconnected")) {
+                return title.isBlank() ? type : title;
+            }
+        }
+        if (client.player != null) {
+            hadPlayer = true;
+            missingPlayer = 0;
+            return null;
+        }
+        if (hadPlayer && state.ordinal() >= State.WAIT_VILLAGER.ordinal()) {
+            missingPlayer++;
+            if (missingPlayer > 40) {
+                return "player left the world";
+            }
+        }
+        return null;
+    }
+
+    private static void publishShot(Path dir, String name) {
+        if (MATRIX) {
+            return;
+        }
+        try {
+            Path copyDir = Path.of("/opt/cursor/artifacts/server-reroll");
+            Files.createDirectories(copyDir);
+            Files.copy(dir.resolve(name + ".png"), copyDir.resolve(name + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException ignored) {
+            // The run directory still has the screenshot.
+        }
+    }
+
+    private enum Hold {
+        SURVIVAL,
+        CREATIVE,
+        LOCK
     }
 
     private enum State {
