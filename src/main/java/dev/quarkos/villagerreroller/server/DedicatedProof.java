@@ -11,7 +11,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -195,29 +198,47 @@ public final class DedicatedProof {
         try {
             Object commands = server.getCommands();
             Object source = server.createCommandSourceStack();
-            Method performer = null;
-            for (Method method : commands.getClass().getMethods()) {
-                Class<?>[] params = method.getParameterTypes();
-                if (params.length != 2 || params[1] != String.class || method.getReturnType() != int.class) {
-                    continue;
+            List<Method> candidates = new ArrayList<>();
+            Class<?> type = commands.getClass();
+            while (type != null && type != Object.class) {
+                for (Method method : type.getDeclaredMethods()) {
+                    Class<?>[] params = method.getParameterTypes();
+                    if (params.length == 2 && params[1] == String.class && params[0].isInstance(source)) {
+                        candidates.add(method);
+                    }
                 }
-                if (!params[0].isInstance(source)) {
-                    continue;
-                }
-                // Mojmap keeps the name. Intermediary builds do not, so the
-                // signature is the match and a readable name only breaks the tie.
-                if (performer == null || method.getName().contains("Prefixed")) {
-                    performer = method;
-                }
+                type = type.getSuperclass();
             }
-            if (performer == null) {
+            candidates.sort(Comparator.comparingInt(DedicatedProof::commandScore).reversed());
+            if (candidates.isEmpty()) {
                 LOGGER.warn("villager_reroller proof command missing performer: {}", command);
                 return;
             }
-            performer.invoke(commands, source, command);
+            ReflectiveOperationException last = null;
+            for (Method method : candidates) {
+                try {
+                    method.setAccessible(true);
+                    method.invoke(commands, source, command);
+                    return;
+                } catch (ReflectiveOperationException ex) {
+                    last = ex;
+                }
+            }
+            LOGGER.warn("villager_reroller proof command failed: {} {}", command, last == null ? "" : last.toString());
         } catch (ReflectiveOperationException ex) {
             LOGGER.warn("villager_reroller proof command failed: {} {}", command, ex.getCause() == null ? ex.toString() : ex.getCause().toString());
         }
+    }
+
+    private static int commandScore(Method method) {
+        int score = method.getReturnType() == int.class ? 2 : 0;
+        String name = method.getName();
+        if (name.contains("Prefixed")) {
+            score += 8;
+        } else if (name.contains("perform") || name.contains("Command")) {
+            score += 4;
+        }
+        return score;
     }
 
     private static MinecraftServer current() {

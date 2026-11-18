@@ -105,6 +105,14 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_tc:
         modes.append(True)
     jobs = args.jobs if args.jobs > 0 else validate.auto_jobs()
+    args.kept = {}
+    if args.resume:
+        previous = output / "results.json"
+        if previous.is_file():
+            for row in json.loads(previous.read_text()).get("rows", []):
+                if row.get("status") == "pass":
+                    args.kept[(row["version"], row["loader"], row["tradeCycling"])] = row
+            print(f"resume kept {len(args.kept)} passing rows", flush=True)
     print(f"reroll matrix {len(selected)} loaders x {len(modes)} trade-cycling modes, jobs={jobs}", flush=True)
     started = time.time()
     results: dict[tuple[str, str, bool], dict] = {}
@@ -150,6 +158,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--expect-kick", action="store_true", help="Pass only when the server kicks for an invalid move packet.")
+    parser.add_argument("--resume", action="store_true", help="Keep rows that already passed in the output file.")
     parser.add_argument("--client-jar", help="Use this client jar instead of the version's release jar.")
     parser.add_argument("--server-jar", help="Use this server jar instead of the client jar.")
     args = parser.parse_args(argv)
@@ -197,7 +206,12 @@ def xvfb_ok() -> bool:
 
 def run_loader(cache: Path, output: Path, spec: dict, modes: list[bool], args: argparse.Namespace) -> list[dict]:
     rows = []
+    kept = getattr(args, "kept", {})
     for tc in modes:
+        previous = kept.get((spec["version"], spec["loader"], tc))
+        if previous is not None:
+            rows.append(previous)
+            continue
         try:
             rows.append(run_mode(cache, output, spec, tc, args))
         except Exception as error:  # noqa: BLE001 - one loader must not cancel the table
