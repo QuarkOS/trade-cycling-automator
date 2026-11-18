@@ -49,8 +49,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static dev.quarkos.villagerreroller.picker.GuiDraw.MUTED;
-import static dev.quarkos.villagerreroller.picker.GuiDraw.TEXT;
+import static dev.quarkos.villagerreroller.picker.UiTheme.MUTED;
+import static dev.quarkos.villagerreroller.picker.UiTheme.TEXT;
+import static dev.quarkos.villagerreroller.picker.UiTheme.ACCENT;
+import static dev.quarkos.villagerreroller.picker.UiTheme.BORDER;
+import static dev.quarkos.villagerreroller.picker.UiTheme.RAISED;
 import static dev.quarkos.villagerreroller.picker.GuiDraw.message;
 import static dev.quarkos.villagerreroller.picker.MerchantLayout.MERCHANT_WIDTH;
 import static dev.quarkos.villagerreroller.picker.MerchantLayout.TRADE_ROW_HEIGHT;
@@ -77,6 +80,7 @@ public final class TradePickerUi {
     private static Button queueButton;
     private static Button hallButton;
     private static Button listButton;
+    private static Button browserButton;
 
     private TradePickerUi() {
     }
@@ -95,6 +99,7 @@ public final class TradePickerUi {
         queueButton = null;
         hallButton = null;
         listButton = null;
+        browserButton = null;
         merchantShift = 0;
         savedMerchantLeft = Integer.MIN_VALUE;
         savedMerchantTop = Integer.MIN_VALUE;
@@ -176,7 +181,11 @@ public final class TradePickerUi {
         }
 
         add(screen, new PanelBackground(screen, panel));
-        SearchBox search = new SearchBox(client.font, panel.search(), Component.translatable("gui.recipebook.search_hint"),
+        Rect toolbar = panel.search();
+        int browseWidth = Math.min(54, toolbar.width() / 2);
+        Rect searchBounds = new Rect(toolbar.x(), toolbar.y(), toolbar.width() - browseWidth - GAP, toolbar.height());
+        Rect browseBounds = new Rect(toolbar.right() - browseWidth, toolbar.y(), browseWidth, toolbar.height());
+        SearchBox search = new SearchBox(client.font, searchBounds, Component.translatable("gui.recipebook.search_hint"),
                 () -> onAction(client, screen));
         search.setValue(TradeSession.filter());
         search.setResponder(value -> {
@@ -186,6 +195,9 @@ public final class TradePickerUi {
             }
         });
         searchBox = add(screen, search);
+        browserButton = add(screen, FitButton.create(browseBounds, message("button.browse"),
+                pressed -> McBridge.setScreen(client, new TradeBrowserScreen(screen))));
+        FitButton.hint(browserButton, message("browser.title"));
 
         Rect navigation = panel.navigation();
         queueButton = add(screen, FitButton.create(navigation.column(0, 3), message("button.queue"),
@@ -242,6 +254,7 @@ public final class TradePickerUi {
         hallButton = null;
         queueButton = null;
         listButton = null;
+        browserButton = null;
     }
 
     /** Pixels available to a row name, also used by the client screenshot checks. */
@@ -296,6 +309,7 @@ public final class TradePickerUi {
         FitButton.hint(actionButton, blocker == null ? null : message(blocker.id()));
 
         boolean busy = busy();
+        browserButton.active = !busy;
         queueButton.active = !busy;
         FitButton.hint(queueButton, message(busy ? "ui.busy" :
                 TradeSession.hasSelection() ? "button.queue.tooltip" : "need_target"));
@@ -645,7 +659,7 @@ public final class TradePickerUi {
                     int index = bar.offset() + i;
                     Rect row = new Rect(bounds.x(), bounds.y() + i * TRADE_ROW_HEIGHT,
                             bounds.width() - SCROLLBAR_SPACE, TRADE_ROW_HEIGHT);
-                    paintRow(canvas, row, rows.get(index), index, mouseX, mouseY);
+                    paintRow(canvas, row, rows.get(index), mouseX, mouseY);
                 }
                 GuiDraw.scrollbar(canvas, track(), bar, rows.size(), visible);
             }
@@ -654,10 +668,13 @@ public final class TradePickerUi {
             }
         }
 
-        private void paintRow(GuiDraw.Canvas canvas, Rect row, TradeEntry entry, int index, int mouseX, int mouseY) {
+        private void paintRow(GuiDraw.Canvas canvas, Rect row, TradeEntry entry, int mouseX, int mouseY) {
             boolean selected = TradeSession.selected(entry.id);
             boolean hovered = row.contains(mouseX, mouseY);
-            GuiDraw.row(canvas, row, index, selected ? UiStatus.READY : UiStatus.IDLE, hovered);
+            GuiDraw.row(canvas, row, UiStatus.IDLE, hovered);
+            if (selected) {
+                canvas.fill(row.x(), row.y(), row.x() + 2, row.bottom() - 1, ACCENT);
+            }
             canvas.checkbox(row.x() + GAP, row.y() + GAP, selected);
             canvas.item(entry.icon, row.x() + 16, row.y() + 1);
 
@@ -682,10 +699,11 @@ public final class TradePickerUi {
             }
             int textX = price.x();
             if (price.editable()) {
-                canvas.fill(price.x(), row.y() + 3, row.right() - 2, row.bottom() - 4, 0xFF354B32);
+                GuiDraw.frame(canvas, new Rect(price.x(), row.y() + 3, row.right() - 2 - price.x(),
+                        row.height() - 7), BORDER, RAISED);
                 textX += 3;
             }
-            canvas.text(price.shown(), textX, textY, price.editable() ? UiStatus.READY.color() : MUTED);
+            canvas.text(price.shown(), textX, textY, price.editable() ? ACCENT : MUTED);
             if (hovered && mouseX >= price.x() - 2) {
                 List<Component> tips = new ArrayList<>();
                 tips.add(message("price.emeralds", price.full()));

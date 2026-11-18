@@ -488,18 +488,13 @@ public final class ServerJoinHarness {
             /*NativeImage image = Screenshot.takeScreenshot(mainTarget(client));
             try {
                 image.writeToFile(dir.resolve(name + ".png"));
-                Files.copy(dir.resolve(name + ".png"), Path.of("/opt/cursor/artifacts/server-reroll").resolve(name + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             } finally {
                 image.close();
             }
             *///?} else {
             Screenshot.takeScreenshot(mainTarget(client), image -> {
                 try {
-                    Path file = dir.resolve(name + ".png");
-                    image.writeToFile(file);
-                    Path copyDir = Path.of("/opt/cursor/artifacts/server-reroll");
-                    Files.createDirectories(copyDir);
-                    Files.copy(file, copyDir.resolve(name + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    image.writeToFile(dir.resolve(name + ".png"));
                 } catch (IOException ex) {
                     fail("screenshot " + name + " failed: " + ex.getMessage());
                 } finally {
@@ -513,11 +508,7 @@ public final class ServerJoinHarness {
     }
 
     private static Path artifacts() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return Path.of("/opt/cursor/artifacts/server-reroll");
-        }
-        return Path.of(configured);
+        return HarnessArtifacts.directory();
     }
 
     private static int timeout(int ticks) {
@@ -531,7 +522,7 @@ public final class ServerJoinHarness {
 
     private static void writeResult(String body) {
         try {
-            Path file = Path.of("/opt/cursor/artifacts/server-reroll/harness-result.txt");
+            Path file = artifacts().resolve("harness-result.txt");
             Files.createDirectories(file.getParent());
             Files.writeString(file, body);
         } catch (IOException ignored) {

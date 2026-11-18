@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +32,6 @@ import java.util.Map;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class PickPersistenceGameTest implements FabricClientGameTest {
-    private static final Path ARTIFACTS = Path.of("/opt/cursor/artifacts");
 
     private String fixedId = "";
     private int fixedPrice;
@@ -68,7 +66,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
                             .ifPresent(settings::setWorldType);
                 })
                 .create()) {
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 6;
             int y = feet.getY();
@@ -100,7 +98,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + (x + 1.0) + " " + (y + 1) + " " + z);
             context.waitTicks(5);
             world.getServer().runCommand("gamemode survival @p");
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
 
             waitForProfession(context, "minecraft:librarian");
             openTrades(context);
@@ -114,7 +112,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
                 context.clickScreenButton("text.villager_reroller.button.offers");
                 context.waitTicks(5);
             }
-            saveShot(context, "picks-before-restart");
+            GameTestSupport.saveShot(context, "picks-before-restart");
             context.runOnClient(client -> assertRemembered(client, "minecraft:librarian"));
 
             closeTrades(context);
@@ -130,7 +128,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
                 context.clickScreenButton("text.villager_reroller.button.offers");
                 context.waitTicks(5);
             }
-            saveShot(context, "picks-other-profession");
+            GameTestSupport.saveShot(context, "picks-other-profession");
             context.runOnClient(client -> {
                 if (!"minecraft:farmer".equals(TradeSession.profession())) {
                     throw new AssertionError("panel did not switch to the farmer, profession=" + TradeSession.profession());
@@ -164,13 +162,13 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             context.runOnClient(client -> TradeSession.setFilter(shotFilter));
             context.clickScreenButton("text.villager_reroller.button.offers");
             context.waitTicks(5);
-            saveShot(context, "picks-after-restart");
+            GameTestSupport.saveShot(context, "picks-after-restart");
             context.runOnClient(client -> assertRemembered(client, "minecraft:librarian"));
             context.runOnClient(client -> McBridge.playMatchFound(client, 1.0F));
 
             context.runOnClient(client -> McBridge.setScreen(client, new ForgeConfigScreen(McBridge.currentScreen(client))));
             context.waitTicks(20);
-            saveShot(context, "match-sound-settings");
+            GameTestSupport.saveShot(context, "match-sound-settings");
             String title = context.computeOnClient(client -> {
                 var screen = McBridge.currentScreen(client);
                 return screen == null ? "" : screen.getTitle().getString();
@@ -282,39 +280,5 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             }
         }
         return nearest;
-    }
-
-    private static Path artifactsDir() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return ARTIFACTS;
-        }
-        return Path.of(configured);
-    }
-
-    private static void saveShot(ClientGameTestContext context, String name) {
-        Path shot = context.takeScreenshot(name);
-        try {
-            Path dir = artifactsDir();
-            Files.createDirectories(dir);
-            Files.copy(shot, dir.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-            Path shared = ARTIFACTS.resolve("screenshots");
-            Files.createDirectories(shared);
-            Files.copy(shot, shared.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void waitForChunks(TestSingleplayerContext world) {
-        //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
-        *///?} else {
-        //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
-        *///?} else {
-        world.getClientWorld().waitForChunksRender();
-        //?}
-        //?}
     }
 }

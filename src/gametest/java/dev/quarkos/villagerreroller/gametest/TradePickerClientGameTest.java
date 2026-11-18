@@ -48,7 +48,6 @@ import java.nio.file.StandardCopyOption;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class TradePickerClientGameTest implements FabricClientGameTest {
-    private static final Path ARTIFACTS = Path.of("/opt/cursor/artifacts");
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -70,7 +69,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                             .ifPresent(settings::setWorldType);
                 })
                 .create()) {
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
             assertServerChannel(context);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 6;
@@ -109,7 +108,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("clear @p");
             world.getServer().runCommand("give @p minecraft:diamond_axe");
             world.getServer().runCommand("give @p minecraft:lectern 16");
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
 
             context.waitFor(client -> {
                 if (client.level == null || client.player == null) {
@@ -137,7 +136,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             context.runOnClient(client -> RerollMethod.reset());
             boolean cycling = context.computeOnClient(client -> TradeCyclingHook.serverSupports());
             if (!cycling) {
-                saveShot(context, "merchant-button");
+                GameTestSupport.saveShot(context, "merchant-button");
             }
             context.clickScreenButton("text.villager_reroller.button.offers");
             context.waitTicks(5);
@@ -190,7 +189,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("odds line missing: " + java.util.Arrays.toString(lines));
                 }
                 try {
-                    Path dir = artifactsDir();
+                    Path dir = GameTestSupport.artifactsDir();
                     Files.createDirectories(dir);
                     String time = lines.length > 1 && lines[1] != null ? lines[1] : "";
                     Files.writeString(dir.resolve("panel-odds.txt"), lines[0] + "\n" + time + "\n");
@@ -198,20 +197,20 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new UncheckedIOException(e);
                 }
             });
-            saveShot(context, "panel-odds");
+            GameTestSupport.saveShot(context, "panel-odds");
             context.runOnClient(client -> TradeSession.clearSelection());
             context.waitFor(client -> scrollSpot(client) == ScrollSpot.MID, 20 * 40);
             if (!cycling) {
-                saveShot(context, "name-scroll-mid");
+                GameTestSupport.saveShot(context, "name-scroll-mid");
                 copyArtifact("name-scroll-mid", "name-scroll");
                 copyArtifact("name-scroll-mid", "trade-panel");
             }
             context.waitFor(client -> scrollSpot(client) == ScrollSpot.MAX, 20 * 40);
             if (!cycling) {
-                saveShot(context, "name-scroll-max");
+                GameTestSupport.saveShot(context, "name-scroll-max");
                 copyArtifact("name-scroll-max", "panel-job-site");
             } else {
-                saveShot(context, "panel-job-site");
+                GameTestSupport.saveShot(context, "panel-job-site");
                 context.clickScreenButton("text.villager_reroller.method.job_site");
                 context.waitTicks(5);
                 boolean switched = context.computeOnClient(client -> RerollMethod.usesTradeCycling());
@@ -219,7 +218,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("method toggle did not select Trade Cycling");
                 }
                 context.waitFor(client -> scrollSpot(client) == ScrollSpot.MAX, 20 * 40);
-                saveShot(context, "panel-trade-cycling");
+                GameTestSupport.saveShot(context, "panel-trade-cycling");
             }
             context.runOnClient(client -> assertNameClearsThePrice(client));
             context.runOnClient(client -> {
@@ -276,7 +275,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             }
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(5);
-            saveShot(context, cycling ? "reroll-cycling" : "reroll-found");
+            GameTestSupport.saveShot(context, cycling ? "reroll-cycling" : "reroll-found");
             int attempts = context.computeOnClient(client -> JobSiteReroller.attempts());
             boolean stillLectern = context.computeOnClient(client -> client.level.getBlockState(lecternPos).is(Blocks.LECTERN));
             int lecternsAfter = context.computeOnClient(TradePickerClientGameTest::lecternCount);
@@ -447,40 +446,10 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
         });
     }
 
-    private static Path artifactsDir() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return ARTIFACTS;
-        }
-        return Path.of(configured);
-    }
-
-    private static void saveShot(ClientGameTestContext context, String name) {
-        Path shot = context.takeScreenshot(name);
-        try {
-            Path dir = artifactsDir();
-            Files.createDirectories(dir);
-            Files.copy(shot, dir.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void waitForChunks(TestSingleplayerContext world) {
-        //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
-        *///?} else {
-        //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
-        *///?} else {
-        world.getClientWorld().waitForChunksRender();
-        //?}
-        //?}
-    }
 
     private static void copyArtifact(String from, String to) {
         try {
-            Path dir = artifactsDir();
+            Path dir = GameTestSupport.artifactsDir();
             Files.copy(dir.resolve(from + ".png"), dir.resolve(to + ".png"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new UncheckedIOException(e);

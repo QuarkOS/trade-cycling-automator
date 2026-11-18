@@ -4,7 +4,9 @@
   "package": "dev.quarkos.villagerreroller.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "MerchantScreenShiftMixin"
+    "MerchantScreenShiftMixin",
+    "HallGlowingMixin",
+    "HallOutlineColorMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -14,7 +14,9 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContex
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.level.block.Blocks;
@@ -22,19 +24,12 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-
 /**
  * Queues three novice librarians plus one locked villager and one whose job
  * site is out of reach, then rerolls the hall without moving the player.
  */
 @SuppressWarnings("UnstableApiUsage")
 public class TradeHallClientGameTest implements FabricClientGameTest {
-    private static final Path ARTIFACTS = Path.of("/opt/cursor/artifacts");
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -68,7 +63,7 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
                             .ifPresent(settings::setWorldType);
                 })
                 .create()) {
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             // Three lecterns in a row, each villager one block behind their own lectern
             // (south), two blocks apart so the closest job site is unambiguous. The
@@ -104,9 +99,6 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("fill " + (x - 2) + " " + (y - 1) + " " + (z - 12) + " " + (x + 6) + " " + (y - 1) + " " + (z + 12) + " minecraft:stone");
             world.getServer().runCommand("fill " + (x - 2) + " " + y + " " + (z - 12) + " " + (x + 6) + " " + (y + 3) + " " + (z + 12) + " minecraft:air");
 
-            for (int cx : cellX) {
-                world.getServer().runCommand("setblock " + cx + " " + y + " " + z + " minecraft:lectern");
-            }
             // Gap fences keep a novice from stepping onto a neighbor's lectern. They sit
             // beside the villager, behind the block face the player breaks.
             world.getServer().runCommand("setblock " + (x + 1) + " " + y + " " + (z + 1) + " minecraft:oak_fence");
@@ -116,13 +108,20 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("setblock " + x + " " + y + " " + (z + 2) + " minecraft:oak_fence");
             world.getServer().runCommand("setblock " + (x + 2) + " " + y + " " + (z + 2) + " minecraft:oak_fence");
             world.getServer().runCommand("setblock " + (x + 4) + " " + y + " " + (z + 2) + " minecraft:oak_fence");
-            world.getServer().runCommand("setblock " + (x + 2) + " " + y + " " + (z - 9) + " minecraft:lectern");
-            world.getServer().runCommand("setblock " + farX + " " + y + " " + farZ + " minecraft:lectern");
-
             String[] tags = {"hall_a", "hall_b", "hall_c"};
             for (int i = 0; i < cellX.length; i++) {
-                summon(world, tags[i], cellX[i] + 0.5, y, z + 1.5, false);
+                String tag = tags[i];
+                BlockPos job = new BlockPos(cellX[i], y, z);
+                world.getServer().runCommand("setblock " + job.getX() + " " + y + " " + z + " minecraft:lectern");
+                summon(world, tag, cellX[i] + 0.5, y, z + 1.5, false);
+                // One available lectern at a time gives every novice the job site
+                // that the client will break. Profession sync alone cannot prove this.
+                GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(120),
+                        server -> claimsJob(server, tag, job), tag + " did not claim " + job);
+                freeze(world, tag);
             }
+            world.getServer().runCommand("setblock " + (x + 2) + " " + y + " " + (z - 9) + " minecraft:lectern");
+            world.getServer().runCommand("setblock " + farX + " " + y + " " + farZ + " minecraft:lectern");
             summon(world, "hall_locked", lockedX, y, lockedZ, true);
             summon(world, "hall_far", farX + 0.5, y, farZ + 1.5, false);
 
@@ -132,22 +131,18 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("clear @p");
             world.getServer().runCommand("give @p minecraft:diamond_axe");
             world.getServer().runCommand("give @p minecraft:lectern 32");
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
 
             context.waitFor(client -> isLibrarian(named(client, "hall_a"))
                     && isLibrarian(named(client, "hall_b"))
                     && isLibrarian(named(client, "hall_c"))
-                    && isLibrarian(named(client, "hall_locked")), 20 * 40);
+                    && isLibrarian(named(client, "hall_locked")), GameTestSupport.scaled(20 * 10));
             world.getServer().runCommand("data merge entity @e[type=minecraft:villager,tag=hall_locked,limit=1] {Xp:25}");
             context.waitFor(client -> {
                 Villager locked = named(client, "hall_locked");
                 return locked != null && (McBridge.villagerXp(locked) > 0 || McBridge.villagerLevel(locked) > 1);
             }, 20 * 20);
-            // Speed 0 keeps them on the lectern. NoAI would also freeze the brain, so
-            // breaking the lectern would never clear the profession.
-            for (String tag : new String[] {"hall_a", "hall_b", "hall_c", "hall_locked"}) {
-                freeze(world, tag);
-            }
+            freeze(world, "hall_locked");
 
             place(world, context, "hall_a", cellX[0] + 0.5, y, z + 1.5);
             queueVillager(world, context, "hall_a", cellX[0] + 0.5, y, z + 1.5, 0, true);
@@ -178,7 +173,6 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             place(world, context, "hall_b", cellX[1] + 0.5, y, z + 1.5);
             place(world, context, "hall_c", cellX[2] + 0.5, y, z + 1.5);
             place(world, context, "hall_locked", lockedX, y, lockedZ);
-            context.waitTicks(40);
             openTrades(world, context, "hall_c", cellX[2] + 0.5, y, z + 1.5, false);
             context.waitTicks(8);
             openOffers(context);
@@ -188,8 +182,9 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
                     .getString());
             context.clickScreenButton(hallLabel);
             context.waitForScreen(TradeHallScreen.class);
+            context.clickScreenButton("text.villager_reroller.hall.queue");
             context.waitTicks(10);
-            saveShot(context, "hall-queue");
+            GameTestSupport.saveShot(context, "hall-queue");
 
             context.runOnClient(client -> {
                 if (TradeHall.slots().size() != 5) {
@@ -229,36 +224,43 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             };
             boolean[] sawAir = {false, false, false};
             boolean progressShot = false;
-            // The queue setup teleports the player and five villagers. Give the
-            // integrated server time to apply that before the first lectern break,
-            // or a lag spike lets the client predict air while the server keeps the block.
-            // On a loaded machine the server is still several seconds behind after
-            // 100 ticks, and the first break then times out in WAIT_UNEMPLOYED.
-            context.waitTicks(400);
+            // Require server progress after setup, the final docked player position,
+            // and the job memory to agree before the client predicts a break.
+            int readyTick = world.getServer().computeOnServer(MinecraftServer::getTickCount) + 10;
+            GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(120), server ->
+                    server.getTickCount() >= readyTick
+                            && !server.getPlayerList().getPlayers().isEmpty()
+                            && server.getPlayerList().getPlayers().get(0).position().distanceToSqr(anchor) < 0.25
+                            && claimsJob(server, "hall_a", noviceLecterns[0])
+                            && claimsJob(server, "hall_b", noviceLecterns[1])
+                            && claimsJob(server, "hall_c", noviceLecterns[2]),
+                    "Hall setup did not settle on the server");
             context.clickScreenButton("text.villager_reroller.button.hall_start");
-            String phase = "running";
-            for (int tick = 0; tick < 20 * 300 * 3; tick++) {
+            boolean summary = false;
+            int firstTick = world.getServer().computeOnServer(MinecraftServer::getTickCount);
+            int serverTicks = 0;
+            int stalled = 0;
+            while (serverTicks < GameTestSupport.scaled(20 * 120) && stalled < GameTestSupport.scaled(20 * 15)) {
                 context.waitTick();
-                for (int i = 0; i < noviceLecterns.length; i++) {
-                    int index = i;
-                    boolean air = context.computeOnClient(client -> client.level.getBlockState(noviceLecterns[index]).isAir());
-                    if (air) {
-                        sawAir[i] = true;
+                context.runOnClient(client -> {
+                    for (int i = 0; i < noviceLecterns.length; i++) {
+                        sawAir[i] |= client.level.getBlockState(noviceLecterns[i]).isAir();
                     }
-                }
+                });
                 boolean running = context.computeOnClient(client -> JobSiteReroller.isRunning());
-                boolean summary = context.computeOnClient(client -> TradeHall.showingSummary());
+                summary = context.computeOnClient(client -> TradeHall.showingSummary());
                 if (!progressShot && running) {
-                    context.waitTicks(8);
-                    saveShot(context, "hall-progress");
+                    GameTestSupport.saveShot(context, "hall-progress");
                     progressShot = true;
                 }
                 if (summary) {
-                    phase = "summary";
                     break;
                 }
+                int elapsed = world.getServer().computeOnServer(MinecraftServer::getTickCount) - firstTick;
+                stalled = elapsed == serverTicks ? stalled + 1 : 0;
+                serverTicks = elapsed;
             }
-            if (!"summary".equals(phase)) {
+            if (!summary) {
                 String reason = context.computeOnClient(client -> {
                     StringBuilder builder = new StringBuilder();
                     for (TradeHall.Slot slot : TradeHall.slots()) {
@@ -266,11 +268,11 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
                     }
                     return builder.toString();
                 });
-                throw new AssertionError("hall did not finish: " + reason);
+                throw new AssertionError("hall did not finish after " + serverTicks + " server ticks: " + reason);
             }
             context.waitForScreen(TradeHallScreen.class);
             context.waitTicks(10);
-            saveShot(context, "hall-summary");
+            GameTestSupport.saveShot(context, "hall-summary");
 
             context.runOnClient(client -> {
                 if (client.player.position().distanceToSqr(anchor) > 2.25) {
@@ -308,6 +310,15 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
     /** Stops pathing without stopping the villager brain. */
     private static void freeze(TestSingleplayerContext world, String tag) {
         world.getServer().runCommand("attribute @e[type=minecraft:villager,tag=" + tag + ",limit=1] minecraft:movement_speed base set 0");
+    }
+
+    private static boolean claimsJob(MinecraftServer server, String tag, BlockPos job) {
+        var level = server.overworld();
+        return level.getBlockState(job).is(Blocks.LECTERN)
+                && level.getEntitiesOfClass(Villager.class, new AABB(job).inflate(8), villager ->
+                        villager.getCustomName() != null && tag.equals(villager.getCustomName().getString())).stream()
+                .anyMatch(villager -> isLibrarian(villager) && villager.getBrain().getMemory(MemoryModuleType.JOB_SITE)
+                        .filter(site -> job.equals(site.pos())).isPresent());
     }
 
     private static void place(TestSingleplayerContext world, ClientGameTestContext context, String tag, double x, double y, double z) {
@@ -429,7 +440,7 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             throw new AssertionError("queue did not grow at " + x + "," + z + " (" + before + " -> " + after + ")");
         }
         if (capturePanel) {
-            saveShot(context, "hall-panel");
+            GameTestSupport.saveShot(context, "hall-panel");
         }
         context.runOnClient(client -> {
             if (client.player != null) {
@@ -506,38 +517,5 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         if (!expected.equals(blocker)) {
             throw new AssertionError(tag + " blocker was " + blocker);
         }
-    }
-
-    private static Path artifactsDir() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return ARTIFACTS;
-        }
-        return Path.of(configured);
-    }
-
-    private static void saveShot(ClientGameTestContext context, String name) {
-        Path shot = context.takeScreenshot(name);
-        try {
-            Path dir = artifactsDir();
-            Files.createDirectories(dir);
-            Files.createDirectories(ARTIFACTS);
-            Files.copy(shot, dir.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(shot, ARTIFACTS.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void waitForChunks(TestSingleplayerContext world) {
-        //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
-        *///?} else {
-        //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
-        *///?} else {
-        world.getClientWorld().waitForChunksRender();
-        //?}
-        //?}
     }
 }

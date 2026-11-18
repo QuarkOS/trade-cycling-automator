@@ -41,7 +41,10 @@ public final class RegistryTrades26_3 {
         if (level == null || villager == null) {
             return List.of();
         }
-        ResourceKey<VillagerProfession> professionKey = villager.getVillagerData().profession().unwrapKey().orElse(null);
+        return list(level, villager.getVillagerData().profession().unwrapKey().orElse(null), villagerLevel);
+    }
+
+    static List<TradeEntry> list(Level level, ResourceKey<VillagerProfession> professionKey, int villagerLevel) {
         if (professionKey == null || professionKey.equals(VillagerProfession.NONE) || professionKey.equals(VillagerProfession.NITWIT)) {
             return List.of();
         }

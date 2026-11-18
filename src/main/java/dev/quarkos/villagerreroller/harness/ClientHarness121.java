@@ -1067,11 +1067,7 @@ public final class ClientHarness121 {
     }
 
     private static Path artifacts() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return Path.of("/opt/cursor/artifacts/1.21.1/plain");
-        }
-        return Path.of(configured);
+        return HarnessArtifacts.directory();
     }
 
     private static com.mojang.blaze3d.pipeline.RenderTarget mainTarget(Minecraft client) {

@@ -14,11 +14,7 @@ import net.minecraft.util.FormattedCharSequence;
 //? if <1.20 {
 /*import com.mojang.blaze3d.vertex.PoseStack;
 *///?}
-//? if >=1.21.6 {
-import net.minecraft.client.renderer.RenderPipelines;
-//?}
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -27,17 +23,13 @@ import java.util.List;
 import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
 import static dev.quarkos.villagerreroller.picker.UiLayout.LINE_HEIGHT;
 import static dev.quarkos.villagerreroller.picker.UiLayout.PADDING;
+import static dev.quarkos.villagerreroller.picker.UiTheme.*;
 
 /**
  * Shared window chrome. Screens paint once and the version-specific canvas
  * does the actual fill and text calls.
  */
 public final class GuiDraw {
-    public static final int TEXT = 0xFFFFFFFF;
-    public static final int MUTED = 0xFFA0A0A0;
-    private static final int PANEL = 0xED191919;
-    private static final int WELL = 0xDF101010;
-
     private GuiDraw() {
     }
 
@@ -52,17 +44,18 @@ public final class GuiDraw {
 
         void unscissor();
 
-        void item(ItemStack stack, int x, int y);
+        void item(ItemStack stack, int x, int y, String badge);
+
+        default void item(ItemStack stack, int x, int y) {
+            item(stack, x, y, null);
+        }
 
         void tip(List<Component> lines, int mouseX, int mouseY);
 
-        void scroller(int x, int y, int height);
-
         default void checkbox(int x, int y, boolean selected) {
-            fill(x, y, x + 12, y + 12, MUTED);
-            fill(x + 1, y + 1, x + 11, y + 11, WELL);
+            frame(this, new Rect(x, y, 12, 12), selected ? ACCENT : BORDER, BACKGROUND);
             if (selected) {
-                text("✓", x + 2, y + 2, UiStatus.READY.color());
+                text("✓", x + 2, y + 2, ACCENT);
             }
         }
     }
@@ -103,14 +96,14 @@ public final class GuiDraw {
     }
 
     public static void panel(Canvas canvas, Rect box) {
-        frame(canvas, box, 0xFF515151, PANEL);
+        frame(canvas, box, BORDER, PANEL);
     }
 
     public static void well(Canvas canvas, Rect box) {
-        frame(canvas, box, 0xFF393939, WELL);
+        frame(canvas, box, BORDER, BACKGROUND);
     }
 
-    private static void frame(Canvas canvas, Rect box, int border, int interior) {
+    public static void frame(Canvas canvas, Rect box, int border, int interior) {
         if (box.width() < 2 || box.height() < 2) {
             return;
         }
@@ -125,9 +118,9 @@ public final class GuiDraw {
         canvas.fill(box.x(), box.y(), box.right(), box.bottom(), color);
     }
 
-    public static void row(Canvas canvas, Rect box, int index, UiStatus status, boolean hovered) {
-        int fill = hovered ? 0xFF3B3B3B : index % 2 == 0 ? 0xFF292929 : 0xFF303030;
-        canvas.fill(box.x(), box.y(), box.right(), box.bottom() - 1, fill);
+    public static void row(Canvas canvas, Rect box, UiStatus status, boolean hovered) {
+        canvas.fill(box.x(), box.y(), box.right(), box.bottom() - 1, hovered ? HOVER : RAISED);
+        canvas.fill(box.x(), box.bottom() - 1, box.right(), box.bottom(), DIVIDER);
         if (status != UiStatus.IDLE) {
             canvas.fill(box.x(), box.y(), box.x() + 2, box.bottom() - 1, status.color());
         }
@@ -136,10 +129,10 @@ public final class GuiDraw {
     public static void scrollbar(Canvas canvas, Rect track, ListScroll bar, int count, int visible) {
         int max = ListScroll.maxOffset(count, visible);
         if (max > 0) {
-            fill(canvas, track, 0xFF222222);
+            fill(canvas, track, BACKGROUND);
             int thumb = ListScroll.thumbHeight(track.height(), count, visible);
             int top = track.y() + ListScroll.thumbTop(track.height(), thumb, bar.offset(), max);
-            canvas.scroller(track.right() - 6, top, thumb);
+            canvas.fill(track.x() + 2, top, track.right() - 1, top + thumb, MUTED);
         }
     }
 
@@ -155,16 +148,6 @@ public final class GuiDraw {
             canvas.tip(List.of(title, hint), mouseX, mouseY);
         }
     }
-
-    //? if <1.21 {
-    /*private static Identifier sprite(String path) {
-        return new Identifier("minecraft", path);
-    }
-    *///?} else {
-    private static Identifier sprite(String path) {
-        return Identifier.withDefaultNamespace(path);
-    }
-    //?}
 
     //? if <1.20 {
     /*public static Canvas of(PoseStack pose) {
@@ -212,17 +195,17 @@ public final class GuiDraw {
         }
 
         @Override
-        public void item(ItemStack stack, int x, int y) {
+        public void item(ItemStack stack, int x, int y, String badge) {
             if (stack == null || stack.isEmpty()) {
                 return;
             }
             var renderer = Minecraft.getInstance().getItemRenderer();
             //? if <1.19.4 {
             renderer.renderGuiItem(stack, x, y);
-            renderer.renderGuiItemDecorations(font, stack, x, y);
+            renderer.renderGuiItemDecorations(font, stack, x, y, badge);
             //?} else {
             renderer.renderGuiItem(pose, stack, x, y);
-            renderer.renderGuiItemDecorations(pose, font, stack, x, y);
+            renderer.renderGuiItemDecorations(pose, font, stack, x, y, badge);
             //?}
         }
 
@@ -234,13 +217,6 @@ public final class GuiDraw {
             pose.popPose();
         }
 
-        @Override
-        public void scroller(int x, int y, int height) {
-            if (height <= 0) {
-                return;
-            }
-            fill(x, y, x + 6, y + height, 0xFFC6C6C6);
-        }
     }
     *///?}
 
@@ -288,16 +264,16 @@ public final class GuiDraw {
         }
 
         @Override
-        public void item(ItemStack stack, int x, int y) {
+        public void item(ItemStack stack, int x, int y, String badge) {
             if (stack == null || stack.isEmpty()) {
                 return;
             }
             //? if >=26.1 {
             /*graphics.item(stack, x, y);
-            graphics.itemDecorations(font, stack, x, y);
+            graphics.itemDecorations(font, stack, x, y, badge);
             *///?} else {
             graphics.renderItem(stack, x, y);
-            graphics.renderItemDecorations(font, stack, x, y);
+            graphics.renderItemDecorations(font, stack, x, y, badge);
             //?}
         }
 
@@ -309,18 +285,11 @@ public final class GuiDraw {
             int screenW = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledWidth());
             int screenH = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledHeight());
             int width = Math.min(240, Math.max(8, screenW - 2 * PADDING));
-            List<FormattedCharSequence> wrapped = new ArrayList<>();
-            for (Component line : lines) {
-                wrapped.addAll(font.split(line, width));
-            }
+            int maxLines = Math.min(3, Math.max(1, (screenH - 20) / 12));
+            List<FormattedCharSequence> wrapped = shortTip(font, lines, width, maxLines).stream()
+                    .map(line -> Component.literal(line).getVisualOrderText()).toList();
             if (wrapped.isEmpty()) {
                 return;
-            }
-            // Vanilla tooltips do not shrink a list that is taller than the window.
-            int maxLines = Math.max(1, (screenH - 20) / 12);
-            if (wrapped.size() > maxLines) {
-                wrapped = new ArrayList<>(wrapped.subList(0, Math.max(0, maxLines - 1)));
-                wrapped.add(FormattedCharSequence.forward("…", net.minecraft.network.chat.Style.EMPTY));
             }
             //? if >=1.21.6 {
             graphics.setTooltipForNextFrame(font, wrapped, mouseX, mouseY);
@@ -329,39 +298,6 @@ public final class GuiDraw {
             *///?}
         }
 
-        //? if >=1.20.2 {
-        @Override
-        public void checkbox(int x, int y, boolean selected) {
-            Identifier sprite = sprite(selected ? "widget/checkbox_selected" : "widget/checkbox");
-            //? if >=1.21.6 {
-            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, 12, 12);
-            //?} elif >=1.21.2 {
-            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, sprite, x, y, 12, 12);
-            *///?} else {
-            /*graphics.blitSprite(sprite, x, y, 12, 12);
-            *///?}
-        }
-        //?}
-
-        @Override
-        public void scroller(int x, int y, int height) {
-            if (height <= 0) {
-                return;
-            }
-            Identifier sprite = sprite("container/villager/scroller");
-            //? if >=1.21.6 {
-            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, 6, height);
-            //?}
-            //? if >=1.21.2 && <1.21.6 {
-            /*graphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured, sprite, x, y, 6, height);
-            *///?}
-            //? if >=1.20.2 && <1.21.2 {
-            /*graphics.blitSprite(sprite, x, y, 6, height);
-            *///?}
-            //? if <1.20.2 {
-            /*fill(x, y, x + 6, y + height, 0xFFC6C6C6);
-            *///?}
-        }
     }
     //?}
 
@@ -371,33 +307,14 @@ public final class GuiDraw {
         }
         int screenW = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledWidth());
         int screenH = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledHeight());
-        // A long trade list must stay on screen. Cap the box so it remains a
-        // tooltip instead of covering the panel, and ellipsize whatever remains.
         int maxText = Math.min(240, Math.max(8, screenW - 12));
         Font font = canvas.font();
-        List<String> text = new ArrayList<>();
-        int width = 0;
-        for (Component line : lines) {
-            for (String paragraph : line.getString().split("\\R", -1)) {
-                for (String value : wrap(font, paragraph, maxText)) {
-                    text.add(value);
-                    width = Math.max(width, font.width(value));
-                }
-            }
-        }
+        int maxLines = Math.min(3, Math.max(1, (screenH - 8) / LINE_HEIGHT));
+        List<String> text = shortTip(font, lines, maxText, maxLines);
         if (text.isEmpty()) {
             return;
         }
-        int maxLines = Math.max(1, (screenH - 8) / LINE_HEIGHT);
-        if (text.size() > maxLines) {
-            String last = ellipsis(font, text.get(maxLines - 1) + "…", maxText);
-            text = new ArrayList<>(text.subList(0, maxLines - 1));
-            text.add(last);
-            width = 0;
-            for (String value : text) {
-                width = Math.max(width, font.width(value));
-            }
-        }
+        int width = text.stream().mapToInt(font::width).max().orElse(0);
         int boxW = Math.min(width + 6, screenW);
         int height = text.size() * 10 + 4;
         int x = mouseX + 8;
@@ -420,12 +337,31 @@ public final class GuiDraw {
         if (y + height > screenH) {
             y = Math.max(0, screenH - height);
         }
-        canvas.fill(x, y, x + boxW, y + height, 0xF0100010);
+        panel(canvas, new Rect(x, y, boxW, height));
         int lineY = y + 2;
         for (String value : text) {
-            canvas.text(value, x + 3, lineY, 0xFFFFFFFF);
+            canvas.text(value, x + 3, lineY, TEXT);
             lineY += 10;
         }
+    }
+
+    private static List<String> shortTip(Font font, List<Component> lines, int width, int maxLines) {
+        List<String> shown = new ArrayList<>(maxLines);
+        for (Component line : lines) {
+            for (String paragraph : line.getString().split("\\R")) {
+                for (String wrapped : wrap(font, paragraph, width)) {
+                    if (shown.size() == maxLines) {
+                        int last = maxLines - 1;
+                        shown.set(last, ellipsis(font, shown.get(last) + "…", width));
+                        return shown;
+                    }
+                    if (!wrapped.isEmpty()) {
+                        shown.add(wrapped);
+                    }
+                }
+            }
+        }
+        return shown;
     }
 
     static List<String> wrap(Font font, String value, int maxWidth) {

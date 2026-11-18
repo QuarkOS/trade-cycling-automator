@@ -6,6 +6,8 @@ import dev.quarkos.villagerreroller.picker.FitButton;
 import dev.quarkos.villagerreroller.picker.GuiDraw;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.ListScroll;
+import dev.quarkos.villagerreroller.picker.PanelScreen;
+import dev.quarkos.villagerreroller.picker.ThemedEditBox;
 import dev.quarkos.villagerreroller.picker.TradeHall;
 import dev.quarkos.villagerreroller.picker.UiLayout;
 import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
@@ -15,12 +17,6 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-//? if >=1.20 {
-import net.minecraft.client.gui.GuiGraphics;
-//?}
-//? if <1.20 {
-/*import com.mojang.blaze3d.vertex.PoseStack;
-*///?}
 //? if >=1.21.9 {
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -29,8 +25,9 @@ import net.minecraft.client.input.MouseButtonEvent;
 import java.util.ArrayList;
 import java.util.List;
 
-import static dev.quarkos.villagerreroller.picker.GuiDraw.MUTED;
-import static dev.quarkos.villagerreroller.picker.GuiDraw.TEXT;
+import static dev.quarkos.villagerreroller.picker.UiTheme.MUTED;
+import static dev.quarkos.villagerreroller.picker.UiTheme.TEXT;
+import static dev.quarkos.villagerreroller.picker.UiTheme.DIVIDER;
 import static dev.quarkos.villagerreroller.picker.GuiDraw.message;
 import static dev.quarkos.villagerreroller.picker.UiLayout.BUTTON_HEIGHT;
 import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
@@ -39,8 +36,8 @@ import static dev.quarkos.villagerreroller.picker.UiLayout.PADDING;
 import static dev.quarkos.villagerreroller.picker.UiLayout.SCROLLBAR_SPACE;
 
 /** Vanilla settings shared by Fabric, Forge, and NeoForge. */
-public final class ForgeConfigScreen extends Screen {
-    private static final int ROWS = 7;
+public final class ForgeConfigScreen extends PanelScreen {
+    private static final int ROWS = 8;
     private static final int ROW_STEP = BUTTON_HEIGHT + GAP;
 
     private final Screen parent;
@@ -49,12 +46,14 @@ public final class ForgeConfigScreen extends Screen {
     private boolean enabled;
     private boolean bareHand;
     private boolean matchSound;
+    private boolean autoHallDiscovery;
     private boolean serverFriendly;
     private boolean stopped;
     private Button stopButton;
     private EditBox attemptsBox;
     private EditBox floorBox;
     private EditBox volumeBox;
+    private EditBox discoveryRadiusBox;
     private EditBox ticksBox;
     private EditBox timeoutBox;
     private EditBox lookBox;
@@ -71,13 +70,14 @@ public final class ForgeConfigScreen extends Screen {
         this.enabled = config.enabled();
         this.bareHand = config.allowBareHand();
         this.matchSound = config.matchSound();
+        this.autoHallDiscovery = config.autoHallDiscovery();
         this.serverFriendly = config.serverFriendly();
     }
 
     @Override
     protected void init() {
         settings.clear();
-        frame = UiLayout.frame(width, height, 420, 232);
+        frame = UiLayout.frame(width, height, 420, 250);
         inner = frame.inset(PADDING);
         int footerY = inner.bottom() - BUTTON_HEIGHT;
         int optionsY = inner.y() + LINE_HEIGHT + PADDING;
@@ -110,7 +110,12 @@ public final class ForgeConfigScreen extends Screen {
 
         section(5, 0, "feedback");
         toggle(6, 0, "match_sound", matchSound, pressed -> pressed.setMessage(onOff(matchSound = !matchSound)));
-        volumeBox = field(6, 1, "match_volume", volumeBox, Integer.toString(config.matchVolume()));
+        volumeBox = field(7, 0, "match_volume", volumeBox, Integer.toString(config.matchVolume()));
+        section(5, 1, "hall");
+        toggle(6, 1, "auto_hall_discovery", autoHallDiscovery,
+                pressed -> pressed.setMessage(onOff(autoHallDiscovery = !autoHallDiscovery)));
+        discoveryRadiusBox = field(7, 1, "hall_discovery_radius", discoveryRadiusBox,
+                Integer.toString(config.hallDiscoveryRadius()));
 
         Rect footer = new Rect(inner.x(), footerY, inner.width(), BUTTON_HEIGHT);
         Rect left = footer.column(0, 3);
@@ -144,7 +149,7 @@ public final class ForgeConfigScreen extends Screen {
     private EditBox field(int row, int column, String key, EditBox previous, String fallback) {
         Rect control = control(row, column);
         Component label = message("config." + key);
-        EditBox box = addRenderableWidget(new EditBox(font, control.x(), control.y(), control.width(), control.height(), label));
+        EditBox box = addRenderableWidget(new ThemedEditBox(font, control, label));
         box.setMaxLength(32);
         box.setValue(previous == null ? fallback : previous.getValue());
         settings.add(new Setting(row, column, label, box, message("config." + key + ".tooltip")));
@@ -178,7 +183,11 @@ public final class ForgeConfigScreen extends Screen {
             widget.active = visible;
             if (visible) {
                 Rect control = control(setting.row(), setting.column());
-                FitButton.place(widget, control.x(), control.y());
+                if (widget instanceof ThemedEditBox box) {
+                    box.place(control);
+                } else {
+                    FitButton.place(widget, control.x(), control.y());
+                }
             } else if (getFocused() == widget) {
                 //? if <1.19.3 {
                 /*if (widget instanceof EditBox box) {
@@ -214,6 +223,8 @@ public final class ForgeConfigScreen extends Screen {
         config.setAllowBareHand(bareHand);
         config.setMatchSound(matchSound);
         config.setMatchVolume(parseInt(volumeBox.getValue(), config.matchVolume()));
+        config.setAutoHallDiscovery(autoHallDiscovery);
+        config.setHallDiscoveryRadius(parseInt(discoveryRadiusBox.getValue(), config.hallDiscoveryRadius()));
         config.setServerFriendly(serverFriendly);
         config.setMaxAttempts(parseInt(attemptsBox.getValue(), config.maxAttempts()));
         config.setDurabilityFloor(parseInt(floorBox.getValue(), config.durabilityFloor()));
@@ -255,41 +266,8 @@ public final class ForgeConfigScreen extends Screen {
         return value == (int) value ? Integer.toString((int) value) : Float.toString(value);
     }
 
-    //? if <1.20 {
-    /*@Override
-    public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
-        renderBackground(pose);
-        GuiDraw.Canvas canvas = GuiDraw.of(pose);
-        List<Component> tip = paint(canvas, mouseX, mouseY);
-        super.render(pose, mouseX, mouseY, partialTick);
-        canvas.tip(tip, mouseX, mouseY);
-    }
-    *///?}
-
-    //? if >=1.20 && <26.1 {
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        //? if <1.20.2 {
-        /*renderBackground(graphics);
-        *///?}
-        GuiDraw.Canvas canvas = GuiDraw.of(graphics);
-        List<Component> tip = paint(canvas, mouseX, mouseY);
-        super.render(graphics, mouseX, mouseY, partialTick);
-        canvas.tip(tip, mouseX, mouseY);
-    }
-    //?}
-
-    //? if >=26.1 {
-    /*@Override
-    public void extractRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        GuiDraw.Canvas canvas = GuiDraw.of(graphics);
-        List<Component> tip = paint(canvas, mouseX, mouseY);
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        canvas.tip(tip, mouseX, mouseY);
-    }
-    *///?}
-
-    private List<Component> paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+    protected List<Component> paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
         GuiDraw.panel(canvas, frame);
         stopButton.active = busy();
         List<Component> tip = paintTitle(canvas, mouseX, mouseY);
@@ -300,17 +278,17 @@ public final class ForgeConfigScreen extends Screen {
             Rect row = row(setting.row(), setting.column());
             if (setting.widget() == null) {
                 GuiDraw.label(canvas, setting.label(), row, TEXT, mouseX, mouseY);
-                canvas.fill(row.x(), row.bottom() - 1, row.right(), row.bottom(), 0xFF454545);
+                canvas.fill(row.x(), row.bottom() - 1, row.right(), row.bottom(), DIVIDER);
                 continue;
             }
-            GuiDraw.row(canvas, row, setting.row(), UiStatus.IDLE, row.contains(mouseX, mouseY));
+            GuiDraw.row(canvas, row, UiStatus.IDLE, row.contains(mouseX, mouseY));
             Rect control = control(setting.row(), setting.column());
             Rect label = new Rect(row.x() + GAP, row.y(), control.x() - row.x() - 2 * GAP, row.height());
             GuiDraw.line(canvas, setting.label().getString(), label, MUTED);
             if (row.contains(mouseX, mouseY)) {
                 tip = new ArrayList<>();
                 tip.add(setting.label());
-                if (setting.widget() instanceof EditBox box && font.width(box.getValue()) > control.width() - 2 * GAP) {
+                if (setting.widget() instanceof EditBox box && font.width(box.getValue()) > box.getInnerWidth()) {
                     tip.add(Component.literal(box.getValue()));
                 }
                 tip.add(setting.tip());

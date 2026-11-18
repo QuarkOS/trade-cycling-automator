@@ -742,10 +742,10 @@ if (forgeNode == null) {
         }
         val cycling = providers.gradleProperty("withTradeCycling").orNull == "true"
         val mode = if (cycling) "trade-cycling" else "plain"
-        val artifacts = "/opt/cursor/artifacts/forge-$minecraftVersion/$mode"
+        val artifacts = providers.gradleProperty("artifactsDir").orElse("/opt/cursor/artifacts/forge-$minecraftVersion/$mode").get()
         systemProperty("villager_reroller.artifacts", artifacts)
         systemProperty("villager_reroller.loader", "forge")
-        systemProperty("villager_reroller.timeoutScale", "8")
+        systemProperty("villager_reroller.timeoutScale", providers.gradleProperty("timeoutScale").orElse("8").get())
         if (providers.gradleProperty("harness").orNull == "true") {
             systemProperty("villager_reroller.harness", "true")
         }

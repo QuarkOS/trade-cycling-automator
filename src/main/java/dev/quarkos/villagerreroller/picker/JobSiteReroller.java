@@ -190,6 +190,10 @@ public final class JobSiteReroller {
             attempts = serverAttempts;
         }
         status = message(reason);
+        if (reason == StopReason.FOUND) {
+            Minecraft client = Minecraft.getInstance();
+            TradeHall.onRerollMatch(client, LibrarianTracker.current(client));
+        }
     }
 
     public static void stop(StopReason reason) {
@@ -594,6 +598,7 @@ public final class JobSiteReroller {
     }
 
     private static void succeed(Minecraft client) {
+        Villager matched = phase == Phase.IDLE ? LibrarianTracker.current(client) : villager(client);
         phase = Phase.IDLE;
         closingForReroll = false;
         breakStarted = false;
@@ -607,6 +612,7 @@ public final class JobSiteReroller {
         }
         LOGGER.info("Trade reroll found a target after {} {}", attempts, packetRun ? "cycles" : "replacements");
         packetRun = false;
+        TradeHall.onRerollMatch(client, matched);
     }
 
     private static void fail(Minecraft client, StopReason reason) {

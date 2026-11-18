@@ -16,19 +16,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-//? if <1.19.3 {
-/*import net.minecraft.core.Registry;
-*///?} else {
-import net.minecraft.core.registries.BuiltInRegistries;
-//?}
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Item;
-//? if >=1.20 {
-import net.minecraft.client.gui.GuiGraphics;
-//?}
-//? if <1.20 {
-/*import com.mojang.blaze3d.vertex.PoseStack;
-*///?}
 //? if >=1.21.9 {
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -38,8 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import static dev.quarkos.villagerreroller.picker.GuiDraw.MUTED;
-import static dev.quarkos.villagerreroller.picker.GuiDraw.TEXT;
+import static dev.quarkos.villagerreroller.picker.UiTheme.MUTED;
+import static dev.quarkos.villagerreroller.picker.UiTheme.TEXT;
 import static dev.quarkos.villagerreroller.picker.GuiDraw.message;
 import static dev.quarkos.villagerreroller.picker.UiLayout.BUTTON_HEIGHT;
 import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
@@ -49,7 +36,7 @@ import static dev.quarkos.villagerreroller.picker.UiLayout.ROW_HEIGHT;
 import static dev.quarkos.villagerreroller.picker.UiLayout.SCROLLBAR_SPACE;
 
 /** Per-world checklist of locked villagers and wanted trades. */
-public final class MyVillagersScreen extends Screen {
+public final class MyVillagersScreen extends PanelScreen {
     private static final int WANTED_ROW = BUTTON_HEIGHT;
     private static final int REMOVE_WIDTH = 48;
     private final Screen parent;
@@ -146,7 +133,7 @@ public final class MyVillagersScreen extends Screen {
 
     private void openHall() {
         if (minecraft != null) {
-            McBridge.setScreen(minecraft, parent instanceof TradeHallScreen ? parent : new TradeHallScreen(this));
+            McBridge.setScreen(minecraft, parent instanceof TradeHallScreen hall ? hall.showQueue() : new TradeHallScreen(this, true));
         }
     }
 
@@ -189,37 +176,8 @@ public final class MyVillagersScreen extends Screen {
         }
     }
 
-    //? if <1.20 {
-    /*@Override
-    public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
-        GuiDraw.Canvas canvas = GuiDraw.of(pose);
-        paint(canvas, mouseX, mouseY);
-        super.render(pose, mouseX, mouseY, partialTick);
-        canvas.tip(hover, mouseX, mouseY);
-    }
-    *///?}
-
-    //? if >=1.20 && <26.1 {
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        GuiDraw.Canvas canvas = GuiDraw.of(graphics);
-        paint(canvas, mouseX, mouseY);
-        super.render(graphics, mouseX, mouseY, partialTick);
-        canvas.tip(hover, mouseX, mouseY);
-    }
-    //?}
-
-    //? if >=26.1 {
-    /*@Override
-    public void extractRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        GuiDraw.Canvas canvas = GuiDraw.of(graphics);
-        paint(canvas, mouseX, mouseY);
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        canvas.tip(hover, mouseX, mouseY);
-    }
-    *///?}
-
-    private void paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+    protected List<Component> paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
         hover = List.of();
         GuiDraw.panel(canvas, frame);
         GuiDraw.line(canvas, title.getString(), header, TEXT);
@@ -257,6 +215,7 @@ public final class MyVillagersScreen extends Screen {
             GuiDraw.label(canvas, message("ui.showing", villagersBar.offset() + 1,
                     Math.min(villagersBar.offset() + villagersVisible, rows.size()), rows.size()), range, MUTED, mouseX, mouseY);
         }
+        return hover;
     }
 
     private void paintWanted(GuiDraw.Canvas canvas, Rect section, List<VillagerRoster.WantedCheck> needed,
@@ -283,7 +242,7 @@ public final class MyVillagersScreen extends Screen {
             VillagerRoster.WantedCheck check = needed.get(index);
             boolean overCap = check.state() == VillagerRoster.WantedState.OVER_CAP;
             boolean hovered = row.contains(mouseX, mouseY);
-            GuiDraw.row(canvas, row, index, UiStatus.RUNNING, hovered);
+            GuiDraw.row(canvas, row, UiStatus.RUNNING, hovered);
 
             Rect text = new Rect(row.x() + PADDING, row.y(), row.width() - PADDING - GAP, row.height());
             int statusWidth = text.width() * 2 / 5;
@@ -341,7 +300,7 @@ public final class MyVillagersScreen extends Screen {
             }
         }
         boolean hovered = row.contains(mouseX, mouseY);
-        GuiDraw.row(canvas, row, indexed.index - 1, tone, hovered);
+        GuiDraw.row(canvas, row, tone, hovered);
         canvas.item(icon(villager), row.x() + GAP + 2, row.y() + 6);
         Rect remove = new Rect(row.right() - REMOVE_WIDTH - GAP, row.y() + GAP, REMOVE_WIDTH, BUTTON_HEIGHT);
         Button button = removeButtons.get(visible);
@@ -370,7 +329,9 @@ public final class MyVillagersScreen extends Screen {
             List<Component> tip = new ArrayList<>();
             tip.add(identity);
             tip.add(message("ui.with_detail", profession, place));
-            tip.addAll(trades);
+            if (!trades.isEmpty()) {
+                tip.add(trades.get(0));
+            }
             hover = tip;
         }
     }
@@ -453,41 +414,12 @@ public final class MyVillagersScreen extends Screen {
             }
         }
         for (VillagerRoster.LockedOffer offer : entry.trades()) {
-            ItemStack stack = item(offer.itemId());
+            ItemStack stack = TradeIcons.item(offer.itemId());
             if (!stack.isEmpty()) {
                 return stack;
             }
         }
         return new ItemStack(Items.EMERALD);
-    }
-
-    private ItemStack item(String itemId) {
-        if (itemId == null || itemId.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        Identifier id;
-        try {
-            //? if <1.21 {
-            /*id = new Identifier(itemId);
-            *///?} else {
-            id = Identifier.parse(itemId);
-            //?}
-        } catch (RuntimeException e) {
-            return ItemStack.EMPTY;
-        }
-        //? if <1.19.3 {
-        /*Item item = Registry.ITEM.get(id);
-        *///?}
-        //? if >=1.19.3 && <1.21.2 {
-        /*Item item = BuiltInRegistries.ITEM.get(id);
-        *///?}
-        //? if >=1.21.2 {
-        Item item = BuiltInRegistries.ITEM.get(id).map(holder -> holder.value()).orElse(Items.AIR);
-        //?}
-        if (item == null || item == Items.AIR) {
-            return ItemStack.EMPTY;
-        }
-        return new ItemStack(item);
     }
 
     private List<VillagerRoster.Entry> roster() {

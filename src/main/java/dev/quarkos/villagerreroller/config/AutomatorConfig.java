@@ -27,6 +27,8 @@ public final class AutomatorConfig {
     public static final float NORMAL_LOOK = 30.0F;
     public static final float FRIENDLY_LOOK = 8.0F;
     public static final int DEFAULT_DURABILITY_FLOOR = 10;
+    public static final int DEFAULT_HALL_DISCOVERY_RADIUS = 16;
+    public static final int MAX_HALL_DISCOVERY_RADIUS = 64;
 
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -38,6 +40,8 @@ public final class AutomatorConfig {
     private int matchVolume = MatchSound.DEFAULT_VOLUME;
     private int durabilityFloor = DEFAULT_DURABILITY_FLOOR;
     private boolean allowBareHand = true;
+    private boolean autoHallDiscovery = true;
+    private int hallDiscoveryRadius = DEFAULT_HALL_DISCOVERY_RADIUS;
     private boolean serverFriendly = false;
     private int ticksBetweenCycles = NORMAL_TICKS;
     private int timeoutMultiplier = NORMAL_TIMEOUT;
@@ -91,6 +95,14 @@ public final class AutomatorConfig {
         if (bool(object, "allowBareHand") != null) {
             config.allowBareHand = bool(object, "allowBareHand");
         }
+        Boolean discovery = bool(object, "autoHallDiscovery");
+        if (discovery != null) {
+            config.setAutoHallDiscovery(discovery);
+        }
+        Integer radius = integer(object, "hallDiscoveryRadius");
+        if (radius != null) {
+            config.setHallDiscoveryRadius(radius);
+        }
         if (bool(object, "serverFriendly") != null) {
             config.serverFriendly = bool(object, "serverFriendly");
         }
@@ -114,6 +126,8 @@ public final class AutomatorConfig {
         object.addProperty("matchVolume", MatchSound.clampPercent(matchVolume));
         object.addProperty("durabilityFloor", durabilityFloor);
         object.addProperty("allowBareHand", allowBareHand);
+        object.addProperty("autoHallDiscovery", autoHallDiscovery);
+        object.addProperty("hallDiscoveryRadius", hallDiscoveryRadius);
         object.addProperty("serverFriendly", serverFriendly);
         object.addProperty("ticksBetweenCycles", ticksBetweenCycles);
         object.addProperty("timeoutMultiplier", timeoutMultiplier);
@@ -227,6 +241,22 @@ public final class AutomatorConfig {
 
     public void setAllowBareHand(boolean allowBareHand) {
         this.allowBareHand = allowBareHand;
+    }
+
+    public boolean autoHallDiscovery() {
+        return autoHallDiscovery;
+    }
+
+    public void setAutoHallDiscovery(boolean enabled) {
+        autoHallDiscovery = enabled;
+    }
+
+    public int hallDiscoveryRadius() {
+        return hallDiscoveryRadius;
+    }
+
+    public void setHallDiscoveryRadius(int radius) {
+        hallDiscoveryRadius = Math.max(0, Math.min(MAX_HALL_DISCOVERY_RADIUS, radius));
     }
 
     public boolean serverFriendly() {

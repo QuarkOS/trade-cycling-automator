@@ -24,6 +24,8 @@ class AutomatorConfigTest {
         assertEquals(12, config.maxAttempts());
         assertEquals(AutomatorConfig.DEFAULT_DURABILITY_FLOOR, config.durabilityFloor());
         assertTrue(config.allowBareHand());
+        assertTrue(config.autoHallDiscovery());
+        assertEquals(16, config.hallDiscoveryRadius());
         assertFalse(config.serverFriendly());
         assertEquals(AutomatorConfig.NORMAL_TICKS, config.ticksBetweenCycles());
         assertEquals(AutomatorConfig.NORMAL_TIMEOUT, config.timeoutMultiplier());
@@ -53,6 +55,8 @@ class AutomatorConfigTest {
                 {
                   "durabilityFloor": 4,
                   "allowBareHand": false,
+                  "autoHallDiscovery": false,
+                  "hallDiscoveryRadius": 60,
                   "serverFriendly": true,
                   "ticksBetweenCycles": 16,
                   "timeoutMultiplier": 3,
@@ -66,9 +70,21 @@ class AutomatorConfigTest {
         assertFalse(again.matchSound());
         assertEquals(40, again.matchVolume());
         assertFalse(again.allowBareHand());
+        assertFalse(again.autoHallDiscovery());
+        assertEquals(60, again.hallDiscoveryRadius());
         assertTrue(again.serverFriendly());
         assertEquals(16, again.ticksBetweenCycles());
         assertEquals(3, again.timeoutMultiplier());
         assertEquals(12.5F, again.lookDegreesPerTick(), 0.001F);
+    }
+
+    @Test
+    void discoveryRadiusFitsTheSupportedRange() {
+        AutomatorConfig config = AutomatorConfig.parse(new StringReader("""
+                {"hallDiscoveryRadius": -1}
+                """));
+        assertEquals(0, config.hallDiscoveryRadius());
+        config.setHallDiscoveryRadius(65);
+        assertEquals(64, config.hallDiscoveryRadius());
     }
 }

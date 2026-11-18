@@ -1,10 +1,10 @@
 package dev.quarkos.villagerreroller.picker;
 
 public enum UiStatus {
-    IDLE(0xFFA0A0A0),
-    READY(0xFF9AD084),
-    RUNNING(0xFFFFD273),
-    ERROR(0xFFFF8989);
+    IDLE(UiTheme.MUTED),
+    READY(UiTheme.GREEN),
+    RUNNING(UiTheme.AMBER),
+    ERROR(UiTheme.RED);
 
     private final int color;
 

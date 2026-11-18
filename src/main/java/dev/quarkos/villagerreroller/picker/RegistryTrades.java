@@ -42,7 +42,17 @@ public final class RegistryTrades {
         if (level == null || villager == null) {
             return List.of();
         }
-        ResourceKey<VillagerProfession> professionKey = villager.getVillagerData().profession().unwrapKey().orElse(null);
+        return list(level, villager.getVillagerData().profession().unwrapKey().orElse(null), villagerLevel);
+    }
+
+    static List<TradeEntry> browse(Level level, ResourceKey<VillagerProfession> professionKey, int villagerLevel) {
+        if (registries(level).lookup(Registries.TRADE_SET).isEmpty()) {
+            return List.of();
+        }
+        return list(level, professionKey, villagerLevel);
+    }
+
+    private static List<TradeEntry> list(Level level, ResourceKey<VillagerProfession> professionKey, int villagerLevel) {
         if (professionKey == null || professionKey.equals(VillagerProfession.NONE) || professionKey.equals(VillagerProfession.NITWIT)) {
             return List.of();
         }

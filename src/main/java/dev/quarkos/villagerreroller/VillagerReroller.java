@@ -5,6 +5,7 @@ import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
+import dev.quarkos.villagerreroller.picker.HallHighlights;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
@@ -72,7 +73,9 @@ public final class VillagerReroller implements ClientModInitializer {
         // -Dvillager_reroller.harness=true, which is how tools/validate drives the jar.
         dev.quarkos.villagerreroller.harness.ServerJoinHarness.tick(client);
         dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
-        if (McBridge.currentScreen(client) instanceof PauseScreen
+        HallHighlights.tick(client);
+        boolean pauseScreen = McBridge.currentScreen(client) instanceof PauseScreen;
+        if (pauseScreen
                 && (dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()
                 || dev.quarkos.villagerreroller.picker.TradeHall.isActive())) {
             if (dev.quarkos.villagerreroller.picker.TradeHall.isActive()) {
@@ -80,6 +83,9 @@ public final class VillagerReroller implements ClientModInitializer {
             } else {
                 dev.quarkos.villagerreroller.picker.JobSiteReroller.stop(dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason.STOPPED);
             }
+            McBridge.setScreen(client, null);
+        }
+        if (pauseScreen && HallHighlights.clear() && McBridge.currentScreen(client) instanceof PauseScreen) {
             McBridge.setScreen(client, null);
         }
         if (McBridge.currentScreen(client) == null && AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.consumeClick()) {

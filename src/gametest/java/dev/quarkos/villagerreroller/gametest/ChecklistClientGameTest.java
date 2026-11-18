@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +36,6 @@ import java.util.Map;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class ChecklistClientGameTest implements FabricClientGameTest {
-    private static final Path ARTIFACTS = Path.of("/opt/cursor/artifacts");
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -56,7 +54,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                             .ifPresent(settings::setWorldType);
                 })
                 .create()) {
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
             //? if >=1.21.11 {
             world.getServer().runCommand("gamerule send_command_feedback false");
             world.getServer().runCommand("gamerule advance_time false");
@@ -80,11 +78,11 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.waitTicks(5);
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(10);
-            saveShot(context, "checklist-empty");
+            GameTestSupport.saveShot(context, "checklist-empty");
             scale(context, 4, 1280, 960);
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
-            saveShot(context, "checklist-empty-scale4");
+            GameTestSupport.saveShot(context, "checklist-empty-scale4");
             scale(context, 3, 1280, 720);
 
             context.runOnClient(client -> {
@@ -118,13 +116,13 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                 }
             });
             context.waitTicks(5);
-            saveShot(context, "checklist-populated");
+            GameTestSupport.saveShot(context, "checklist-populated");
             context.runOnClient(client -> {
                 client.options.guiScale().set(2);
                 resize(client);
             });
             context.waitTicks(5);
-            saveShot(context, "checklist-populated-scale2");
+            GameTestSupport.saveShot(context, "checklist-populated-scale2");
             scale(context, 4, 1280, 960);
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
@@ -134,7 +132,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                 }
             });
             context.waitTicks(5);
-            saveShot(context, "checklist-populated-scale4");
+            GameTestSupport.saveShot(context, "checklist-populated-scale4");
             scale(context, 3, 1280, 720);
 
             context.runOnClient(client -> {
@@ -144,23 +142,23 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             });
             context.setScreen(() -> new TradeHallScreen());
             context.waitTicks(8);
-            saveShot(context, "hall-empty");
+            GameTestSupport.saveShot(context, "hall-empty");
             scale(context, 4, 1280, 960);
             context.setScreen(() -> new TradeHallScreen());
             context.waitTicks(5);
-            saveShot(context, "hall-empty-scale4");
+            GameTestSupport.saveShot(context, "hall-empty-scale4");
             scale(context, 2, 1280, 720);
             context.setScreen(() -> new ForgeConfigScreen(null));
             context.waitTicks(8);
-            saveShot(context, "settings-scale2");
+            GameTestSupport.saveShot(context, "settings-scale2");
             scale(context, 4, 1280, 960);
             context.setScreen(() -> new ForgeConfigScreen(null));
             context.waitTicks(8);
-            saveShot(context, "settings-scale4");
-            scale(context, 2, 1280, 720);
+            GameTestSupport.saveShot(context, "settings-scale4");
             // The settings screen pauses the integrated server. Close it before the villager has to claim a lectern.
             context.runOnClient(client -> McBridge.setScreen(client, null));
-            context.waitTicks(40);
+            context.waitForScreen(null);
+            scale(context, 2, 1280, 720);
 
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 4;
@@ -169,7 +167,11 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("setblock " + x + " " + y + " " + z + " minecraft:lectern");
             world.getServer().runCommand("summon minecraft:villager " + (x + 1.2) + " " + y + " " + (z + 0.5) + " {PersistenceRequired:1b}");
             world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);
-            context.waitTicks(5);
+            BlockPos job = new BlockPos(x, y, z);
+            GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(100), server ->
+                    !server.overworld().getEntitiesOfClass(Villager.class, new AABB(job).inflate(4), villager ->
+                            villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)).isEmpty(),
+                    "Checklist librarian did not claim the lectern");
             context.waitFor(client -> {
                 if (client.level == null || client.player == null) {
                     return false;
@@ -181,7 +183,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                     }
                 }
                 return false;
-            }, 20 * 30);
+            }, GameTestSupport.scaled(20 * 10));
             context.runOnClient(client -> {
                 client.options.guiScale().set(2);
                 resize(client);
@@ -214,24 +216,24 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                 }
             });
             context.waitTicks(5);
-            saveShot(context, "picker-polished");
+            GameTestSupport.saveShot(context, "picker-polished");
             scale(context, 3, 1280, 720);
             context.waitTicks(20);
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
-            saveShot(context, "picker-scale3");
+            GameTestSupport.saveShot(context, "picker-scale3");
             scale(context, 4, 1280, 960);
             context.waitTicks(20);
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
-            saveShot(context, "picker-scale4");
+            GameTestSupport.saveShot(context, "picker-scale4");
             // 1280x960 at scale 4 is only 320 GUI pixels wide, so the panel stays shut.
             // A 1920-wide window is wide enough for the panel at the same scale.
             scale(context, 4, 1920, 1080);
             context.waitTicks(10);
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
-            saveShot(context, "picker-scale4-wide");
+            GameTestSupport.saveShot(context, "picker-scale4-wide");
             context.runOnClient(client -> McBridge.setScreen(client, null));
         } finally {
             restore(picks, picksBackup);
@@ -364,30 +366,5 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             throw new AssertionError("librarian missing");
         }
         throw new AssertionError("merchant screen did not reopen");
-    }
-
-    private static void saveShot(ClientGameTestContext context, String name) {
-        Path shot = context.takeScreenshot(name);
-        try {
-            Files.createDirectories(ARTIFACTS);
-            Files.copy(shot, ARTIFACTS.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-            Path plain = ARTIFACTS.resolve("1.21.11").resolve("plain");
-            Files.createDirectories(plain);
-            Files.copy(shot, plain.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void waitForChunks(TestSingleplayerContext world) {
-        //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
-        *///?} else {
-        //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
-        *///?} else {
-        world.getClientWorld().waitForChunksRender();
-        //?}
-        //?}
     }
 }

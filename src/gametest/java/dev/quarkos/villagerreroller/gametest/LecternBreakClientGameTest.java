@@ -2,8 +2,10 @@ package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
+import dev.quarkos.villagerreroller.picker.TradeHall;
 import dev.quarkos.villagerreroller.picker.TradeSession;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -46,6 +48,7 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
                 JobSiteReroller.stop(JobSiteReroller.StopReason.STOPPED);
             }
             RerollMethod.reset();
+            TradeHall.clear();
             LibrarianTracker.unpin();
             TradeSession.setPanelOpen(false);
             TradeSession.setFilter("");
@@ -61,7 +64,7 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
                             .ifPresent(settings::setWorldType);
                 })
                 .create()) {
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 4;
             int y = feet.getY();
@@ -95,7 +98,7 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("clear @p");
             world.getServer().runCommand("give @p minecraft:diamond_axe");
             world.getServer().runCommand("give @p minecraft:lectern 16");
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
 
             context.waitFor(client -> isLibrarian(named(client)), 20 * 40);
             world.getServer().runCommand("attribute @e[type=minecraft:villager,limit=1,sort=nearest] minecraft:movement_speed base set 0");
@@ -194,6 +197,12 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
             if (!librarian || !serverLibrarian) {
                 throw new AssertionError("villager did not take the lectern back: " + describe(context, world, lectern));
             }
+            context.runOnClient(client -> {
+                if (AutomatorConfig.get().autoHallDiscovery() && TradeHall.slots().stream()
+                        .noneMatch(slot -> slot.villagerId() == named(client).getId())) {
+                    throw new AssertionError("The rerolled librarian was not added to the Hall");
+                }
+            });
         }
     }
 
@@ -285,17 +294,5 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
 
     private static boolean isLibrarian(Villager villager) {
         return villager != null && villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN);
-    }
-
-    private static void waitForChunks(TestSingleplayerContext world) {
-        //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
-        *///?} else {
-        //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
-        *///?} else {
-        world.getClientWorld().waitForChunksRender();
-        //?}
-        //?}
     }
 }
