@@ -2,6 +2,7 @@ package dev.quarkos.villagerreroller.picker;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
 import net.minecraft.client.Minecraft;
+import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
 //? if >=1.20 {
@@ -13,6 +14,13 @@ import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static dev.quarkos.villagerreroller.picker.GuiDraw.MUTED;
+import static dev.quarkos.villagerreroller.picker.GuiDraw.TEXT;
+import static dev.quarkos.villagerreroller.picker.GuiDraw.message;
+import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
+import static dev.quarkos.villagerreroller.picker.UiLayout.LINE_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.PADDING;
 
 /**
  * Progress overlay while a hall run is moving from one job site to the next.
@@ -38,79 +46,63 @@ public final class TradeHallHud {
     }
     //?}
 
-    private static List<Component> lines() {
-        if (!TradeHall.isActive()) {
-            return List.of();
-        }
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.title"));
-        lines.add(TradeHall.hudTitle());
-        Component detail = TradeHall.hudDetail();
-        if (!detail.getString().isEmpty() && !detail.getString().equals(lines.get(1).getString())) {
-            lines.add(detail);
-        }
-        Component counts = TradeHall.countsLine();
-        if (!counts.getString().equals(lines.get(lines.size() - 1).getString())) {
-            lines.add(counts);
-        }
-        return lines;
-    }
-
     //? if <1.20 {
     /*public static void draw(PoseStack pose) {
-        List<Component> lines = lines();
-        if (lines.isEmpty()) {
-            return;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        Font font = minecraft.font;
-        if (font == null) {
-            return;
-        }
-        int width = 8;
-        for (Component line : lines) {
-            width = Math.max(width, font.width(line));
-        }
-        int left = 4;
-        int top = 4;
-        int right = left + width + 8;
-        int bottom = top + lines.size() * 11 + 6;
-        net.minecraft.client.gui.GuiComponent.fill(pose, left, top, right, bottom, 0xC0101010);
-        int y = top + 4;
-        for (Component line : lines) {
-            font.drawShadow(pose, line, left + 4, y, 0xFFFFFF);
-            y += 11;
-        }
+        paint(GuiDraw.of(pose));
     }
-    *///?}
-
-    //? if >=1.20 {
+    *///?} else {
     public static void draw(GuiGraphics graphics) {
-        List<Component> lines = lines();
-        if (lines.isEmpty()) {
-            return;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        Font font = minecraft.font;
-        if (font == null) {
-            return;
-        }
-        int width = 8;
-        for (Component line : lines) {
-            width = Math.max(width, font.width(line));
-        }
-        int left = 4;
-        int top = 4;
-        graphics.fill(left, top, left + width + 8, top + lines.size() * 11 + 6, 0xC0101010);
-        int y = top + 4;
-        for (Component line : lines) {
-            //? if >=26.1 {
-            /*graphics.text(font, line, left + 4, y, 0xFFFFFF, true);
-            *///?} else {
-            graphics.drawString(font, line, left + 4, y, 0xFFFFFF, true);
-            //?}
-            y += 11;
-        }
+        paint(GuiDraw.of(graphics));
     }
     //?}
+
+    private static void paint(GuiDraw.Canvas canvas) {
+        if (!TradeHall.isActive()) {
+            return;
+        }
+        Font font = canvas.font();
+        if (font == null) {
+            return;
+        }
+        var window = Minecraft.getInstance().getWindow();
+        int maxWidth = Math.min(256, window.getGuiScaledWidth() - 2 * (GAP + PADDING));
+        int maxLines = (window.getGuiScaledHeight() - 2 * (GAP + PADDING)) / LINE_HEIGHT;
+        if (maxWidth <= 0 || maxLines <= 0) {
+            return;
+        }
+
+        List<HudLine> lines = new ArrayList<>();
+        addLines(lines, font, maxWidth, message("hall.title"), TEXT);
+        addLines(lines, font, maxWidth, TradeHall.hudTitle(), TradeHall.hudStatus().color());
+        Component detail = TradeHall.hudDetail();
+        addLines(lines, font, maxWidth, detail, MUTED);
+        Component counts = TradeHall.countsLine();
+        if (!counts.equals(detail)) {
+            addLines(lines, font, maxWidth, counts, MUTED);
+        }
+
+        int rows = Math.min(lines.size(), maxLines);
+        int width = 0;
+        for (int i = 0; i < rows; i++) {
+            width = Math.max(width, font.width(lines.get(i).text()));
+        }
+        Rect panel = new Rect(GAP, GAP, width + 2 * PADDING, rows * LINE_HEIGHT + 2 * PADDING);
+        GuiDraw.panel(canvas, panel);
+        for (int i = 0; i < rows; i++) {
+            HudLine line = lines.get(i);
+            Rect bounds = new Rect(panel.x() + PADDING, panel.y() + PADDING + i * LINE_HEIGHT, width, LINE_HEIGHT);
+            GuiDraw.line(canvas, line.text(), bounds, line.color());
+        }
+    }
+
+    private static void addLines(List<HudLine> lines, Font font, int maxWidth, Component text, int color) {
+        for (String line : GuiDraw.wrap(font, text.getString(), maxWidth)) {
+            if (!line.isEmpty()) {
+                lines.add(new HudLine(line, color));
+            }
+        }
+    }
+
+    private record HudLine(String text, int color) {
+    }
 }

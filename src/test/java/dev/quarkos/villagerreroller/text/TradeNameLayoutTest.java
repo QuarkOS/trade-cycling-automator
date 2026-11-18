@@ -47,4 +47,14 @@ class TradeNameLayoutTest {
             assertTrue(priceX - atEnd >= TradeNameLayout.PRICE_GAP);
         }
     }
+
+    @Test
+    void oversizedTranslatedPriceStillLeavesANameColumnAtMinimumPanelWidth() {
+        int width = 112 - 2 * 8;
+        int budget = TradeNameLayout.priceBudget(width);
+        assertTrue(budget >= 20);
+        assertTrue(TradeNameLayout.availableWidth(width, budget) >= 20);
+        int priceX = TradeNameLayout.priceX(0, width, budget);
+        assertEquals(width - TradeNameLayout.PRICE_RIGHT, priceX + budget);
+    }
 }

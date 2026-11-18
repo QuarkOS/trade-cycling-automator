@@ -1,5 +1,6 @@
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -14,28 +15,43 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.GuiGraphics;
 //?}
 
-/**
- * A vanilla button whose label stays the full component (so screen tests can
- * find it) while the drawn text is cut with an ellipsis when it does not fit.
- */
+import java.util.List;
+
+import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
+
+/** Vanilla button with a fitted label and the original message for narration and screen lookups. */
 public final class FitButton extends Button {
-    private Component pinnedTip;
+    private final boolean primary;
+    private Component hint;
+    private Component displayedTip;
+    private boolean selected;
 
-    private FitButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+    private FitButton(Rect bounds, Component message, OnPress onPress, boolean primary) {
         //? if <1.19.3 {
-        /*super(x, y, width, height, message, onPress);
+        /*super(bounds.x(), bounds.y(), bounds.width(), bounds.height(), message, onPress);
         *///?} else {
-        super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        super(bounds.x(), bounds.y(), bounds.width(), bounds.height(), message, onPress, DEFAULT_NARRATION);
         //?}
+        this.primary = primary;
     }
 
-    public static Button create(int x, int y, int width, int height, Component message, OnPress onPress) {
-        return new FitButton(x, y, width, height, message, onPress);
+    public static Button create(Rect bounds, Component message, OnPress onPress) {
+        return new FitButton(bounds, message, onPress, false);
     }
 
-    public static void hint(Button button, Component tip) {
+    public static Button primary(Rect bounds, Component message, OnPress onPress) {
+        return new FitButton(bounds, message, onPress, true);
+    }
+
+    public static void hint(Button button, Component hint) {
         if (button instanceof FitButton fit) {
-            fit.pinnedTip = tip;
+            fit.hint = hint;
+        }
+    }
+
+    public static void select(Button button, boolean selected) {
+        if (button instanceof FitButton fit) {
+            fit.selected = selected;
         }
     }
 
@@ -49,21 +65,27 @@ public final class FitButton extends Button {
         //?}
     }
 
-    private int widgetWidth() {
-        //? if <1.19.3 {
-        /*return this.width;
-        *///?} else {
-        return this.getWidth();
-        //?}
+    private Component fitLabel(Component full) {
+        String text = full.getString();
+        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, text, getWidth() - 2 * GAP);
+        return shown.equals(text) ? full : Component.literal(shown);
     }
 
-    private void prepareTip(Component full, boolean cut) {
-        //? if >=1.19.3 {
-        Component shown = cut ? full : pinnedTip;
-        if (shown == null) {
-            setTooltip(null);
-        } else {
-            setTooltip(Tooltip.create(shown));
+    private void decorate(GuiDraw.Canvas canvas, Component label, boolean cut, int mouseX, int mouseY) {
+        Rect bounds = GuiDraw.bounds(this);
+        if (active && (primary || selected)) {
+            canvas.fill(bounds.x() + 2, bounds.bottom() - 3, bounds.right() - 2, bounds.bottom() - 1,
+                    primary ? 0xFF87AE74 : GuiDraw.MUTED);
+        }
+        Component tip = cut && hint != null ? label.copy().append("\n").append(hint) : cut ? label : hint;
+        //? if <1.19.3 {
+        /*if (tip != null && bounds.contains(mouseX, mouseY)) {
+            canvas.tip(List.of(tip), mouseX, mouseY);
+        }
+        *///?} else {
+        if (!java.util.Objects.equals(displayedTip, tip)) {
+            displayedTip = tip;
+            setTooltip(tip == null ? null : Tooltip.create(tip));
         }
         //?}
     }
@@ -72,16 +94,11 @@ public final class FitButton extends Button {
     /*@Override
     public void renderButton(PoseStack pose, int mouseX, int mouseY, float partialTick) {
         Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
+        Component fitted = fitLabel(full);
+        setMessage(fitted);
         super.renderButton(pose, mouseX, mouseY, partialTick);
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        setMessage(full);
+        decorate(GuiDraw.of(pose), full, fitted != full, mouseX, mouseY);
     }
     *///?}
 
@@ -89,16 +106,11 @@ public final class FitButton extends Button {
     /*@Override
     public void renderWidget(PoseStack pose, int mouseX, int mouseY, float partialTick) {
         Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
+        Component fitted = fitLabel(full);
+        setMessage(fitted);
         super.renderWidget(pose, mouseX, mouseY, partialTick);
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        setMessage(full);
+        decorate(GuiDraw.of(pose), full, fitted != full, mouseX, mouseY);
     }
     *///?}
 
@@ -106,16 +118,11 @@ public final class FitButton extends Button {
     /*@Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
+        Component fitted = fitLabel(full);
+        setMessage(fitted);
         super.renderWidget(graphics, mouseX, mouseY, partialTick);
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        setMessage(full);
+        decorate(GuiDraw.of(graphics), full, fitted != full, mouseX, mouseY);
     }
     *///?}
 
@@ -123,18 +130,12 @@ public final class FitButton extends Button {
     @Override
     protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
-        // Button is abstract here; its concrete Plain subclass is what calls these.
-        this.renderDefaultSprite(graphics);
-        this.renderDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        Component fitted = fitLabel(full);
+        setMessage(fitted);
+        renderDefaultSprite(graphics);
+        renderDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
+        setMessage(full);
+        decorate(GuiDraw.of(graphics), full, fitted != full, mouseX, mouseY);
     }
     //?}
 
@@ -142,17 +143,12 @@ public final class FitButton extends Button {
     /*@Override
     protected void extractContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
-        this.extractDefaultSprite(graphics);
-        this.extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        Component fitted = fitLabel(full);
+        setMessage(fitted);
+        extractDefaultSprite(graphics);
+        extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
+        setMessage(full);
+        decorate(GuiDraw.of(graphics), full, fitted != full, mouseX, mouseY);
     }
     *///?}
 }

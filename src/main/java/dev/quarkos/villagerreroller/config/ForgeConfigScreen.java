@@ -1,16 +1,18 @@
 package dev.quarkos.villagerreroller.config;
 
-import dev.quarkos.villagerreroller.VillagerReroller;
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.picker.FitButton;
 import dev.quarkos.villagerreroller.picker.GuiDraw;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.ListScroll;
 import dev.quarkos.villagerreroller.picker.TradeHall;
+import dev.quarkos.villagerreroller.picker.UiLayout;
+import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
+import dev.quarkos.villagerreroller.picker.UiStatus;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-//? if >=1.19.3 {
-import net.minecraft.client.gui.components.Tooltip;
-//?}
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 //? if >=1.20 {
@@ -19,35 +21,51 @@ import net.minecraft.client.gui.GuiGraphics;
 //? if <1.20 {
 /*import com.mojang.blaze3d.vertex.PoseStack;
 *///?}
+//? if >=1.21.9 {
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+//?}
 
-/**
- * Vanilla settings screen shared by Fabric, Forge, and NeoForge. Mod Menu opens
- * it when that mod is installed. Forge and NeoForge open it from the mods list.
- * The same widgets write {@code villager_reroller.json}.
- */
+import java.util.ArrayList;
+import java.util.List;
+
+import static dev.quarkos.villagerreroller.picker.GuiDraw.MUTED;
+import static dev.quarkos.villagerreroller.picker.GuiDraw.TEXT;
+import static dev.quarkos.villagerreroller.picker.GuiDraw.message;
+import static dev.quarkos.villagerreroller.picker.UiLayout.BUTTON_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
+import static dev.quarkos.villagerreroller.picker.UiLayout.LINE_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.PADDING;
+import static dev.quarkos.villagerreroller.picker.UiLayout.SCROLLBAR_SPACE;
+
+/** Vanilla settings shared by Fabric, Forge, and NeoForge. */
 public final class ForgeConfigScreen extends Screen {
+    private static final int ROWS = 7;
+    private static final int ROW_STEP = BUTTON_HEIGHT + GAP;
+
     private final Screen parent;
+    private final List<Setting> settings = new ArrayList<>();
+    private final ListScroll scroll = new ListScroll();
     private boolean enabled;
     private boolean bareHand;
     private boolean matchSound;
     private boolean serverFriendly;
-    private Button enabledButton;
-    private Button bareHandButton;
-    private Button matchButton;
-    private Button serverButton;
+    private boolean stopped;
     private Button stopButton;
-    private int noteY = -1;
-    private int rerollHeaderY = -1;
-    private int paceHeaderY = -1;
     private EditBox attemptsBox;
     private EditBox floorBox;
     private EditBox volumeBox;
     private EditBox ticksBox;
     private EditBox timeoutBox;
     private EditBox lookBox;
+    private Rect frame;
+    private Rect inner;
+    private Rect options;
+    private Rect track;
+    private int visibleRows;
 
     public ForgeConfigScreen(Screen parent) {
-        super(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.title"));
+        super(message("config.title"));
         this.parent = parent;
         AutomatorConfig config = AutomatorConfig.get();
         this.enabled = config.enabled();
@@ -58,103 +76,136 @@ public final class ForgeConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        int column = Math.min(170, Math.max(120, (this.width - 40) / 2));
-        int left = this.width / 2 - 6 - column;
-        int right = this.width / 2 + 6;
-        boolean roomy = this.height >= 280;
-        int y = 24;
-        if (roomy) {
-            noteY = 22;
-            y = 40;
-            rerollHeaderY = y;
-            paceHeaderY = y;
-            y += 14;
-        } else {
-            noteY = -1;
-            rerollHeaderY = -1;
-            paceHeaderY = -1;
-        }
-        int stepButton = roomy ? 24 : 22;
-        int stepField = roomy ? 36 : 34;
-        int cursor = y;
-        enabledButton = button(left, cursor, column, enabledLabel(), pressed -> {
-            enabled = !enabled;
-            pressed.setMessage(enabledLabel());
-        });
-        cursor = cursor + stepButton;
-        bareHandButton = button(left, cursor, column, bareHandLabel(), pressed -> {
-            bareHand = !bareHand;
-            pressed.setMessage(bareHandLabel());
-        });
-        cursor = cursor + stepField;
-        attemptsBox = field(left, cursor, column, attemptsLabel(), Integer.toString(AutomatorConfig.get().maxAttempts()), 5);
-        cursor = cursor + stepField;
-        floorBox = field(left, cursor, column, floorLabel(), Integer.toString(AutomatorConfig.get().durabilityFloor()), 5);
-        cursor = cursor + stepField;
-        matchButton = button(left, cursor, column, matchLabel(), pressed -> {
-            matchSound = !matchSound;
-            pressed.setMessage(matchLabel());
-        });
-        cursor = cursor + stepField;
-        volumeBox = field(left, cursor, column, volumeLabel(), Integer.toString(AutomatorConfig.get().matchVolume()), 3);
+        settings.clear();
+        frame = UiLayout.frame(width, height, 420, 232);
+        inner = frame.inset(PADDING);
+        int footerY = inner.bottom() - BUTTON_HEIGHT;
+        int optionsY = inner.y() + LINE_HEIGHT + PADDING;
+        int optionsHeight = Math.max(0, footerY - GAP - optionsY);
+        visibleRows = Math.min(ROWS, (optionsHeight + GAP) / ROW_STEP);
+        int trackSpace = visibleRows < ROWS ? SCROLLBAR_SPACE + GAP : 0;
+        options = new Rect(inner.x(), optionsY, inner.width() - trackSpace, optionsHeight);
+        track = new Rect(inner.right() - SCROLLBAR_SPACE, optionsY, SCROLLBAR_SPACE, optionsHeight);
 
-        cursor = y;
-        serverButton = button(right, cursor, column, serverLabel(), pressed -> {
+        AutomatorConfig config = AutomatorConfig.get();
+        section(0, 0, "reroll");
+        toggle(1, 0, "enabled", enabled, pressed -> pressed.setMessage(onOff(enabled = !enabled)));
+        toggle(2, 0, "bare_hand", bareHand, pressed -> pressed.setMessage(onOff(bareHand = !bareHand)));
+        attemptsBox = field(3, 0, "max_attempts", attemptsBox, Integer.toString(config.maxAttempts()));
+        floorBox = field(4, 0, "durability_floor", floorBox, Integer.toString(config.durabilityFloor()));
+
+        section(0, 1, "pace");
+        toggle(1, 1, "server_friendly", serverFriendly, pressed -> {
             serverFriendly = !serverFriendly;
             AutomatorConfig draft = new AutomatorConfig();
             draft.applyServerFriendly(serverFriendly);
             ticksBox.setValue(Integer.toString(draft.ticksBetweenCycles()));
             timeoutBox.setValue(Integer.toString(draft.timeoutMultiplier()));
-            lookBox.setValue(trim(draft.lookDegreesPerTick()));
-            pressed.setMessage(serverLabel());
+            lookBox.setValue(number(draft.lookDegreesPerTick()));
+            pressed.setMessage(onOff(serverFriendly));
         });
-        cursor = cursor + stepField;
-        ticksBox = field(right, cursor, column, ticksLabel(), Integer.toString(AutomatorConfig.get().ticksBetweenCycles()), 4);
-        cursor = cursor + stepField;
-        timeoutBox = field(right, cursor, column, timeoutLabel(), Integer.toString(AutomatorConfig.get().timeoutMultiplier()), 3);
-        cursor = cursor + stepField;
-        lookBox = field(right, cursor, column, lookLabel(), trim(AutomatorConfig.get().lookDegreesPerTick()), 5);
+        ticksBox = field(2, 1, "ticks_between", ticksBox, Integer.toString(config.ticksBetweenCycles()));
+        timeoutBox = field(3, 1, "timeout_multiplier", timeoutBox, Integer.toString(config.timeoutMultiplier()));
+        lookBox = field(4, 1, "look_speed", lookBox, number(config.lookDegreesPerTick()));
 
-        int stopW = 98;
-        int doneW = 98;
-        int gap = 8;
-        int rowX = this.width / 2 - (stopW + gap + doneW) / 2;
-        stopButton = button(rowX, this.height - 28, stopW,
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".config.stop_now"), pressed -> {
-                    boolean busy = TradeHall.isActive() || JobSiteReroller.isRunning();
-                    if (TradeHall.isActive()) {
-                        TradeHall.requestStop();
-                    }
-                    if (JobSiteReroller.isRunning()) {
-                        JobSiteReroller.stop(JobSiteReroller.StopReason.PANIC);
-                    }
-                    if (busy) {
-                        pressed.setMessage(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.stopped"));
-                    }
-                });
-        //? if >=1.19.3 {
-        stopButton.setTooltip(Tooltip.create(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.stop_now.tooltip")));
-        //?}
-        button(rowX + stopW + gap, this.height - 28, doneW, Component.translatable("gui.done"), pressed -> saveAndClose());
+        section(5, 0, "feedback");
+        toggle(6, 0, "match_sound", matchSound, pressed -> pressed.setMessage(onOff(matchSound = !matchSound)));
+        volumeBox = field(6, 1, "match_volume", volumeBox, Integer.toString(config.matchVolume()));
+
+        Rect footer = new Rect(inner.x(), footerY, inner.width(), BUTTON_HEIGHT);
+        Rect left = footer.column(0, 3);
+        Rect middle = footer.column(1, 3);
+        Rect right = footer.column(2, 3);
+        int stopWidth = Math.min(92, left.width());
+        int cancelWidth = Math.min(72, middle.width());
+        stopButton = addRenderableWidget(FitButton.create(
+                new Rect(left.x(), left.y(), stopWidth, BUTTON_HEIGHT), message("config.stop_now"), pressed -> stopNow()));
+        FitButton.hint(stopButton, message("config.stop_now.tooltip"));
+        addRenderableWidget(FitButton.create(
+                new Rect(middle.right() - cancelWidth, middle.y(), cancelWidth, BUTTON_HEIGHT),
+                Component.translatable("gui.cancel"), pressed -> onClose()));
+        addRenderableWidget(FitButton.primary(right, message("config.save"), pressed -> saveAndClose()));
+        placeSettings();
+        stopButton.active = busy();
     }
 
-    private Button button(int x, int y, int width, Component label, Button.OnPress press) {
-        //? if <1.19.3 {
-        /*return addRenderableWidget(new Button(x, y, width, 20, label, press));
-        *///?} else {
-        return addRenderableWidget(Button.builder(label, press).bounds(x, y, width, 20).build());
-        //?}
+    private void section(int row, int column, String key) {
+        settings.add(new Setting(row, column, message("config.section." + key), null, null));
     }
 
-    private EditBox field(int x, int y, int width, Component label, String value, int maxLength) {
-        EditBox box = new EditBox(this.font, x, y, width, 20, label);
-        box.setMaxLength(maxLength);
-        box.setValue(value);
-        //? if >=1.19.3 {
-        box.setHint(label);
-        //?}
-        addRenderableWidget(box);
+    private void toggle(int row, int column, String key, boolean value, Button.OnPress press) {
+        Rect control = control(row, column);
+        Component label = message("config." + key);
+        Button button = addRenderableWidget(FitButton.create(control, onOff(value), press));
+        FitButton.hint(button, label.copy().append("\n").append(message("config." + key + ".tooltip")));
+        settings.add(new Setting(row, column, label, button, message("config." + key + ".tooltip")));
+    }
+
+    private EditBox field(int row, int column, String key, EditBox previous, String fallback) {
+        Rect control = control(row, column);
+        Component label = message("config." + key);
+        EditBox box = addRenderableWidget(new EditBox(font, control.x(), control.y(), control.width(), control.height(), label));
+        box.setMaxLength(32);
+        box.setValue(previous == null ? fallback : previous.getValue());
+        settings.add(new Setting(row, column, label, box, message("config." + key + ".tooltip")));
         return box;
+    }
+
+    private Rect row(int row, int column) {
+        Rect bounds = options.column(column, 2);
+        return new Rect(bounds.x(), bounds.y() + (row - scroll.offset()) * ROW_STEP, bounds.width(), BUTTON_HEIGHT);
+    }
+
+    private Rect control(int row, int column) {
+        Rect bounds = row(row, column);
+        int controlWidth = Math.min(58, bounds.width() * 2 / 5);
+        return new Rect(bounds.right() - controlWidth, bounds.y(), controlWidth, bounds.height());
+    }
+
+    private boolean visible(int row) {
+        return row >= scroll.offset() && row < scroll.offset() + visibleRows;
+    }
+
+    private void placeSettings() {
+        scroll.clamp(ListScroll.maxOffset(ROWS, visibleRows));
+        for (Setting setting : settings) {
+            AbstractWidget widget = setting.widget();
+            if (widget == null) {
+                continue;
+            }
+            boolean visible = visible(setting.row());
+            widget.visible = visible;
+            widget.active = visible;
+            if (visible) {
+                Rect control = control(setting.row(), setting.column());
+                FitButton.place(widget, control.x(), control.y());
+            } else if (getFocused() == widget) {
+                //? if <1.19.3 {
+                /*if (widget instanceof EditBox box) {
+                    box.setFocus(false);
+                }
+                *///?}
+                setFocused(null);
+            }
+        }
+    }
+
+    private static Component onOff(boolean value) {
+        return Component.translatable(value ? "options.on" : "options.off");
+    }
+
+    private static boolean busy() {
+        return TradeHall.isActive() || JobSiteReroller.isRunning();
+    }
+
+    private void stopNow() {
+        stopped |= busy();
+        if (TradeHall.isActive()) {
+            TradeHall.requestStop();
+        }
+        if (JobSiteReroller.isRunning()) {
+            JobSiteReroller.stop(JobSiteReroller.StopReason.PANIC);
+        }
     }
 
     private void saveAndClose() {
@@ -173,55 +224,14 @@ public final class ForgeConfigScreen extends Screen {
             JobSiteReroller.stop(JobSiteReroller.StopReason.DISABLED);
         }
         AutomatorConfig.save();
-        if (this.minecraft != null) {
-            McBridge.setScreen(this.minecraft, parent);
+        onClose();
+    }
+
+    @Override
+    public void onClose() {
+        if (minecraft != null) {
+            McBridge.setScreen(minecraft, parent);
         }
-    }
-
-    private Component enabledLabel() {
-        return onOff("text." + VillagerReroller.MOD_ID + ".config.enabled", enabled);
-    }
-
-    private Component bareHandLabel() {
-        return onOff("text." + VillagerReroller.MOD_ID + ".config.bare_hand", bareHand);
-    }
-
-    private Component matchLabel() {
-        return onOff("text." + VillagerReroller.MOD_ID + ".config.match_sound", matchSound);
-    }
-
-    private Component serverLabel() {
-        return onOff("text." + VillagerReroller.MOD_ID + ".config.server_friendly", serverFriendly);
-    }
-
-    private static Component onOff(String key, boolean value) {
-        return Component.translatable(key)
-                .append(": ")
-                .append(Component.translatable(value ? "options.on" : "options.off"));
-    }
-
-    private static Component attemptsLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.max_attempts");
-    }
-
-    private static Component floorLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.durability_floor");
-    }
-
-    private static Component volumeLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.match_volume");
-    }
-
-    private static Component ticksLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.ticks_between");
-    }
-
-    private static Component timeoutLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.timeout_multiplier");
-    }
-
-    private static Component lookLabel() {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config.look_speed");
     }
 
     private static int parseInt(String text, int fallback) {
@@ -234,202 +244,186 @@ public final class ForgeConfigScreen extends Screen {
 
     private static float parseFloat(String text, float fallback) {
         try {
-            return Float.parseFloat(text.trim());
+            float value = Float.parseFloat(text.trim());
+            return Float.isFinite(value) ? value : fallback;
         } catch (NumberFormatException e) {
             return fallback;
         }
     }
 
-    private static String trim(float value) {
-        if (value == (int) value) {
-            return Integer.toString((int) value);
-        }
-        return Float.toString(value);
-    }
-
-    private Component hoveredTip(int mouseX, int mouseY) {
-        if (over(enabledButton, mouseX, mouseY)) {
-            return tip("enabled");
-        }
-        if (over(bareHandButton, mouseX, mouseY)) {
-            return tip("bare_hand");
-        }
-        if (overField(attemptsBox, mouseX, mouseY)) {
-            return tip("max_attempts");
-        }
-        if (overField(floorBox, mouseX, mouseY)) {
-            return tip("durability_floor");
-        }
-        if (over(matchButton, mouseX, mouseY)) {
-            return tip("match_sound");
-        }
-        if (overField(volumeBox, mouseX, mouseY)) {
-            return tip("match_volume");
-        }
-        if (over(serverButton, mouseX, mouseY)) {
-            return tip("server_friendly");
-        }
-        if (overField(ticksBox, mouseX, mouseY)) {
-            return tip("ticks_between");
-        }
-        if (overField(timeoutBox, mouseX, mouseY)) {
-            return tip("timeout_multiplier");
-        }
-        if (overField(lookBox, mouseX, mouseY)) {
-            return tip("look_speed");
-        }
-        if (over(stopButton, mouseX, mouseY)) {
-            return tip("stop_now");
-        }
-        return null;
-    }
-
-    private static Component tip(String key) {
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".config." + key + ".tooltip");
+    private static String number(float value) {
+        return value == (int) value ? Integer.toString((int) value) : Float.toString(value);
     }
 
     //? if <1.20 {
     /*@Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+        renderBackground(pose);
+        GuiDraw.Canvas canvas = GuiDraw.of(pose);
+        List<Component> tip = paint(canvas, mouseX, mouseY);
         super.render(pose, mouseX, mouseY, partialTick);
-        drawFieldLabel(pose, attemptsBox, attemptsLabel());
-        drawFieldLabel(pose, floorBox, floorLabel());
-        drawFieldLabel(pose, volumeBox, volumeLabel());
-        drawFieldLabel(pose, ticksBox, ticksLabel());
-        drawFieldLabel(pose, timeoutBox, timeoutLabel());
-        drawFieldLabel(pose, lookBox, lookLabel());
-        this.font.drawShadow(pose, this.title, (this.width - this.font.width(this.title)) / 2, 6, 0xFFFFFF);
-        if (noteY >= 0) {
-            String note = Component.translatable("text." + VillagerReroller.MOD_ID + ".config.note").getString();
-            String shown = GuiDraw.ellipsis(this.font, note, this.width - 16);
-            this.font.drawShadow(pose, shown, (this.width - this.font.width(shown)) / 2, noteY, 0xA0A0A0);
-        }
-        if (rerollHeaderY >= 0 && enabledButton != null) {
-            this.font.drawShadow(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.reroll"), widgetX(enabledButton), rerollHeaderY, 0xFFFFFF);
-        }
-        if (paceHeaderY >= 0 && serverButton != null) {
-            this.font.drawShadow(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.pace"), widgetX(serverButton), paceHeaderY, 0xFFFFFF);
-        }
-        Component hovered = hoveredTip(mouseX, mouseY);
-        if (hovered != null) {
-            renderTooltip(pose, hovered, mouseX, mouseY);
-        }
-    }
-
-    private void drawFieldLabel(PoseStack pose, EditBox box, Component label) {
-        if (box == null) {
-            return;
-        }
-        this.font.drawShadow(pose, label, widgetX(box), widgetY(box) - 12, 0xFFFFFF);
+        canvas.tip(tip, mouseX, mouseY);
     }
     *///?}
+
     //? if >=1.20 && <26.1 {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        //? if <1.20.2 {
+        /*renderBackground(graphics);
+        *///?}
+        GuiDraw.Canvas canvas = GuiDraw.of(graphics);
+        List<Component> tip = paint(canvas, mouseX, mouseY);
         super.render(graphics, mouseX, mouseY, partialTick);
-        drawFieldLabel(graphics, attemptsBox, attemptsLabel());
-        drawFieldLabel(graphics, floorBox, floorLabel());
-        drawFieldLabel(graphics, volumeBox, volumeLabel());
-        drawFieldLabel(graphics, ticksBox, ticksLabel());
-        drawFieldLabel(graphics, timeoutBox, timeoutLabel());
-        drawFieldLabel(graphics, lookBox, lookLabel());
-        graphics.drawString(this.font, this.title, (this.width - this.font.width(this.title)) / 2, 6, 0xFFFFFFFF, true);
-        if (noteY >= 0) {
-            String note = Component.translatable("text." + VillagerReroller.MOD_ID + ".config.note").getString();
-            String shown = GuiDraw.ellipsis(this.font, note, this.width - 16);
-            graphics.drawString(this.font, shown, (this.width - this.font.width(shown)) / 2, noteY, 0xFFA0A0A0, true);
-        }
-        if (rerollHeaderY >= 0 && enabledButton != null) {
-            graphics.drawString(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.reroll"), widgetX(enabledButton), rerollHeaderY, 0xFFFFFFFF, true);
-        }
-        if (paceHeaderY >= 0 && serverButton != null) {
-            graphics.drawString(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.pace"), widgetX(serverButton), paceHeaderY, 0xFFFFFFFF, true);
-        }
-        Component hovered = hoveredTip(mouseX, mouseY);
-        if (hovered != null) {
-            //? if <1.21.6 {
-            /*graphics.renderTooltip(this.font, hovered, mouseX, mouseY);
-            *///?}
-            //? if >=1.21.6 {
-            graphics.setTooltipForNextFrame(this.font, hovered, mouseX, mouseY);
-            //?}
-        }
-    }
-
-    private void drawFieldLabel(GuiGraphics graphics, EditBox box, Component label) {
-        if (box == null) {
-            return;
-        }
-        graphics.drawString(this.font, label, widgetX(box), widgetY(box) - 12, 0xFFFFFFFF, true);
+        canvas.tip(tip, mouseX, mouseY);
     }
     //?}
+
     //? if >=26.1 {
     /*@Override
     public void extractRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        GuiDraw.Canvas canvas = GuiDraw.of(graphics);
+        List<Component> tip = paint(canvas, mouseX, mouseY);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        drawFieldLabel(graphics, attemptsBox, attemptsLabel());
-        drawFieldLabel(graphics, floorBox, floorLabel());
-        drawFieldLabel(graphics, volumeBox, volumeLabel());
-        drawFieldLabel(graphics, ticksBox, ticksLabel());
-        drawFieldLabel(graphics, timeoutBox, timeoutLabel());
-        drawFieldLabel(graphics, lookBox, lookLabel());
-        graphics.text(this.font, this.title, (this.width - this.font.width(this.title)) / 2, 6, 0xFFFFFFFF, true);
-        if (noteY >= 0) {
-            String note = Component.translatable("text." + VillagerReroller.MOD_ID + ".config.note").getString();
-            String shown = GuiDraw.ellipsis(this.font, note, this.width - 16);
-            graphics.text(this.font, shown, (this.width - this.font.width(shown)) / 2, noteY, 0xFFA0A0A0, true);
-        }
-        if (rerollHeaderY >= 0 && enabledButton != null) {
-            graphics.text(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.reroll"), widgetX(enabledButton), rerollHeaderY, 0xFFFFFFFF, true);
-        }
-        if (paceHeaderY >= 0 && serverButton != null) {
-            graphics.text(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.pace"), widgetX(serverButton), paceHeaderY, 0xFFFFFFFF, true);
-        }
-        Component hovered = hoveredTip(mouseX, mouseY);
-        if (hovered != null) {
-            graphics.setTooltipForNextFrame(this.font, hovered, mouseX, mouseY);
-        }
-    }
-
-    private void drawFieldLabel(GuiGraphics graphics, EditBox box, Component label) {
-        if (box == null) {
-            return;
-        }
-        graphics.text(this.font, label, widgetX(box), widgetY(box) - 12, 0xFFFFFFFF, true);
+        canvas.tip(tip, mouseX, mouseY);
     }
     *///?}
 
-    private boolean over(AbstractWidget widget, int mouseX, int mouseY) {
-        if (widget == null) {
-            return false;
+    private List<Component> paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+        GuiDraw.panel(canvas, frame);
+        stopButton.active = busy();
+        List<Component> tip = paintTitle(canvas, mouseX, mouseY);
+        for (Setting setting : settings) {
+            if (!visible(setting.row())) {
+                continue;
+            }
+            Rect row = row(setting.row(), setting.column());
+            if (setting.widget() == null) {
+                GuiDraw.label(canvas, setting.label(), row, TEXT, mouseX, mouseY);
+                canvas.fill(row.x(), row.bottom() - 1, row.right(), row.bottom(), 0xFF454545);
+                continue;
+            }
+            GuiDraw.row(canvas, row, setting.row(), UiStatus.IDLE, row.contains(mouseX, mouseY));
+            Rect control = control(setting.row(), setting.column());
+            Rect label = new Rect(row.x() + GAP, row.y(), control.x() - row.x() - 2 * GAP, row.height());
+            GuiDraw.line(canvas, setting.label().getString(), label, MUTED);
+            if (row.contains(mouseX, mouseY)) {
+                tip = new ArrayList<>();
+                tip.add(setting.label());
+                if (setting.widget() instanceof EditBox box && font.width(box.getValue()) > control.width() - 2 * GAP) {
+                    tip.add(Component.literal(box.getValue()));
+                }
+                tip.add(setting.tip());
+            }
         }
-        int left = widgetX(widget);
-        int top = widgetY(widget);
-        return mouseX >= left && mouseX < left + widget.getWidth() && mouseY >= top && mouseY < top + widget.getHeight();
+        GuiDraw.scrollbar(canvas, track, scroll, ROWS, visibleRows);
+        return tip;
     }
 
-    private boolean overField(EditBox box, int mouseX, int mouseY) {
-        if (box == null) {
-            return false;
+    private List<Component> paintTitle(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+        boolean running = busy();
+        UiStatus tone = running ? TradeHall.isActive() ? TradeHall.hudStatus() : UiStatus.RUNNING
+                : stopped ? UiStatus.ERROR : UiStatus.IDLE;
+        Component status = TradeHall.isActive() ? TradeHall.hudTitle()
+                : running ? JobSiteReroller.status()
+                : message(stopped ? "config.stopped" : "status.idle");
+        int statusWidth = Math.min(font.width(status), inner.width() * 2 / 5);
+        Rect titleBox = new Rect(inner.x(), inner.y(), inner.width() - statusWidth - GAP, LINE_HEIGHT);
+        Rect statusBox = new Rect(inner.right() - statusWidth, inner.y(), statusWidth, LINE_HEIGHT);
+        GuiDraw.line(canvas, title.getString(), titleBox, TEXT);
+        GuiDraw.label(canvas, status, statusBox, tone.color(), mouseX, mouseY);
+        return titleBox.contains(mouseX, mouseY) ? List.of(title, message("config.note")) : List.of();
+    }
+
+    private boolean submit(int key) {
+        if (GuiDraw.enter(key) && !(getFocused() instanceof Button)) {
+            saveAndClose();
+            return true;
         }
-        int left = widgetX(box);
-        int top = widgetY(box) - 12;
-        return mouseX >= left && mouseX < left + box.getWidth() && mouseY >= top && mouseY < widgetY(box) + box.getHeight();
+        return false;
     }
 
-    private int widgetX(AbstractWidget widget) {
-        //? if <1.19.3 {
-        /*return widget.x;
-        *///?} else {
-        return widget.getX();
-        //?}
+    private boolean scrollBy(double mouseX, double mouseY, double vertical) {
+        if ((options.contains(mouseX, mouseY) || track.contains(mouseX, mouseY)) && scroll.wheel(vertical, ROWS, visibleRows)) {
+            placeSettings();
+            return true;
+        }
+        return false;
     }
 
-    private int widgetY(AbstractWidget widget) {
-        //? if <1.19.3 {
-        /*return widget.y;
-        *///?} else {
-        return widget.getY();
-        //?}
+    private boolean clickTrack(double x, double y, int button) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT && track.contains(x, y)
+                && scroll.clickTrack(y, track.y(), track.height(), ROWS, visibleRows)) {
+            placeSettings();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean drag(double y) {
+        if (scroll.drag(y, track.y(), track.height(), ROWS, visibleRows)) {
+            placeSettings();
+            return true;
+        }
+        return false;
+    }
+
+    //? if <1.21.9 {
+    /*@Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        return submit(keyCode) || super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        return clickTrack(mouseX, mouseY, button) || super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        return drag(mouseY) || super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        scroll.stop();
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+    *///?} else {
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        return submit(event.key()) || super.keyPressed(event);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+        return clickTrack(event.x(), event.y(), event.button()) || super.mouseClicked(event, doubled);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        return drag(event.y()) || super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        scroll.stop();
+        return super.mouseReleased(event);
+    }
+    //?}
+
+    //? if <1.20.2 {
+    /*@Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        return scrollBy(mouseX, mouseY, delta) || super.mouseScrolled(mouseX, mouseY, delta);
+    }
+    *///?} else {
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+        return scrollBy(mouseX, mouseY, vertical) || super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
+    }
+    //?}
+
+    private record Setting(int row, int column, Component label, AbstractWidget widget, Component tip) {
     }
 }
