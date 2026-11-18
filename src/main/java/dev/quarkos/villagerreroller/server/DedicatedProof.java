@@ -11,6 +11,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Runs only when a dedicated server is started with
@@ -18,6 +24,7 @@ import java.lang.reflect.Method;
  */
 public final class DedicatedProof {
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
+    private static final Set<UUID> supplied = new HashSet<>();
     private static boolean hooked;
 
     private DedicatedProof() {
@@ -63,8 +70,9 @@ public final class DedicatedProof {
             }
         });
         if (proofWorld) {
-            // give @a runs before the harness joins. Repeat it until the player is online.
-            for (int i = 0; i < 180; i++) {
+            // The client can take minutes to reach the title screen. Keep offering
+            // the kit until the player is online, then stop changing their gamemode.
+            for (int i = 0; i < 20 * 60; i++) {
                 sleep();
                 sleep();
                 sleep();
@@ -75,12 +83,20 @@ public final class DedicatedProof {
     }
 
     private static void supply(MinecraftServer server) {
-        if (server.getPlayerList().getPlayers().isEmpty()) {
-            return;
+        String mode = System.getProperty("villager_reroller.proofGamemode", "survival");
+        if (!mode.equals("creative") && !mode.equals("adventure") && !mode.equals("spectator")) {
+            mode = "survival";
         }
-        command(server, "gamemode survival @a");
-        command(server, "give @a minecraft:lectern 16");
-        command(server, "give @a minecraft:iron_axe");
+        for (var player : server.getPlayerList().getPlayers()) {
+            if (!supplied.add(player.getUUID())) {
+                continue;
+            }
+            String name = player.getScoreboardName();
+            command(server, "op " + name);
+            command(server, "gamemode " + mode + " " + name);
+            command(server, "give " + name + " minecraft:lectern 16");
+            command(server, "give " + name + " minecraft:iron_axe");
+        }
     }
 
     private static void selfTest(MinecraftServer server) {
@@ -179,19 +195,46 @@ public final class DedicatedProof {
     }
 
     private static void command(MinecraftServer server, String command) {
-        try {
             Object commands = server.getCommands();
             Object source = server.createCommandSourceStack();
-            for (Method method : commands.getClass().getMethods()) {
-                if (method.getName().equals("performPrefixedCommand") && method.getParameterCount() == 2) {
+            List<Method> candidates = new ArrayList<>();
+            Class<?> type = commands.getClass();
+            while (type != null && type != Object.class) {
+                for (Method method : type.getDeclaredMethods()) {
+                    Class<?>[] params = method.getParameterTypes();
+                    if (params.length == 2 && params[1] == String.class && params[0].isInstance(source)) {
+                        candidates.add(method);
+                    }
+                }
+                type = type.getSuperclass();
+            }
+            candidates.sort(Comparator.comparingInt(DedicatedProof::commandScore).reversed());
+            if (candidates.isEmpty()) {
+                LOGGER.warn("villager_reroller proof command missing performer: {}", command);
+                return;
+            }
+            ReflectiveOperationException last = null;
+            for (Method method : candidates) {
+                try {
+                    method.setAccessible(true);
                     method.invoke(commands, source, command);
                     return;
+                } catch (ReflectiveOperationException ex) {
+                    last = ex;
                 }
             }
-            LOGGER.warn("villager_reroller proof command missing performer: {}", command);
-        } catch (ReflectiveOperationException ex) {
-            LOGGER.warn("villager_reroller proof command failed: {} {}", command, ex.getCause() == null ? ex.toString() : ex.getCause().toString());
+            LOGGER.warn("villager_reroller proof command failed: {} {}", command, last == null ? "" : last.toString());
+    }
+
+    private static int commandScore(Method method) {
+        int score = method.getReturnType() == int.class ? 2 : 0;
+        String name = method.getName();
+        if (name.contains("Prefixed")) {
+            score += 8;
+        } else if (name.contains("perform") || name.contains("Command")) {
+            score += 4;
         }
+        return score;
     }
 
     private static MinecraftServer current() {

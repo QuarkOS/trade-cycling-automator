@@ -23,7 +23,29 @@ public final class FabricChannels {
     private FabricChannels() {
     }
 
+    private static boolean payloadTypes;
+
+    /** Safe to call from both entrypoints. A second call is a no-op. */
+    public static void registerPayloadTypes() {
+        //? if <1.20.5 {
+        /*return;
+        *///?} else {
+        if (payloadTypes) {
+            return;
+        }
+        payloadTypes = true;
+        //? if >=26.1 {
+        /*net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(RerollPayload.TYPE, RerollPayload.CODEC);
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(RerollPayload.TYPE, RerollPayload.CODEC);
+        *///?} else {
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playC2S().register(RerollPayload.TYPE, RerollPayload.CODEC);
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playS2C().register(RerollPayload.TYPE, RerollPayload.CODEC);
+        //?}
+        //?}
+    }
+
     public static void registerServer() {
+        registerPayloadTypes();
         ServerSettings settings = ServerSettings.load(FabricLoader.getInstance().getConfigDir().resolve("villager_reroller-server.json"));
         //? if <1.20.5 {
         /*ServerPlayNetworking.registerGlobalReceiver(RerollIds.channel(), (server, player, handler, buf, responseSender) -> {
@@ -42,13 +64,6 @@ public final class FabricChannels {
             }
         }, settings);
         *///?} else {
-        //? if >=26.1 {
-        /*net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.serverboundPlay().register(RerollPayload.TYPE, RerollPayload.CODEC);
-        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(RerollPayload.TYPE, RerollPayload.CODEC);
-        *///?} else {
-        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playC2S().register(RerollPayload.TYPE, RerollPayload.CODEC);
-        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.playS2C().register(RerollPayload.TYPE, RerollPayload.CODEC);
-        //?}
         ServerPlayNetworking.registerGlobalReceiver(RerollPayload.TYPE, (payload, context) -> {
             byte[] data = payload.data();
             context.server().execute(() -> RerollHost.handle(context.player(), data));

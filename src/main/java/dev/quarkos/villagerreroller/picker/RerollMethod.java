@@ -48,6 +48,11 @@ public final class RerollMethod {
         return Component.translatable("text." + VillagerReroller.MOD_ID + ".method.unsupported");
     }
 
+    /** The dedicated-server proof selects a method without clicking the panel toggle. */
+    public static void selectForProof(Kind kind) {
+        selected = kind == null ? Kind.JOB_SITE : kind;
+    }
+
     public static void toggle() {
         if (!canChoose() || JobSiteReroller.isRunning()) {
             return;

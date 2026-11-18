@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# One command for the Villager Reroller dedicated-server matrix.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$root"
+export JAVA_HOME="${JAVA_HOME:-/opt/jdk25}"
+exec python3 "$root/tools/reroll_test.py" "$@"

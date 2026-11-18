@@ -38,8 +38,8 @@ public final class ServerSettings {
                 if (settings != null) {
                     return settings.sanitize();
                 }
-            } catch (IOException ignored) {
-                // Fall through and rewrite a valid file.
+            } catch (IOException | RuntimeException ignored) {
+                // A truncated or unknown file is replaced with the defaults below.
             }
         }
         ServerSettings settings = defaults();

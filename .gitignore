@@ -42,9 +42,18 @@ replay_*.log
 
 # stonecutter
 .stonecutter/
+versions/
+
+# python
+**/__pycache__/
 
 # verification skill copies JUnit XML here; cleanup must leave it, git should not
 .cursor/skills/verify-trade-cycling-automator/evidence/
 
 # compiled by tools/validate for the 26.3 Xvfb sRGB shim
 tools/*.so
+
+# reroll matrix keeps the summary and drops the bulky logs
+artifacts/reroll-test/logs/
+artifacts/reroll-test/screenshots/
+artifacts/reroll-test/runs/

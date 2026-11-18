@@ -157,6 +157,19 @@ class TradeOddsTest {
     }
 
     @Test
+    void aTargetHitsOnlyWhenItIsInThePoolAndTheCeilingCoversTheRoll() {
+        TradeOdds.Pool pool = novice(fixed("buy:minecraft:emerald:1:1", 1));
+        assertEquals(0, TradeOdds.hitProbability(pool, target("enchant:minecraft:mending:1", 64)), 1e-12);
+        assertEquals(0, TradeOdds.hitProbability(pool, target("buy:minecraft:paper:24:24", 23)), 1e-12);
+        assertEquals(2.0 / 3.0, TradeOdds.hitProbability(pool, target("buy:minecraft:paper:24:24", 24)), 1e-12);
+        assertEquals(0, TradeOdds.bookAtMost(1, true, 0), 1e-12);
+        assertEquals(0, TradeOdds.bookAtMost(0, false, 38), 1e-12);
+        assertEquals(0, TradeOdds.gearAtMost(2, 6), 1e-12);
+        assertEquals(1.0 / 15.0, TradeOdds.gearAtMost(2, 7), 1e-12);
+        assertEquals(1, TradeOdds.gearAtMost(2, 21), 1e-12);
+    }
+
+    @Test
     void labelsRoundTheReciprocalAndUseTheAttemptPace() {
         assertEquals(2, VanillaRoll.OFFERS_PER_LEVEL);
         assertEquals(false, VanillaRoll.TRADE_REBALANCE_DEFAULT);

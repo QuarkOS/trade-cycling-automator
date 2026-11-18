@@ -1,0 +1,19 @@
+{
+  "generatedAt": "2026-11-18T12:33:03Z",
+  "partial": false,
+  "changed": "",
+  "elapsedSeconds": 39.5,
+  "rows": [
+    {
+      "version": "26.3",
+      "loader": "fabric",
+      "tradeCycling": false,
+      "survival": "fail",
+      "creative": "not-run",
+      "status": "pass",
+      "failureReason": "[12:33:02] [Render thread/WARN]: Client disconnected with reason: Invalid move player packet received",
+      "durationSeconds": 38.6,
+      "screenshot": "artifacts/reroll-baseline/screenshots/26.3/fabric/without-tc/trade-screen.png"
+    }
+  ]
+}

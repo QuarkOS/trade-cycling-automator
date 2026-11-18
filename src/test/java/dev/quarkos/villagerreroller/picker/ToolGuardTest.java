@@ -81,6 +81,16 @@ class ToolGuardTest {
         assertEquals(0, choice.slot());
     }
 
+    @Test
+    void theZeroFloorRejectsABrokenToolAndKeepsOnePoint() {
+        ToolGuard.Choice broken = ToolGuard.choose(List.of(tool(0, 8.0F, 0, false, false)), 0, false, false);
+        assertEquals(ToolGuard.Decision.WORN, broken.decision());
+
+        ToolGuard.Choice one = ToolGuard.choose(List.of(tool(1, 8.0F, 1, false, false)), 0, false, false);
+        assertEquals(ToolGuard.Decision.TOOL, one.decision());
+        assertEquals(1, one.slot());
+    }
+
     private static ToolGuard.Candidate tool(int slot, float speed, int remaining, boolean enchanted, boolean mending) {
         return new ToolGuard.Candidate(slot, speed, remaining, enchanted, mending);
     }
