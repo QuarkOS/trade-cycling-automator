@@ -173,13 +173,14 @@ public final class TradeHallScreen extends Screen {
         String title = Component.translatable(summary
                 ? "text." + VillagerReroller.MOD_ID + ".hall.summary"
                 : "text." + VillagerReroller.MOD_ID + ".hall.title").getString();
-        int titleMax = Math.max(20, frame.w / 4);
+        int pillLimit = villagersButton == null ? frame.left + frame.w - 8 : widgetX(villagersButton) - 4;
+        int titleRoom = pillLimit - frame.left - 96;
+        int titleMax = Math.max(48, Math.min(canvas.font().width(title) + 4, titleRoom));
         String titleTip = GuiDraw.fit(canvas, title, frame.left + 8, frame.top + 7, titleMax, 0xFF202020);
         if (titleTip != null && mouseY >= frame.top + 4 && mouseY <= frame.top + 16 && mouseX < frame.left + 8 + titleMax) {
             hover = List.of(Component.literal(title));
         }
         int pills = frame.left + 8 + canvas.font().width(GuiDraw.ellipsis(canvas.font(), title, titleMax)) + 6;
-        int pillLimit = villagersButton == null ? frame.left + frame.w - 8 : widgetX(villagersButton) - 4;
         paintPills(canvas, pills, frame.top + 5, pillLimit, summary);
         String hint = Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.hint").getString();
         String hintTip = GuiDraw.fit(canvas, hint, frame.left + 8, frame.top + 21, frame.w - 16, 0xFF555555);

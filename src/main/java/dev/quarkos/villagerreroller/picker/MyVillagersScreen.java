@@ -322,31 +322,12 @@ public final class MyVillagersScreen extends Screen {
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.librarian", counts[2]).getString(),
                 Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.other", counts[3]).getString()
         };
-        int remaining = Math.max(0, limit - x);
-        int[] preferred = {44, 62, 74, 53};
         int[] widths = new int[values.length];
-        int natural = 0;
-        int gap = 2;
         for (int i = 0; i < values.length; i++) {
-            int text = canvas.font().width(labels[i]) + 8;
-            int want = i < preferred.length ? Math.max(preferred[i], text) : text;
-            widths[i] = want;
-            natural += want;
-        }
-        int gaps = gap * Math.max(0, values.length - 1);
-        if (natural + gaps > remaining && natural > 0) {
-            int budget = Math.max(values.length * 16, remaining - gaps);
-            int used = 0;
-            for (int i = 0; i < widths.length; i++) {
-                widths[i] = Math.max(16, widths[i] * budget / natural);
-                used += widths[i];
-            }
-            if (used > budget) {
-                widths[widths.length - 1] = Math.max(16, widths[widths.length - 1] - (used - budget));
-            }
+            widths[i] = canvas.font().width(labels[i]) + 8;
         }
         for (int i = 0; i < values.length; i++) {
-            if (x + 16 > limit) {
+            if (x + 36 > limit) {
                 break;
             }
             int width = Math.min(widths[i], limit - x);
@@ -403,7 +384,7 @@ public final class MyVillagersScreen extends Screen {
             String status = over
                     ? Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.over_cap_status", check.bestCost(), check.bestVillagerIndex()).getString()
                     : Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.missing_status").getString();
-            int nameMax = Math.max(16, needW / 5);
+            int nameMax = Math.max(48, needW * 2 / 5);
             String nameShown = GuiDraw.ellipsis(canvas.font(), name, nameMax);
             canvas.text(nameShown, needX + 13, y + 1, 0xFF201000);
             int px = needX + 13 + canvas.font().width(nameShown) + 4;
