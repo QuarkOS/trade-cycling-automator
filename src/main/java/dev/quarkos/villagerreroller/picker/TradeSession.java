@@ -7,6 +7,8 @@ import dev.quarkos.villagerreroller.odds.TradeOdds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.inventory.MerchantMenu;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.Level;
@@ -172,6 +174,21 @@ public final class TradeSession {
 
     public static Map<String, Integer> selections() {
         return Map.copyOf(chosenMax);
+    }
+
+    public static void harnessSeekUnmatched() {
+        TradeEntry entry = TradeEntry.buy(
+                "harness:unmatched",
+                new ItemStack(Items.BARRIER),
+                "unmatched",
+                1,
+                1,
+                (offer, max) -> false);
+        entries = List.of(entry);
+        pool = TradeOdds.Pool.EMPTY;
+        chosenMax.clear();
+        chosenMax.put(entry.id, ANY_PRICE);
+        profession = "minecraft:librarian";
     }
 
     public static boolean hasSelection() {

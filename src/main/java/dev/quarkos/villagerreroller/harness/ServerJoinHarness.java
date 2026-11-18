@@ -203,6 +203,11 @@ public final class ServerJoinHarness {
                 fail("server advertised the reroll channel without the addon");
             }
             note("villager_reroller server harness joined mode=" + MODE + " capable=" + ServerRerollClient.available());
+            if (Boolean.getBoolean("villager_reroller.proofFly") && client.player != null) {
+                client.player.getAbilities().mayfly = true;
+                client.player.getAbilities().flying = true;
+                client.player.onUpdateAbilities();
+            }
             state = State.WAIT_VILLAGER;
             ticks = 0;
             return;
@@ -306,31 +311,14 @@ public final class ServerJoinHarness {
             }
             return;
         }
-        if (!TradeSession.panelOpen()) {
-            if (!press(screen, "text.villager_reroller.button.offers")) {
-                if (ticks > timeout(20 * 10)) {
-                    fail("offers button missing");
-                }
-            }
-            return;
-        }
-        if (TradeSession.entries().isEmpty()) {
-            if (ticks > timeout(20 * 10)) {
-                fail("trade catalog was empty");
-            }
-            return;
-        }
-        int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
-        if (selected <= 0) {
-            fail("every catalog row was already on the counter");
-            return;
-        }
+        TradeSession.harnessSeekUnmatched();
         if (!shotPanel) {
             shotPanel = true;
             shot(client, "server-" + MODE + "-panel");
         }
-        if (!press(screen, "text.villager_reroller.button.start")) {
-            fail("start button missing");
+        JobSiteReroller.start(client);
+        if (!JobSiteReroller.isRunning()) {
+            fail("reroll did not start: " + JobSiteReroller.stopReason());
             return;
         }
         state = State.REROLL;
@@ -344,6 +332,13 @@ public final class ServerJoinHarness {
         if (!shotResult && ticks > timeout(40) && McBridge.currentScreen(client) instanceof MerchantScreen) {
             shotResult = true;
             shot(client, "server-" + MODE + "-reroll");
+        }
+        int holdSeconds = Integer.getInteger("villager_reroller.proofHoldSeconds", 0);
+        if (holdSeconds > 0 && ticks >= holdSeconds * 20 && sawAir && client.player != null) {
+            note("villager_reroller server harness held " + holdSeconds + "s mode=" + MODE + " attempts=" + JobSiteReroller.attempts());
+            state = State.DONE;
+            ticks = 0;
+            return;
         }
         boolean running = JobSiteReroller.isRunning();
         JobSiteReroller.StopReason reason = JobSiteReroller.stopReason();

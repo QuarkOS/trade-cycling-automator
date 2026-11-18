@@ -345,20 +345,18 @@ public final class McBridge {
     }
 
     public static void sendLook(LocalPlayer player, float yaw, float pitch) {
-        // Rotation alone leaves a lagged server at the pre-teleport position, and the
-        // break is then rejected as out of range with no block correction. The client
-        // still predicts the lectern away, so the villager never loses the profession.
-        double x = player.getX();
-        double y = player.getY();
-        double z = player.getZ();
+        // Called from the end of the client tick, after vanilla has already queued
+        // its position packet and the tick-end. 26.3 rejects a second position
+        // packet in that window with "Invalid move player packet received".
+        // A rotation packet updates the look before the break and is not a position.
         //? if <1.20 {
-        /*player.connection.send(new ServerboundMovePlayerPacket.PosRot(x, y, z, yaw, pitch, player.isOnGround()));
+        /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.isOnGround()));
         *///?}
         //? if >=1.20 && <1.21.2 {
-        /*player.connection.send(new ServerboundMovePlayerPacket.PosRot(x, y, z, yaw, pitch, player.onGround()));
+        /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround()));
         *///?}
         //? if >=1.21.2 {
-        player.connection.send(new ServerboundMovePlayerPacket.PosRot(x, y, z, yaw, pitch, player.onGround(), player.horizontalCollision));
+        player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
         //?}
     }
 

@@ -189,6 +189,13 @@ tasks {
         if (!serverAddress.isNullOrBlank()) {
             systemProperty("villager_reroller.serverAddress", serverAddress)
         }
+        val proofHold = providers.gradleProperty("proofHoldSeconds").orNull
+        if (!proofHold.isNullOrBlank()) {
+            systemProperty("villager_reroller.proofHoldSeconds", proofHold)
+        }
+        if (providers.gradleProperty("proofFly").orNull == "true") {
+            systemProperty("villager_reroller.proofFly", "true")
+        }
         if (providers.gradleProperty("proofWorld").orNull == "true") {
             systemProperty("villager_reroller.proofWorld", "true")
             systemProperty("villager_reroller.serverSelfTest", "true")

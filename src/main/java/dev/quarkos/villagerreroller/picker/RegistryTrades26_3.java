@@ -56,8 +56,7 @@ public final class RegistryTrades26_3 {
         if (setKey == null) {
             return List.of();
         }
-        HolderLookup.RegistryLookup<TradeSet> sets = registries.lookupOrThrow(Registries.TRADE_SET);
-        TradeSet set = sets.get(setKey).map(Holder::value).orElse(null);
+        TradeSet set = registries.lookup(Registries.TRADE_SET).flatMap(lookup -> lookup.get(setKey)).map(Holder::value).orElse(null);
         if (set == null) {
             return List.of();
         }
@@ -103,7 +102,7 @@ public final class RegistryTrades26_3 {
         if (setKey == null) {
             return null;
         }
-        return registries.lookupOrThrow(Registries.TRADE_SET).get(setKey).map(Holder::value).orElse(null);
+        return registries.lookup(Registries.TRADE_SET).flatMap(lookup -> lookup.get(setKey)).map(Holder::value).orElse(null);
     }
 
     private static int[] counts(ContextIntProvider provider) {
