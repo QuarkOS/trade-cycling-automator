@@ -74,7 +74,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                         "enchant:minecraft:unbreaking:3", 14,
                         "enchant:minecraft:efficiency:5", 20));
                 client.options.guiScale().set(3);
-                client.resizeDisplay();
+                resize(client);
             });
             context.waitTicks(5);
             context.setScreen(() -> new MyVillagersScreen(null));
@@ -107,12 +107,12 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                         "enchant:minecraft:protection:4", 16,
                         "enchant:minecraft:silk_touch:1", 10));
                 client.options.guiScale().set(3);
-                client.resizeDisplay();
+                resize(client);
             });
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
             context.runOnClient(client -> {
-                if (client.screen instanceof MyVillagersScreen screen) {
+                if (McBridge.currentScreen(client) instanceof MyVillagersScreen screen) {
                     screen.scrollTo(1);
                 }
             });
@@ -120,7 +120,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             saveShot(context, "checklist-populated");
             context.runOnClient(client -> {
                 client.options.guiScale().set(2);
-                client.resizeDisplay();
+                resize(client);
             });
             context.waitTicks(5);
             saveShot(context, "checklist-populated-scale2");
@@ -128,7 +128,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
             context.runOnClient(client -> {
-                if (client.screen instanceof MyVillagersScreen screen) {
+                if (McBridge.currentScreen(client) instanceof MyVillagersScreen screen) {
                     screen.scrollTo(1);
                 }
             });
@@ -139,7 +139,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.runOnClient(client -> {
                 TradeHall.clear();
                 client.options.guiScale().set(3);
-                client.resizeDisplay();
+                resize(client);
             });
             context.setScreen(() -> new TradeHallScreen());
             context.waitTicks(8);
@@ -172,7 +172,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             }, 20 * 30);
             context.runOnClient(client -> {
                 client.options.guiScale().set(2);
-                client.resizeDisplay();
+                resize(client);
                 Villager nearest = null;
                 AABB box = client.player.getBoundingBox().inflate(16.0);
                 for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
@@ -213,7 +213,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
             saveShot(context, "picker-scale4");
-            context.runOnClient(client -> client.setScreen(null));
+            context.runOnClient(client -> McBridge.setScreen(client, null));
         } finally {
             restore(picks, picksBackup);
             restore(villagers, villagerBackup);
@@ -266,11 +266,19 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
         }
     }
 
+    private static void resize(net.minecraft.client.Minecraft client) {
+        //? if >=26.1 {
+        /*client.resizeGui();
+        *///?} else {
+        client.resizeDisplay();
+        //?}
+    }
+
     private static void scale(ClientGameTestContext context, int gui, int width, int height) {
         context.getInput().resizeWindow(width, height);
         context.runOnClient(client -> {
             client.options.guiScale().set(gui);
-            client.resizeDisplay();
+            resize(client);
         });
         context.waitTicks(5);
     }
@@ -293,14 +301,14 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
      * teleport. Keep offering the trade until the screen is actually open.
      */
     private static void reopenMerchant(ClientGameTestContext context, TestSingleplayerContext world, int x, int y, int z) {
-        context.runOnClient(client -> client.setScreen(null));
+        context.runOnClient(client -> McBridge.setScreen(client, null));
         context.waitTicks(10);
         world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + (x + 1.2) + " " + y + " " + (z + 0.5) + " 180 0");
         world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);
         boolean sawLibrarian = false;
         for (int attempt = 0; attempt < 45; attempt++) {
             context.waitTicks(8);
-            if (Boolean.TRUE.equals(context.computeOnClient(client -> client.screen instanceof MerchantScreen))) {
+            if (Boolean.TRUE.equals(context.computeOnClient(client -> McBridge.currentScreen(client) instanceof MerchantScreen))) {
                 context.waitTicks(10);
                 return;
             }

@@ -2,10 +2,15 @@ package dev.quarkos.villagerreroller.config;
 
 import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.picker.GuiDraw;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.TradeHall;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+//? if >=1.19.3 {
+import net.minecraft.client.gui.components.Tooltip;
+//?}
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 //? if >=1.20 {
@@ -26,12 +31,14 @@ public final class ForgeConfigScreen extends Screen {
     private boolean bareHand;
     private boolean matchSound;
     private boolean serverFriendly;
-    private boolean panic;
     private Button enabledButton;
     private Button bareHandButton;
     private Button matchButton;
     private Button serverButton;
-    private Button panicButton;
+    private Button stopButton;
+    private int noteY = -1;
+    private int rerollHeaderY = -1;
+    private int paceHeaderY = -1;
     private EditBox attemptsBox;
     private EditBox floorBox;
     private EditBox volumeBox;
@@ -51,27 +58,48 @@ public final class ForgeConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        int column = Math.min(170, Math.max(140, (this.width - 24) / 2));
-        int left = this.width / 2 - 4 - column;
-        int right = this.width / 2 + 4;
-        int y = 36;
-        enabledButton = button(left, y, column, enabledLabel(), pressed -> {
+        int column = Math.min(170, Math.max(120, (this.width - 40) / 2));
+        int left = this.width / 2 - 6 - column;
+        int right = this.width / 2 + 6;
+        boolean roomy = this.height >= 280;
+        int y = 24;
+        if (roomy) {
+            noteY = 22;
+            y = 40;
+            rerollHeaderY = y;
+            paceHeaderY = y;
+            y += 14;
+        } else {
+            noteY = -1;
+            rerollHeaderY = -1;
+            paceHeaderY = -1;
+        }
+        int stepButton = roomy ? 24 : 22;
+        int stepField = roomy ? 36 : 34;
+        int cursor = y;
+        enabledButton = button(left, cursor, column, enabledLabel(), pressed -> {
             enabled = !enabled;
             pressed.setMessage(enabledLabel());
         });
-        bareHandButton = button(left, y + 24, column, bareHandLabel(), pressed -> {
+        cursor = cursor + stepButton;
+        bareHandButton = button(left, cursor, column, bareHandLabel(), pressed -> {
             bareHand = !bareHand;
             pressed.setMessage(bareHandLabel());
         });
-        attemptsBox = field(left, y + 62, column, attemptsLabel(), Integer.toString(AutomatorConfig.get().maxAttempts()), 5);
-        floorBox = field(left, y + 98, column, floorLabel(), Integer.toString(AutomatorConfig.get().durabilityFloor()), 5);
-        matchButton = button(left, y + 134, column, matchLabel(), pressed -> {
+        cursor = cursor + stepField;
+        attemptsBox = field(left, cursor, column, attemptsLabel(), Integer.toString(AutomatorConfig.get().maxAttempts()), 5);
+        cursor = cursor + stepField;
+        floorBox = field(left, cursor, column, floorLabel(), Integer.toString(AutomatorConfig.get().durabilityFloor()), 5);
+        cursor = cursor + stepField;
+        matchButton = button(left, cursor, column, matchLabel(), pressed -> {
             matchSound = !matchSound;
             pressed.setMessage(matchLabel());
         });
-        volumeBox = field(left, y + 170, column, volumeLabel(), Integer.toString(AutomatorConfig.get().matchVolume()), 3);
+        cursor = cursor + stepField;
+        volumeBox = field(left, cursor, column, volumeLabel(), Integer.toString(AutomatorConfig.get().matchVolume()), 3);
 
-        serverButton = button(right, y, column, serverLabel(), pressed -> {
+        cursor = y;
+        serverButton = button(right, cursor, column, serverLabel(), pressed -> {
             serverFriendly = !serverFriendly;
             AutomatorConfig draft = new AutomatorConfig();
             draft.applyServerFriendly(serverFriendly);
@@ -80,16 +108,34 @@ public final class ForgeConfigScreen extends Screen {
             lookBox.setValue(trim(draft.lookDegreesPerTick()));
             pressed.setMessage(serverLabel());
         });
-        ticksBox = field(right, y + 62, column, ticksLabel(), Integer.toString(AutomatorConfig.get().ticksBetweenCycles()), 4);
-        timeoutBox = field(right, y + 98, column, timeoutLabel(), Integer.toString(AutomatorConfig.get().timeoutMultiplier()), 3);
-        lookBox = field(right, y + 134, column, lookLabel(), trim(AutomatorConfig.get().lookDegreesPerTick()), 5);
-        panicButton = button(right, y + 160, column, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.panic"), pressed -> {
-            panic = !panic;
-            pressed.setMessage(Component.translatable(panic
-                    ? "text." + VillagerReroller.MOD_ID + ".config.panic.on"
-                    : "text." + VillagerReroller.MOD_ID + ".config.panic"));
-        });
-        button(this.width / 2 - 100, this.height - 28, 200, Component.translatable("gui.done"), pressed -> saveAndClose());
+        cursor = cursor + stepField;
+        ticksBox = field(right, cursor, column, ticksLabel(), Integer.toString(AutomatorConfig.get().ticksBetweenCycles()), 4);
+        cursor = cursor + stepField;
+        timeoutBox = field(right, cursor, column, timeoutLabel(), Integer.toString(AutomatorConfig.get().timeoutMultiplier()), 3);
+        cursor = cursor + stepField;
+        lookBox = field(right, cursor, column, lookLabel(), trim(AutomatorConfig.get().lookDegreesPerTick()), 5);
+
+        int stopW = 98;
+        int doneW = 98;
+        int gap = 8;
+        int rowX = this.width / 2 - (stopW + gap + doneW) / 2;
+        stopButton = button(rowX, this.height - 28, stopW,
+                Component.translatable("text." + VillagerReroller.MOD_ID + ".config.stop_now"), pressed -> {
+                    boolean busy = TradeHall.isActive() || JobSiteReroller.isRunning();
+                    if (TradeHall.isActive()) {
+                        TradeHall.requestStop();
+                    }
+                    if (JobSiteReroller.isRunning()) {
+                        JobSiteReroller.stop(JobSiteReroller.StopReason.PANIC);
+                    }
+                    if (busy) {
+                        pressed.setMessage(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.stopped"));
+                    }
+                });
+        //? if >=1.19.3 {
+        stopButton.setTooltip(Tooltip.create(Component.translatable("text." + VillagerReroller.MOD_ID + ".config.stop_now.tooltip")));
+        //?}
+        button(rowX + stopW + gap, this.height - 28, doneW, Component.translatable("gui.done"), pressed -> saveAndClose());
     }
 
     private Button button(int x, int y, int width, Component label, Button.OnPress press) {
@@ -125,9 +171,6 @@ public final class ForgeConfigScreen extends Screen {
         config.setLookDegreesPerTick(parseFloat(lookBox.getValue(), config.lookDegreesPerTick()));
         if (!enabled) {
             JobSiteReroller.stop(JobSiteReroller.StopReason.DISABLED);
-        }
-        if (panic) {
-            JobSiteReroller.stop(JobSiteReroller.StopReason.PANIC);
         }
         AutomatorConfig.save();
         if (this.minecraft != null) {
@@ -235,8 +278,8 @@ public final class ForgeConfigScreen extends Screen {
         if (overField(lookBox, mouseX, mouseY)) {
             return tip("look_speed");
         }
-        if (over(panicButton, mouseX, mouseY)) {
-            return tip("panic");
+        if (over(stopButton, mouseX, mouseY)) {
+            return tip("stop_now");
         }
         return null;
     }
@@ -255,6 +298,18 @@ public final class ForgeConfigScreen extends Screen {
         drawFieldLabel(pose, ticksBox, ticksLabel());
         drawFieldLabel(pose, timeoutBox, timeoutLabel());
         drawFieldLabel(pose, lookBox, lookLabel());
+        this.font.drawShadow(pose, this.title, (this.width - this.font.width(this.title)) / 2, 6, 0xFFFFFF);
+        if (noteY >= 0) {
+            String note = Component.translatable("text." + VillagerReroller.MOD_ID + ".config.note").getString();
+            String shown = GuiDraw.ellipsis(this.font, note, this.width - 16);
+            this.font.drawShadow(pose, shown, (this.width - this.font.width(shown)) / 2, noteY, 0xA0A0A0);
+        }
+        if (rerollHeaderY >= 0 && enabledButton != null) {
+            this.font.drawShadow(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.reroll"), widgetX(enabledButton), rerollHeaderY, 0xFFFFFF);
+        }
+        if (paceHeaderY >= 0 && serverButton != null) {
+            this.font.drawShadow(pose, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.pace"), widgetX(serverButton), paceHeaderY, 0xFFFFFF);
+        }
         Component hovered = hoveredTip(mouseX, mouseY);
         if (hovered != null) {
             renderTooltip(pose, hovered, mouseX, mouseY);
@@ -278,6 +333,18 @@ public final class ForgeConfigScreen extends Screen {
         drawFieldLabel(graphics, ticksBox, ticksLabel());
         drawFieldLabel(graphics, timeoutBox, timeoutLabel());
         drawFieldLabel(graphics, lookBox, lookLabel());
+        graphics.drawString(this.font, this.title, (this.width - this.font.width(this.title)) / 2, 6, 0xFFFFFFFF, true);
+        if (noteY >= 0) {
+            String note = Component.translatable("text." + VillagerReroller.MOD_ID + ".config.note").getString();
+            String shown = GuiDraw.ellipsis(this.font, note, this.width - 16);
+            graphics.drawString(this.font, shown, (this.width - this.font.width(shown)) / 2, noteY, 0xFFA0A0A0, true);
+        }
+        if (rerollHeaderY >= 0 && enabledButton != null) {
+            graphics.drawString(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.reroll"), widgetX(enabledButton), rerollHeaderY, 0xFFFFFFFF, true);
+        }
+        if (paceHeaderY >= 0 && serverButton != null) {
+            graphics.drawString(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.pace"), widgetX(serverButton), paceHeaderY, 0xFFFFFFFF, true);
+        }
         Component hovered = hoveredTip(mouseX, mouseY);
         if (hovered != null) {
             //? if <1.21.6 {
@@ -306,6 +373,18 @@ public final class ForgeConfigScreen extends Screen {
         drawFieldLabel(graphics, ticksBox, ticksLabel());
         drawFieldLabel(graphics, timeoutBox, timeoutLabel());
         drawFieldLabel(graphics, lookBox, lookLabel());
+        graphics.text(this.font, this.title, (this.width - this.font.width(this.title)) / 2, 6, 0xFFFFFFFF, true);
+        if (noteY >= 0) {
+            String note = Component.translatable("text." + VillagerReroller.MOD_ID + ".config.note").getString();
+            String shown = GuiDraw.ellipsis(this.font, note, this.width - 16);
+            graphics.text(this.font, shown, (this.width - this.font.width(shown)) / 2, noteY, 0xFFA0A0A0, true);
+        }
+        if (rerollHeaderY >= 0 && enabledButton != null) {
+            graphics.text(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.reroll"), widgetX(enabledButton), rerollHeaderY, 0xFFFFFFFF, true);
+        }
+        if (paceHeaderY >= 0 && serverButton != null) {
+            graphics.text(this.font, Component.translatable("text." + VillagerReroller.MOD_ID + ".config.section.pace"), widgetX(serverButton), paceHeaderY, 0xFFFFFFFF, true);
+        }
         Component hovered = hoveredTip(mouseX, mouseY);
         if (hovered != null) {
             graphics.setTooltipForNextFrame(this.font, hovered, mouseX, mouseY);
