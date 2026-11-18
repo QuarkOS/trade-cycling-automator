@@ -2,6 +2,7 @@ package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.harness.BrowserHarness;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
@@ -28,7 +29,7 @@ import java.util.Map;
 /**
  * Picks a librarian price, switches the villager to a farmer, then drops the
  * in-memory session the way a new client process would. Reopening the librarian
- * panel has to restore the price from config/villager_reroller-picks.json.
+ * browser has to restore the price from config/villager_reroller-picks.json.
  */
 @SuppressWarnings("UnstableApiUsage")
 public class PickPersistenceGameTest implements FabricClientGameTest {
@@ -37,8 +38,6 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
     private int fixedPrice;
     private String rangedId = "";
     private int rangedPrice;
-    private String shotFilter = "";
-    private boolean needsFilter;
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -102,21 +101,12 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
 
             waitForProfession(context, "minecraft:librarian");
             openTrades(context);
-            context.clickScreenButton("text.villager_reroller.button.offers");
-            context.waitTicks(5);
-            context.runOnClient(client -> needsFilter = chooseTargets(client));
-            if (needsFilter) {
-                context.runOnClient(client -> TradeSession.setFilter(shotFilter));
-                context.clickScreenButton("text.villager_reroller.button.offers");
-                context.waitTicks(3);
-                context.clickScreenButton("text.villager_reroller.button.offers");
-                context.waitTicks(5);
-            }
+            context.clickScreenButton("text.villager_reroller.browser.title");
+            context.runOnClient(this::chooseTargets);
             GameTestSupport.saveShot(context, "picks-before-restart");
             context.runOnClient(client -> assertRemembered(client, "minecraft:librarian"));
 
             closeTrades(context);
-            context.runOnClient(client -> TradeSession.setFilter(""));
             world.getServer().runCommand("setblock " + x + " " + y + " " + z + " minecraft:air");
             context.waitTicks(40);
             world.getServer().runCommand("setblock " + x + " " + y + " " + z + " minecraft:composter");
@@ -124,14 +114,11 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             context.waitTicks(20);
             openTrades(context);
             context.waitTicks(5);
-            if (!context.computeOnClient(client -> TradeSession.panelOpen())) {
-                context.clickScreenButton("text.villager_reroller.button.offers");
-                context.waitTicks(5);
-            }
+            context.clickScreenButton("text.villager_reroller.browser.title");
             GameTestSupport.saveShot(context, "picks-other-profession");
             context.runOnClient(client -> {
                 if (!"minecraft:farmer".equals(TradeSession.profession())) {
-                    throw new AssertionError("panel did not switch to the farmer, profession=" + TradeSession.profession());
+                    throw new AssertionError("browser did not switch to the farmer, profession=" + TradeSession.profession());
                 }
                 if (TradeSession.selected(rangedId) || TradeSession.selected(fixedId)) {
                     throw new AssertionError("librarian picks stayed selected after the profession switch: " + TradeSession.selections());
@@ -159,8 +146,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             waitForProfession(context, "minecraft:librarian");
             context.waitTicks(20);
             openTrades(context);
-            context.runOnClient(client -> TradeSession.setFilter(shotFilter));
-            context.clickScreenButton("text.villager_reroller.button.offers");
+            context.clickScreenButton("text.villager_reroller.browser.title");
             context.waitTicks(5);
             GameTestSupport.saveShot(context, "picks-after-restart");
             context.runOnClient(client -> assertRemembered(client, "minecraft:librarian"));
@@ -176,14 +162,11 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
             if (!title.toLowerCase().contains("villager")) {
                 throw new AssertionError("match sound settings were not open, title=" + title);
             }
-            // The next client gametest clicks Offers to open the panel. Leaving it open
-            // would make that click close the panel, so Start would not be on screen.
-            // The picks file stays; this only drops the in-memory session.
             context.runOnClient(client -> TradeSession.simulateClientRestart());
         }
     }
 
-    private boolean chooseTargets(net.minecraft.client.Minecraft client) {
+    private void chooseTargets(net.minecraft.client.Minecraft client) {
         List<TradeEntry> entries = TradeSession.entries();
         TradeEntry ranged = null;
         TradeEntry fixed = null;
@@ -201,23 +184,12 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
         if (ranged == null || fixed == null) {
             throw new AssertionError("librarian catalog had no fixed price and no range: " + entries.size());
         }
-        TradeSession.toggle(fixed);
-        TradeSession.toggle(ranged);
-        TradeSession.cyclePrice(ranged, 1);
         fixedId = fixed.id;
-        fixedPrice = TradeSession.chosenMax(fixed.id);
+        fixedPrice = fixed.emeraldMax;
         rangedId = ranged.id;
-        rangedPrice = TradeSession.chosenMax(ranged.id);
-        if (rangedPrice == fixedPrice && ranged.id.equals(fixed.id)) {
-            throw new AssertionError("price was not recorded");
-        }
-        int index = entries.indexOf(ranged);
-        if (index >= 4) {
-            shotFilter = ranged.name.length() <= 32 ? ranged.name : ranged.name.substring(0, 32);
-            return true;
-        }
-        shotFilter = "";
-        return false;
+        rangedPrice = ranged.emeraldMin + 1;
+        BrowserHarness.pick(client, fixed, fixedPrice);
+        BrowserHarness.pick(client, ranged, rangedPrice);
     }
 
     private void assertRemembered(net.minecraft.client.Minecraft client, String profession) {
@@ -262,7 +234,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
                 client.player.closeContainer();
             }
         });
-        context.waitFor(client -> !(McBridge.currentScreen(client) instanceof MerchantScreen), 20 * 10);
+        context.waitFor(client -> McBridge.currentScreen(client) == null, GameTestSupport.scaled(20 * 10));
     }
 
     private static Villager nearestVillager(net.minecraft.client.Minecraft client) {

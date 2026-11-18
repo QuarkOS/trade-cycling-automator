@@ -47,6 +47,8 @@ public final class GuiDraw {
 
         void item(ItemStack stack, int x, int y, String badge);
 
+        void aboveItem(Runnable paint);
+
         default void item(ItemStack stack, int x, int y) {
             item(stack, x, y, null);
         }
@@ -56,13 +58,26 @@ public final class GuiDraw {
                 tooltip = new Tooltip(lines, mouseX, mouseY);
             }
         }
+    }
 
-        default void checkbox(int x, int y, boolean selected) {
-            frame(this, new Rect(x, y, 12, 12), selected ? ACCENT : BORDER, BACKGROUND);
-            if (selected) {
-                text("✓", x + 2, y + 2, ACCENT);
-            }
+    static void tradeIcon(Canvas canvas, ItemStack item, Rect bounds, String badge, boolean locked) {
+        int x = bounds.x() + (bounds.width() - 16) / 2;
+        int y = bounds.y() + (bounds.height() - 16) / 2;
+        canvas.item(item, x, y, badge);
+        if (locked) {
+            canvas.aboveItem(() -> {
+                canvas.fill(x, y, x + 16, y + 16, 0x9F2B2B2B);
+                lock(canvas, bounds.right() - 8, bounds.y() + 1);
+            });
         }
+    }
+
+    private static void lock(Canvas canvas, int x, int y) {
+        canvas.fill(x, y, x + 7, y + 8, BACKGROUND);
+        canvas.fill(x + 2, y + 1, x + 5, y + 2, MUTED);
+        canvas.fill(x + 1, y + 2, x + 2, y + 5, MUTED);
+        canvas.fill(x + 5, y + 2, x + 6, y + 5, MUTED);
+        canvas.fill(x + 1, y + 4, x + 6, y + 7, MUTED);
     }
 
     public static Component message(String key, Object... args) {
@@ -261,6 +276,14 @@ public final class GuiDraw {
         }
 
         @Override
+        public void aboveItem(Runnable paint) {
+            pose.pushPose();
+            pose.translate(0, 0, 300);
+            paint.run();
+            pose.popPose();
+        }
+
+        @Override
         public void item(ItemStack stack, int x, int y, String badge) {
             if (stack == null || stack.isEmpty()) {
                 return;
@@ -330,6 +353,19 @@ public final class GuiDraw {
         @Override
         public void unscissor() {
             graphics.disableScissor();
+        }
+
+        @Override
+        public void aboveItem(Runnable paint) {
+            //? if >=1.21.6 {
+            graphics.nextStratum();
+            paint.run();
+            //?} else {
+            /*graphics.pose().pushPose();
+            graphics.pose().translate(0, 0, 300);
+            paint.run();
+            graphics.pose().popPose();
+            *///?}
         }
 
         @Override

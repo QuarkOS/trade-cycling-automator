@@ -2,21 +2,18 @@
 
 Not affiliated with or endorsed by Trade Cycling or its author.
 
-Client-side mod for Fabric, Minecraft Forge, and NeoForge. It adds a vanilla-style button to the villager trade screen. The button opens a list of every offer that profession can roll at its current level, with the vanilla minimum and maximum emerald price. Start breaks the job-site block and places it again until one of the chosen offers appears at or under the price you set.
+Client-side mod for Fabric, Minecraft Forge, and NeoForge. The book button on a villager's trade screen opens the trade browser for that profession. Pick novice trades and set an emerald ceiling. The reroller replaces the job-site block until a chosen offer appears within your price limit.
 
-This project does not include Trade Cycling. If [Trade Cycling](https://modrinth.com/mod/trade-cycling) 1.0.23 is installed, the panel can use that mod's cycle action instead and leave the job block alone. The addon is a suggestion, not a hard dependency, on every version.
+The browser can also use Trade Cycling 1.0.23 on servers that support it. That method leaves the job block in place. [Trade Cycling](https://modrinth.com/mod/trade-cycling)
 
 ## What it does
 
-1. Right-click a villager to open the normal trade screen.
-2. Press the book button at the top right of that screen. It uses the vanilla recipe-book button sprite.
-3. The panel lists that level's trades: item, name, and emerald range. Enchanted books use the 1.21.11 formula, including treasure doubling and the 64 emerald cap. Trade Rebalance uses the experimental table when that experiment is on, with the same prices.
-4. Select one or more rows. A buy defaults to the minimum emerald price. Click the price to raise it, or set it to Any. Shift is not required: left click raises, right click lowers. The choices and ceilings are saved for that profession in `config/villager_reroller-picks.json` and come back when you open the panel again, including after a restart or after you trade with a different profession.
-5. Press Start. By default the mod closes the screen, mines the job site with a real tool, waits until the villager is unemployed, places the block, and opens the new offers. It repeats until a target matches, then leaves the trade screen open, plays an experience-orb chime, and still sends the chat line and toast. Names that do not fit the row scroll back and forth, the same way vanilla buttons do, and the price stays in its column. If Trade Cycling is installed, a toggle on the panel switches the reroll to that mod's cycle packet and leaves the job block alone.
-6. Stop, Esc, or the toggle key (default `K`) cancels. Esc while the screen is closed also cancels, and the pause menu is closed so the player stays in the world.
-7. Browse opens the Trade browser. Choose a job block, select an item and level, and set the max emerald price. The browser and the quick list share saved picks.
-8. Hall shows wanted and known trades. Use All, Available, or Missing to filter them. Select a trade to outline known villagers in the loaded world by price, and use View in world to see them with the price and distance HUD. Press Esc to clear the outlines.
-9. Queue adds the open villager to the Hall. The Queue tab shows who is ready. Start hall rerolls each villager from where you stand. It skips locked villagers and job sites out of reach.
+1. Right-click a villager to open the trade screen, then press the book button at the top right. The reroller key (default `K`) also opens the browser. From the world or the Hall, choose a job block first.
+2. Choose an item and, for enchanted books, an enchantment level. Locked slots show the first profession level that offers that trade. Job-site rerolls can target novice trades.
+3. Use **−** and **+** to set a max emerald price, or choose **Any**. Hold Shift to change the price by five. **Add** keeps the browser open and saves the pick for this profession in `config/villager_reroller-picks.json`.
+4. From a villager, press **Add & roll** on the price step or **Start rolling** with saved picks. By default the mod closes the trade screen, mines the job site, waits for the villager to become unemployed, replaces the block, and reopens trades. A match leaves the trade screen open and shows a toast and a chat message. Press Esc or the reroller key to stop an active reroll.
+5. **Hall** shows wanted and known trades. Filter with **All**, **Available**, or **Missing**, or select a trade to outline known villagers by price.
+6. **Queue** adds the current villager and its picks to the Hall. In the Hall's Queue tab, **Start hall** rerolls villagers from where you stand. It skips locked villagers and job sites out of reach.
 
 It refuses to start when:
 
@@ -55,7 +52,7 @@ Built with [Stonecutter](https://stonecutter.kikugie.dev/) 0.9.8. The sources in
 | 26.2 | `villager_reroller-fabric-1.1.1+26.2.jar` | `villager_reroller-forge-1.1.1+26.2.jar` (Forge 65.1.5) | `villager_reroller-neoforge-1.1.1+26.2.jar` (NeoForge 26.2.0.93) |
 | 26.3 | `villager_reroller-fabric-1.1.1+26.3.jar` | `villager_reroller-forge-1.1.1+26.3.jar` (Forge 66.1.0) | `villager_reroller-neoforge-1.1.1+26.3.jar` (NeoForge 26.3.0.99) |
 
-NeoForge is skipped on 1.19, 1.19.1, 1.19.2, 1.19.3, and 1.19.4 because that loader did not exist yet. 1.20.1 is skipped because the only NeoForge-named artifact for it is the legacy Forge fork `net.neoforged:forge:1.20.1-47.1.x`, which still uses the Forge packages. The `net.neoforged:neoforge` artifact and the `net.neoforged` packages start at 1.20.2. 1.21.6 and 1.21.9 use the last published NeoForge betas (`21.6.20-beta` and `21.9.16-beta`); those Minecraft versions have no stable NeoForge release, and Trade Cycling publishes a NeoForge jar for both. 1.21.2 is not built. Trade Cycling does not publish a 1.21.2 jar, and Forge has no 1.21.2 promotion. NeoForge 1.21.2 is beta-only and is not one of this repo's versions. 1.19 through 1.20.4 store trades in NBT. 1.20.2 uses the same listing field shapes as 1.20.4. 1.19 through 1.20.1 use the older shapes: an item plus a count, a single stew effect, and every tradeable enchantment. 1.19.4 draws the trade panel with `PoseStack` and `renderWidget`. 1.19.3 still uses `renderButton` and draws items without a pose. 1.19, 1.19.1, and 1.19.2 use `Registry`, public widget coordinates, and `new Button(...)`.
+NeoForge is skipped on 1.19, 1.19.1, 1.19.2, 1.19.3, and 1.19.4 because that loader did not exist yet. 1.20.1 is skipped because the only NeoForge-named artifact for it is the legacy Forge fork `net.neoforged:forge:1.20.1-47.1.x`, which still uses the Forge packages. The `net.neoforged:neoforge` artifact and the `net.neoforged` packages start at 1.20.2. 1.21.6 and 1.21.9 use the last published NeoForge betas (`21.6.20-beta` and `21.9.16-beta`); those Minecraft versions have no stable NeoForge release, and Trade Cycling publishes a NeoForge jar for both. 1.21.2 is not built. Trade Cycling does not publish a 1.21.2 jar, and Forge has no 1.21.2 promotion. NeoForge 1.21.2 is beta-only and is not one of this repo's versions. 1.19 through 1.20.4 store trades in NBT. 1.20.2 uses the same listing field shapes as 1.20.4. 1.19 through 1.20.1 use the older shapes: an item plus a count, a single stew effect, and every tradeable enchantment. 1.19.4 draws the trade browser with `PoseStack` and `renderWidget`. 1.19.3 still uses `renderButton` and draws items without a pose. 1.19, 1.19.1, and 1.19.2 use `Registry`, public widget coordinates, and `new Button(...)`.
 
 Fabric needs Fabric Loader and Fabric API. The settings screen is a vanilla `Screen` on Fabric, Forge, and NeoForge and writes `villager_reroller.json`. Fabric opens it with the `J` key. [Mod Menu](https://modrinth.com/mod/modmenu) is optional: when it is installed, its config button opens the same screen. Forge 1.20.4 and newer register that screen with `MinecraftForge.registerConfigScreen`. Forge 1.19 through 1.20.2 register `ConfigScreenHandler.ConfigScreenFactory`. NeoForge 1.20.2 and 1.20.4 register `ConfigScreenHandler.ConfigScreenFactory`, and NeoForge 1.20.6 and newer register `IConfigScreenFactory`. The mods list Config button opens it.
 
@@ -123,11 +120,11 @@ Trade Rebalance does not change the cost formula. It only changes which book can
 
 Enchanted gear adds `5 + random.nextInt(15)` to its base cost, so the added emeralds are 5 through 19, then capped at 64. A fletcher's enchanted bow (base 2) is 7–21.
 
-`src/main/java/dev/quarkos/villagerreroller/price/VanillaBookPrices.java` is that math with no Minecraft bootstrap. `librarian_book_prices.json` is the same capped table, and the trade list uses it.
+`src/main/java/dev/quarkos/villagerreroller/price/VanillaBookPrices.java` is that math with no Minecraft bootstrap. `librarian_book_prices.json` is the same capped table, and the trade browser uses it.
 
 ## Odds
 
-Before Start, the panel shows the chance that one reroll contains any selected trade at its chosen max price, written as "About 1 in X attempts", plus a time estimate for the method currently selected. Job-site breaking uses a nominal 7 seconds per attempt. Trade Cycling uses the configured gap between retries, 8 ticks normally and 20 with the server-friendly preset. The math follows vanilla offer generation for that profession and level, including the 64 emerald cap, and it treats Trade Rebalance as off unless the world has the experiment on. Assumptions and the version differences are in [docs/odds.md](docs/odds.md).
+The browser shows the chance that one reroll contains any selected trade at its chosen max price, written as "About 1 in X attempts", plus a time estimate for the method currently selected. Job-site breaking uses a nominal 7 seconds per attempt. Trade Cycling uses the configured gap between retries, 8 ticks normally and 20 with the server-friendly preset. The math follows vanilla offer generation for that profession at novice level, including the 64 emerald cap, and it treats Trade Rebalance as off unless the world has the experiment on. Assumptions and the version differences are in [docs/odds.md](docs/odds.md).
 
 ## Build
 
@@ -155,7 +152,7 @@ Use `-PartifactsDir=<path>` to choose the screenshot folder. Quote the whole arg
 
 `./tools/validate` is the production check. It builds every Fabric, Forge, and NeoForge jar, then launches that jar (the file under `build/libs`, not the Loom, ForgeGradle, or ModDevGradle dev classes) in a headless client. The jar is copied into `mods/` with the dependencies that version already uses: Fabric API on Fabric. Cloth Config is not required, and Mod Menu is not installed for the run, so the vanilla settings screen is what opens. Forge and NeoForge use the same screen from the mods list. Each jar runs twice, once without Trade Cycling and once with the matching Trade Cycling jar. Pass `--loader neoforge` to launch only the NeoForge rows. Versions without a NeoForge build are omitted from that loader.
 
-The client is the real loader for that Minecraft version. `-Dvillager_reroller.harness=true` turns on the tick harness inside the jar, the same librarian, lectern, and reroll scenario as the dev gametest. A run passes only when the log shows the mod loaded, the config screen opened, the trade panel rendered, and a reroll reached a matching offer. Lag timeouts (a world that never finished loading, a reroll that hit the deadline) are retried. Other failures are not.
+The client is the real loader for that Minecraft version. `-Dvillager_reroller.harness=true` turns on the tick harness inside the jar, the same librarian, lectern, and reroll scenario as the dev gametest. A run passes only when the log shows the mod loaded, the config screen opened, the trade browser opened, and a reroll reached a matching offer. Lag timeouts (a world that never finished loading, a reroll that hit the deadline) are retried. Other failures are not.
 
 Fabric API 1.19 and 1.19.1 are published to Maven as the base module only (mod id `fabric`, a few kilobytes, no nested jars). The validator uses the Modrinth bundle for those two versions, which is the jar players install and which nests the rest of the modules. 1.19.2 and newer resolve the bundled jar from Maven.
 

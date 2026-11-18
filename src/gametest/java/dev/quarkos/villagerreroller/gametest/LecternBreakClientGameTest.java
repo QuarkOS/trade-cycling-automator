@@ -2,6 +2,7 @@ package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.harness.BrowserHarness;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
@@ -50,9 +51,7 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
             RerollMethod.reset();
             TradeHall.clear();
             LibrarianTracker.unpin();
-            TradeSession.setPanelOpen(false);
-            TradeSession.setFilter("");
-            TradeSession.restoreSelections(java.util.Map.of());
+            TradeSession.simulateClientRestart();
         });
 
         try (TestSingleplayerContext world = context.worldBuilder()
@@ -107,22 +106,10 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
 
             openTrades(context, villagerX, y, villagerZ);
             context.waitTicks(8);
-            boolean panelOpen = context.computeOnClient(client -> TradeSession.panelOpen());
-            if (!panelOpen) {
-                context.clickScreenButton("text.villager_reroller.button.offers");
-                context.waitTicks(5);
-            }
+            var initial = context.computeOnClient(client -> ((MerchantScreen) McBridge.currentScreen(client)).getMenu().getOffers());
+            context.clickScreenButton("text.villager_reroller.browser.title");
             context.runOnClient(client -> {
-                if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-                    throw new AssertionError("offers button did not leave the merchant screen open");
-                }
-                int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
-                if (selected <= 0) {
-                    throw new AssertionError("every catalog row was already on the counter");
-                }
-                if (TradeSession.offerMatchesSelection(screen.getMenu().getOffers())) {
-                    throw new AssertionError("librarian already matched the selection, so a lectern break would be skipped");
-                }
+                BrowserHarness.pickMissing(client, initial);
                 if (RerollMethod.usesTradeCycling()) {
                     throw new AssertionError("job-site break test was left on Trade Cycling");
                 }
@@ -132,7 +119,7 @@ public class LecternBreakClientGameTest implements FabricClientGameTest {
             if (!lecternOn(context, world, lectern, true) || !lecternOn(context, world, lectern, false)) {
                 throw new AssertionError("lectern missing before the break: " + describe(context, world, lectern));
             }
-            context.clickScreenButton("text.villager_reroller.button.start");
+            context.clickScreenButton("text.villager_reroller.browser.start");
 
             boolean sawClientAir = false;
             boolean sawServerAir = false;

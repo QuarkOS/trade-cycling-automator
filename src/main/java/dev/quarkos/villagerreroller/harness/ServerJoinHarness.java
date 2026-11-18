@@ -5,7 +5,9 @@ import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.net.ServerRerollClient;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
-import dev.quarkos.villagerreroller.picker.TradeSession;
+import dev.quarkos.villagerreroller.picker.RerollMethod;
+import dev.quarkos.villagerreroller.picker.TradeBrowserScreen;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.Button;
@@ -46,7 +48,7 @@ public final class ServerJoinHarness {
     private static int ticks;
     private static BlockPos lectern;
     private static boolean sawAir;
-    private static boolean shotPanel;
+    private static MerchantOffers initialOffers;
     private static boolean shotResult;
 
     private ServerJoinHarness() {
@@ -76,7 +78,8 @@ public final class ServerJoinHarness {
                 case WAIT_WORLD -> waitWorld(client);
                 case WAIT_VILLAGER -> waitVillager(client);
                 case WAIT_MERCHANT -> waitMerchant(client);
-                case PANEL -> panel(client);
+                case BROWSER -> browse(client);
+                case START -> start(client);
                 case REROLL -> reroll(client);
                 case DONE -> finish(client);
             }
@@ -285,8 +288,11 @@ public final class ServerJoinHarness {
     }
 
     private static void waitMerchant(Minecraft client) {
-        if (McBridge.currentScreen(client) instanceof MerchantScreen) {
-            state = State.PANEL;
+        if (McBridge.currentScreen(client) instanceof MerchantScreen screen && !screen.getMenu().getOffers().isEmpty()) {
+            RerollMethod.reset();
+            initialOffers = screen.getMenu().getOffers();
+            BrowserHarness.open(client);
+            state = State.BROWSER;
             ticks = 0;
             return;
         }
@@ -304,19 +310,22 @@ public final class ServerJoinHarness {
         }
     }
 
-    private static void panel(Minecraft client) {
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-            if (ticks > timeout(20 * 10)) {
-                fail("merchant screen closed before the panel");
-            }
+    private static void browse(Minecraft client) {
+        if (!(McBridge.currentScreen(client) instanceof TradeBrowserScreen)) {
+            fail("merchant did not open the trade browser");
             return;
         }
-        TradeSession.harnessSeekUnmatched();
-        if (!shotPanel) {
-            shotPanel = true;
-            shot(client, "server-" + MODE + "-panel");
+        BrowserHarness.pickMissing(client, initialOffers);
+        state = State.START;
+        ticks = 0;
+    }
+
+    private static void start(Minecraft client) {
+        if (ticks < 5) {
+            return;
         }
-        JobSiteReroller.start(client);
+        shot(client, "server-" + MODE + "-panel");
+        BrowserHarness.click(client, "browser.start");
         if (!JobSiteReroller.isRunning()) {
             fail("reroll did not start: " + JobSiteReroller.stopReason());
             return;
@@ -545,7 +554,8 @@ public final class ServerJoinHarness {
         WAIT_WORLD,
         WAIT_VILLAGER,
         WAIT_MERCHANT,
-        PANEL,
+        BROWSER,
+        START,
         REROLL,
         DONE
     }

@@ -27,6 +27,7 @@ public final class FitButton extends Button {
     private boolean row;
     private ItemStack item;
     private String badge;
+    private boolean locked;
 
     private FitButton(Rect bounds, Component message, OnPress onPress, boolean primary) {
         //? if <1.19.3 {
@@ -67,6 +68,10 @@ public final class FitButton extends Button {
     void setItem(ItemStack icon, String badge) {
         this.item = icon;
         this.badge = badge;
+    }
+
+    void setLocked(boolean locked) {
+        this.locked = locked;
     }
 
     public static void hint(Button button, Component hint) {
@@ -113,7 +118,7 @@ public final class FitButton extends Button {
             return;
         }
 
-        int fill = active && primary ? ACCENT : active && hovered ? HOVER : RAISED;
+        int fill = locked ? BACKGROUND : active && primary ? ACCENT : active && hovered ? HOVER : RAISED;
         int border = BORDER;
         if (active && (primary || focused || selected)) {
             border = primary && (hovered || focused) ? TEXT : ACCENT;
@@ -122,8 +127,7 @@ public final class FitButton extends Button {
 
         boolean cut = false;
         if (item != null) {
-            canvas.item(item, bounds.x() + (bounds.width() - 16) / 2,
-                    bounds.y() + (bounds.height() - 16) / 2, badge);
+            GuiDraw.tradeIcon(canvas, item, bounds, badge, locked);
         } else {
             String full = label.getString();
             String shown = GuiDraw.ellipsis(canvas.font(), full, bounds.width() - 2 * GAP);

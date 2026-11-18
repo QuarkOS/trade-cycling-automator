@@ -1,13 +1,13 @@
 package dev.quarkos.villagerreroller.text;
 
 /**
- * Horizontal boxes for a trade row. The name is clipped to its own box, and
+ * Horizontal boxes for a trade row. The name is fitted to its own box, and
  * that box ends {@link #PRICE_GAP} pixels before the right-aligned price.
  */
 public final class TradeNameLayout {
-    public static final int NAME_LEFT = 36;
+    public static final int NAME_LEFT = 24;
     public static final int PRICE_GAP = 4;
-    public static final int PRICE_RIGHT = 10;
+    public static final int PRICE_RIGHT = 18;
     private static final int MIN_NAME_WIDTH = 20;
 
     private TradeNameLayout() {
@@ -22,7 +22,7 @@ public final class TradeNameLayout {
     }
 
     /**
-     * Exclusive right edge of the name scissor.
+     * Exclusive right edge of the name box.
      */
     public static int nameRight(int priceX) {
         return priceX - PRICE_GAP;
@@ -34,14 +34,5 @@ public final class TradeNameLayout {
 
     public static int priceBudget(int rowWidth) {
         return Math.max(0, availableWidth(rowWidth, 0) - MIN_NAME_WIDTH);
-    }
-
-    /**
-     * Exclusive right edge of the name advance after the scissor is applied.
-     * {@code offset} is how many pixels the string is shifted left.
-     */
-    public static int clippedRight(int nameLeft, int nameRight, int textWidth, int offset) {
-        int advanceRight = nameLeft + textWidth - Math.max(0, offset);
-        return Math.min(advanceRight, nameRight);
     }
 }

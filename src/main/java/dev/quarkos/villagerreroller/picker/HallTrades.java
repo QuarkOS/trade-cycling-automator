@@ -63,9 +63,8 @@ final class HallTrades {
 
     private Map<String, TradeEntry> catalog(String profession) {
         Map<String, TradeEntry> catalog = new HashMap<>();
-        for (TradeEntry entry : TradeCatalog.browse(level, Identifier.tryParse(profession))) {
-            catalog.put(entry.id, entry);
-        }
+        TradeCatalog.browse(level, Identifier.tryParse(profession), null).offers()
+                .forEach((id, offer) -> catalog.put(id, offer.entry()));
         return catalog;
     }
 

@@ -2,6 +2,7 @@ package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.harness.BrowserHarness;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
 import dev.quarkos.villagerreroller.picker.TradeEntry;
@@ -48,10 +49,7 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             TradeHall.clear();
             RerollMethod.reset();
             LibrarianTracker.unpin();
-            // The single-villager test leaves the panel open in this same client.
-            TradeSession.setPanelOpen(false);
-            TradeSession.setFilter("");
-            TradeSession.restoreSelections(java.util.Map.of());
+            TradeSession.simulateClientRestart();
         });
 
         try (TestSingleplayerContext world = context.worldBuilder()
@@ -175,7 +173,7 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             place(world, context, "hall_locked", lockedX, y, lockedZ);
             openTrades(world, context, "hall_c", cellX[2] + 0.5, y, z + 1.5, false);
             context.waitTicks(8);
-            openOffers(context);
+            openBrowser(context);
             // The hall button's label includes the queue size, so the plain translation key does not match it.
             String hallLabel = context.computeOnClient(client -> net.minecraft.network.chat.Component
                     .translatable("text.villager_reroller.button.hall", TradeHall.size())
@@ -342,13 +340,8 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         throw new AssertionError(tag + " did not arrive at " + x + "," + z + " " + context.computeOnClient(client -> describe(client, tag, x, y, z)));
     }
 
-    /** The book button toggles. A second click closes the panel and hides Queue. */
-    private static void openOffers(ClientGameTestContext context) {
-        boolean open = context.computeOnClient(client -> TradeSession.panelOpen());
-        if (!open) {
-            context.clickScreenButton("text.villager_reroller.button.offers");
-            context.waitTicks(5);
-        }
+    private static void openBrowser(ClientGameTestContext context) {
+        context.clickScreenButton("text.villager_reroller.browser.title");
     }
 
     /**
@@ -415,24 +408,9 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
         int before = context.computeOnClient(client -> TradeHall.size());
         openTrades(world, context, tag, x, y, z, true);
         context.waitTicks(10);
-        openOffers(context);
-        context.runOnClient(client -> {
-            if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-                throw new AssertionError("trade screen closed before the targets were chosen");
-            }
-            int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
-            if (selected <= 0) {
-                throw new AssertionError("no unoffered trades at " + x + "," + z + " catalog=" + TradeSession.entries().size());
-            }
-            for (TradeEntry entry : TradeSession.entries()) {
-                if (!TradeSession.selected(entry.id) || !entry.paysEmeralds || entry.emeraldMin == entry.emeraldMax) {
-                    continue;
-                }
-                int ceiling = Math.min(entry.emeraldMax, entry.emeraldMin + offset);
-                TradeSession.setChosenMax(entry.id, ceiling);
-                break;
-            }
-        });
+        var initial = context.computeOnClient(client -> ((MerchantScreen) McBridge.currentScreen(client)).getMenu().getOffers());
+        openBrowser(context);
+        context.runOnClient(client -> BrowserHarness.pickMissing(client, initial, offset));
         context.clickScreenButton("text.villager_reroller.button.queue");
         context.waitTicks(5);
         int after = context.computeOnClient(client -> TradeHall.size());

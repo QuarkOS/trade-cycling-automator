@@ -165,15 +165,10 @@ public final class TradeHall {
         return phase == Phase.SUMMARY;
     }
 
-    public static boolean queueCurrent(Minecraft client) {
+    static boolean queueCurrent(Minecraft client, MerchantScreen screen, Villager villager) {
         if (isActive()) {
             return false;
         }
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-            notice(client, "need_screen");
-            return false;
-        }
-        Villager villager = LibrarianTracker.current(client);
         if (villager == null) {
             notice(client, "not_villager");
             return false;
@@ -190,7 +185,7 @@ public final class TradeHall {
         if (job == null) {
             job = villager.blockPosition();
         }
-        Slot slot = new Slot(client.level, villager, TradeSession.copySelections(), job,
+        Slot slot = new Slot(client.level, villager, TradeSession.selections(), job,
                 VillagerRosterClient.captureOffers(client, villager, screen.getMenu()));
         for (int i = 0; i < SLOTS.size(); i++) {
             if (SLOTS.get(i).villagerId == villager.getId()) {
@@ -208,8 +203,8 @@ public final class TradeHall {
 
     /** Records the completed trade screen and discovers candidates from the current client level. */
     static void onRerollMatch(Minecraft client, Villager villager) {
-        if (client.level == null || client.player == null || villager == null
-                || !(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
+        MerchantScreen screen = TradeBrowserScreen.activeMerchant(client);
+        if (client.level == null || client.player == null || villager == null || screen == null) {
             return;
         }
         AutomatorConfig config = AutomatorConfig.get();
@@ -229,7 +224,7 @@ public final class TradeHall {
             existing.offers = offers;
         } else {
             BlockPos job = JobSiteFinder.find(client, villager);
-            addDiscovered(new Slot(client.level, villager, TradeSession.copySelections(),
+            addDiscovered(new Slot(client.level, villager, TradeSession.selections(),
                     job == null ? villager.blockPosition() : job, offers));
             added++;
         }
@@ -366,7 +361,7 @@ public final class TradeHall {
         focusPos = null;
         phase = Phase.FOCUS;
         LOGGER.info("Trading hall started with {} villagers", SLOTS.size());
-        if (client.player != null && McBridge.currentScreen(client) instanceof MerchantScreen) {
+        if (client.player != null && client.player.containerMenu instanceof MerchantMenu) {
             client.player.closeContainer();
         } else if (McBridge.currentScreen(client) != null) {
             McBridge.setScreen(client, null);
@@ -548,7 +543,6 @@ public final class TradeHall {
         }
         lookAt(player, villager.getEyePosition());
         LibrarianTracker.pin(villager);
-        TradeSession.setPanelOpen(true);
         McBridge.interact(client.gameMode, player, villager, InteractionHand.MAIN_HAND);
         phase = Phase.WAIT_SCREEN;
         waitTicks = 0;
@@ -572,9 +566,9 @@ public final class TradeHall {
         }
         if (McBridge.currentScreen(client) instanceof MerchantScreen screen) {
             LibrarianTracker.pin(villager);
-            TradeSession.rebuild(client.level, villager, screen.getMenu());
+            TradeSession.rebuild(client.level, villager);
             if (TradeSession.restoreSelections(slot.selections) <= 0) {
-                mark(slot, Outcome.FAILED, "need_target");
+                mark(slot, Outcome.FAILED, slot.selections.isEmpty() ? "need_target" : "novice_targets_only");
                 beginPause();
                 return;
             }

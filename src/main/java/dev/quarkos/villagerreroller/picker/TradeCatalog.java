@@ -9,8 +9,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.level.Level;
 
-import java.util.List;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,57 +34,60 @@ public final class TradeCatalog {
         //?}
     }
 
-    /** All distinct offers for this profession, across its five villager tiers. */
-    static List<TradeEntry> browse(Level level, Identifier profession) {
+    /** The first appearance of each trade, plus the actual listings used for novice odds. */
+    static BrowserCatalog browse(Level level, Identifier profession, Villager villager) {
         if (level == null || profession == null) {
-            return List.of();
+            return new BrowserCatalog(Map.of(), List.of(), new int[0], false);
         }
-        Map<String, TradeEntry> entries = new LinkedHashMap<>();
+        Map<String, Offer> entries = new LinkedHashMap<>();
+        List<TradeEntry> novice = List.of();
         //? if >=26.1 {
         /*var key = ResourceKey.create(Registries.VILLAGER_PROFESSION, profession);
         *///?}
         for (int tier = 1; tier <= 5; tier++) {
             //? if >=26.3 {
-            /*List<TradeEntry> tierEntries = RegistryTrades26_3.list(level, key, tier);
+            /*List<TradeEntry> tierEntries = RegistryTrades26_3.list(level, key, tier, villager);
             *///?} elif >=26.1 {
-            /*List<TradeEntry> tierEntries = RegistryTrades.browse(level, key, tier);
+            /*List<TradeEntry> tierEntries = RegistryTrades.list(level, key, tier, villager);
             *///?} else {
-            List<TradeEntry> tierEntries = ListingTrades.browse(level, profession, tier);
+            List<TradeEntry> tierEntries = villager == null ? ListingTrades.browse(level, profession, tier)
+                    : ListingTrades.list(level, villager, tier);
             //?}
+            if (tier == 1) {
+                novice = tierEntries;
+            }
             for (TradeEntry entry : tierEntries) {
-                entries.putIfAbsent(entry.id, entry);
+                entries.putIfAbsent(entry.id, new Offer(entry, new RerollTargets.Offer(
+                        RerollEligibility.of(tier), entry.emeraldMin, entry.emeraldMax, entry.paysEmeralds)));
             }
         }
-        return List.copyOf(entries.values());
-    }
-
-    /**
-     * How many offers one level-up rolls. Classic villagers always roll
-     * {@link VanillaRoll#OFFERS_PER_LEVEL}. 26.1+ reads the trade set amount.
-     * Trade Rebalance is not applied here: the offer list already follows the
-     * world's feature flag, and the odds use that same list.
-     */
-    public static int[] offerCounts(Level level, Villager villager, int villagerLevel) {
         //? if >=26.3 {
-        /*return RegistryTrades26_3.offerCounts(level, villager, villagerLevel);
+        /*return new BrowserCatalog(entries, novice, RegistryTrades26_3.offerCounts(level, key, 1),
+                RegistryTrades26_3.allowDuplicates(level, key, 1));
+        *///?} elif >=26.1 {
+        /*return new BrowserCatalog(entries, novice, RegistryTrades.offerCounts(level, key, 1),
+                RegistryTrades.allowDuplicates(level, key, 1));
         *///?} else {
-        //? if >=26.1 {
-        /*return RegistryTrades.offerCounts(level, villager, villagerLevel);
-        *///?} else {
-        return new int[]{VanillaRoll.OFFERS_PER_LEVEL};
-        //?}
+        return new BrowserCatalog(entries, novice, new int[]{VanillaRoll.OFFERS_PER_LEVEL}, false);
         //?}
     }
 
-    public static boolean allowDuplicates(Level level, Villager villager, int villagerLevel) {
-        //? if >=26.3 {
-        /*return RegistryTrades26_3.allowDuplicates(level, villager, villagerLevel);
-        *///?} else {
-        //? if >=26.1 {
-        /*return RegistryTrades.allowDuplicates(level, villager, villagerLevel);
-        *///?} else {
-        return false;
-        //?}
-        //?}
+    record Offer(TradeEntry entry, RerollTargets.Offer rule) {
+        RerollEligibility eligibility() {
+            return rule.eligibility();
+        }
+    }
+
+    record BrowserCatalog(Map<String, Offer> offers, List<TradeEntry> novice, int[] offerCounts, boolean allowDuplicates) {
+        BrowserCatalog {
+            offers = Collections.unmodifiableMap(offers);
+        }
+
+        Map<String, Integer> targets(Map<String, Integer> saved) {
+            return RerollTargets.resolve(saved, id -> {
+                Offer offer = offers.get(id);
+                return offer == null ? null : offer.rule();
+            });
+        }
     }
 }

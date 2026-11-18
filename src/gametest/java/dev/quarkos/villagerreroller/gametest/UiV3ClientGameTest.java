@@ -3,6 +3,7 @@ package dev.quarkos.villagerreroller.gametest;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.harness.BrowserHarness;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
@@ -11,13 +12,11 @@ import dev.quarkos.villagerreroller.config.VillagerRoster;
 import dev.quarkos.villagerreroller.config.VillagerRosterFiles;
 import dev.quarkos.villagerreroller.picker.GuiDraw;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
-import dev.quarkos.villagerreroller.picker.MerchantLayout;
 import dev.quarkos.villagerreroller.picker.MyVillagersScreen;
 import dev.quarkos.villagerreroller.picker.SearchBox;
 import dev.quarkos.villagerreroller.picker.TradeBrowserScreen;
 import dev.quarkos.villagerreroller.picker.TradeHall;
 import dev.quarkos.villagerreroller.picker.TradeHallScreen;
-import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.picker.TradeSession;
 import dev.quarkos.villagerreroller.picker.UiTheme;
 import dev.quarkos.villagerreroller.picker.VillagerRosterClient;
@@ -110,6 +109,12 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             } catch (AssertionError timeout) {
                 throw waitFailure(context, "chunks to render", timeout);
             }
+            context.getInput().pressKey(dev.quarkos.villagerreroller.client.AutomatorKeys.TOGGLE);
+            waitForScreen(context, TradeBrowserScreen.class);
+            assertButton(context, "Librarian", true);
+            assertButton(context, GuiDraw.message("browser.start").getString(), false);
+            click(context, "button.back");
+            waitForScreen(context, null);
             BlockPos origin = context.computeOnClient(client -> client.player.blockPosition().offset(4, 0, 6));
             Fixture source = new Fixture(SOURCE, origin.getX() + 0.5, origin.getZ() + 2.5, 14, false);
             List<Fixture> librarians = List.of(
@@ -118,15 +123,9 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                     new Fixture(LOCKED[2], origin.getX() - 1.5, origin.getZ() + 6.3, 23, true));
             setup(world, origin, source, librarians);
             setupPicks(context);
-            for (int i = 0; i < librarians.size(); i++) {
-                Fixture librarian = librarians.get(i);
+            for (Fixture librarian : librarians) {
                 openMerchant(context, world, origin.getY(), librarian);
-                if (i == 0) {
-                    openPanel(context);
-                } else {
-                    waitFor(context, "the panel to reopen automatically for " + librarian.name(),
-                            client -> TradePickerUi.panelShown());
-                }
+                openBrowser(context);
                 waitFor(context, librarian.name() + " to be saved with all offers", client -> recorded(client, librarian));
                 closeMerchant(context);
             }
@@ -134,18 +133,18 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                     client -> VillagerRosterClient.count(client) == librarians.size());
 
             openMerchant(context, world, origin.getY(), source);
-            openPanel(context);
+            openBrowser(context);
             waitFor(context, "nearby novice and its job site in reach", client -> {
                 Villager candidate = named(client, CANDIDATE);
                 return candidate != null && TradeHall.blocker(client, candidate.getId()) == null;
             });
             waitFor(context, "the match's saved target and enabled Start button", client -> {
-                Button start = findButton(McBridge.currentScreen(client), GuiDraw.message("button.start").getString());
+                Button start = findButton(McBridge.currentScreen(client), GuiDraw.message("browser.start").getString());
                 return TradeSession.selected(MENDING) && start != null && start.active;
             });
             // The first menu already has the target. The normal Start action reaches
             // the success callback without relying on a random replacement roll.
-            click(context, "button.start");
+            click(context, "browser.start");
             context.runOnClient(client -> {
                 Villager match = named(client, SOURCE);
                 Villager candidate = named(client, CANDIDATE);
@@ -154,7 +153,8 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                     throw new AssertionError("Expected the match and the nearby novice to join the Hall");
                 }
             });
-            click(context, "button.start");
+            openBrowser(context);
+            click(context, "browser.start");
             if (context.computeOnClient(client -> TradeHall.size()) != 2) {
                 throw new AssertionError("Repeating the match duplicated queue slots");
             }
@@ -164,8 +164,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                 Viewport viewport = new Viewport(1920, 1080, scale);
                 resize(context, viewport);
                 openMerchant(context, world, origin.getY(), source);
-                openPanel(context);
-                assertMerchantLayout(context, false);
+                openBrowser(context);
                 captureBrowser(context, viewport);
                 captureHall(context, viewport);
                 context.setScreen(() -> new MyVillagersScreen(null));
@@ -307,13 +306,9 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         });
     }
 
-    private static void openPanel(ClientGameTestContext context) {
-        if (!context.computeOnClient(client -> TradePickerUi.panelShown())) {
-            click(context, "button.offers");
-        }
-        if (!context.computeOnClient(client -> TradePickerUi.panelShown())) {
-            throw new AssertionError("Trade panel did not open");
-        }
+    private static void openBrowser(ClientGameTestContext context) {
+        click(context, "browser.title");
+        context.runOnClient(client -> BrowserHarness.browser(client));
     }
 
     private void closeMerchant(ClientGameTestContext context) {
@@ -322,21 +317,28 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     }
 
     private void captureBrowser(ClientGameTestContext context, Viewport viewport) {
-        shot(context, "trade-panel", viewport);
-        click(context, "button.browse");
-        waitForScreen(context, TradeBrowserScreen.class);
-        assertButton(context, "Armorer", true);
-        assertButton(context, "Weaponsmith", true);
-        shot(context, "browser-job", viewport);
-        clickLabel(context, "Librarian");
         assertBrowserItemLayout(context);
-        shot(context, "browser-item", viewport);
+        assertButton(context, "Armorer", false);
+        shot(context, "browser-from-villager", viewport);
+
         clickLabel(context, "Enchanted Book");
-        context.runOnClient(client -> McBridge.currentScreen(client).children().stream()
-                .filter(SearchBox.class::isInstance).map(SearchBox.class::cast).findFirst().orElseThrow().setValue("Unbreaking"));
+        context.runOnClient(client -> {
+            SearchBox search = BrowserHarness.search(client);
+            clickWidget(McBridge.currentScreen(client), search);
+        });
+        context.getInput().pressKey(InputConstants.KEY_E);
+        context.getInput().typeChar('e');
+        context.getInput().pressKey(InputConstants.KEY_T);
+        context.getInput().typeChar('t');
+        context.runOnClient(client -> {
+            SearchBox search = BrowserHarness.search(client);
+            if (!search.isFocused() || !"et".equals(search.getValue())) {
+                throw new AssertionError("The browser book search did not capture e and t");
+            }
+            search.setValue("Unbreaking");
+        });
         shot(context, "browser-level", viewport);
         clickLabel(context, "Unbreaking III");
-        shot(context, "browser-price", viewport);
         if (viewport.guiScale() == 2) {
             context.getInput().holdKey(InputConstants.KEY_LSHIFT);
             try {
@@ -346,21 +348,20 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             }
             click(context, "browser.add");
             assertPick(UNBREAKING, VanillaBookPrices.max(3, false) - 5);
-        } else {
+        } else if (context.computeOnClient(client -> TradeSession.chosenMax(UNBREAKING)) != TradeSession.ANY_PRICE) {
             click(context, "any");
-            click(context, "browser.save_price");
+            click(context, "browser.add");
             assertPick(UNBREAKING, TradeSession.ANY_PRICE);
         }
+        shot(context, "browser-price", viewport);
         context.getInput().pressKey(InputConstants.KEY_ESCAPE);
         waitFor(context, "the browser's level grid after Esc",
                 client -> findButton(McBridge.currentScreen(client), "Unbreaking III") != null);
-        for (int i = 0; i < 3; i++) {
-            click(context, "button.back");
-        }
-        waitForScreen(context, MerchantScreen.class);
+        click(context, "button.back");
         if (!context.computeOnClient(client -> TradeSession.selected(UNBREAKING))) {
-            throw new AssertionError("The quick panel did not load the browser pick");
+            throw new AssertionError("The browser pick did not load into the reroll session");
         }
+        shot(context, "browser-picks", viewport);
     }
 
     private void captureHall(ClientGameTestContext context, Viewport viewport) {
@@ -372,6 +373,9 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         click(context, "hall.filter.available");
         click(context, "button.browse");
         waitForScreen(context, TradeBrowserScreen.class);
+        assertButton(context, "Armorer", true);
+        assertButton(context, "Weaponsmith", true);
+        shot(context, "browser-jobs", viewport);
         click(context, "button.back");
         waitForScreen(context, TradeHallScreen.class);
         clickLabel(context, MENDING_NAME);
@@ -446,7 +450,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         context.getInput().pressKey(InputConstants.KEY_ESCAPE);
         assertHallSearch(context, hall, noMatch, false);
         context.getInput().pressKey(InputConstants.KEY_ESCAPE);
-        waitForScreen(context, MerchantScreen.class);
+        waitForScreen(context, TradeBrowserScreen.class);
         openHall(context);
     }
 
@@ -454,31 +458,23 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                                 Fixture source, Viewport viewport) {
         resize(context, viewport);
         openMerchant(context, world, y, source);
-        openPanel(context);
-        assertMerchantLayout(context, true);
-        shot(context, "trade-panel", viewport);
-        click(context, "button.back");
-        context.runOnClient(client -> {
-            MerchantScreen screen = (MerchantScreen) McBridge.currentScreen(client);
-            int left = McBridge.merchantLeft(screen);
-            if (TradePickerUi.panelShown() || left < 0 || left + MerchantLayout.MERCHANT_WIDTH > screen.width) {
-                throw new AssertionError("Back did not restore the merchant at " + viewport);
-            }
-        });
-        openPanel(context);
-        click(context, "button.browse");
-        waitForScreen(context, TradeBrowserScreen.class);
-        clickLabel(context, "Librarian");
-        assertBrowserItemLayout(context);
-        click(context, "button.back");
+        openBrowser(context);
+        captureBrowser(context, viewport);
         click(context, "button.back");
         waitForScreen(context, MerchantScreen.class);
+        context.runOnClient(client -> {
+            MerchantScreen screen = (MerchantScreen) McBridge.currentScreen(client);
+            if (McBridge.merchantLeft(screen) != (screen.width - 276) / 2) {
+                throw new AssertionError("Back did not restore the centered merchant at " + viewport);
+            }
+        });
+        openBrowser(context);
         openHall(context);
         captureHallList(context, viewport);
         click(context, "hall.queue");
         shot(context, "hall-queue", viewport);
         click(context, "button.back");
-        waitForScreen(context, MerchantScreen.class);
+        waitForScreen(context, TradeBrowserScreen.class);
         closeMerchant(context);
     }
 
@@ -622,30 +618,6 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         });
     }
 
-    private static void assertMerchantLayout(ClientGameTestContext context, boolean compact) {
-        context.runOnClient(client -> {
-            MerchantScreen screen = (MerchantScreen) McBridge.currentScreen(client);
-            int merchantLeft = McBridge.merchantLeft(screen);
-            if (TradePickerUi.compactShown() != compact || (compact && merchantLeft < screen.width)) {
-                throw new AssertionError("Unexpected merchant layout at " + screen.width + "x" + screen.height);
-            }
-            for (String label : List.of(GuiDraw.message("button.queue").getString(),
-                    GuiDraw.message("button.hall", TradeHall.size()).getString(),
-                    GuiDraw.message("button.list").getString())) {
-                Button button = findButton(screen, label);
-                if (button == null) {
-                    throw new AssertionError("Missing merchant navigation button " + label);
-                }
-                var bounds = GuiDraw.bounds(button);
-                if (client.font.width(label) > bounds.width() - 2 * GAP || bounds.x() < 0 || bounds.right() > screen.width
-                        || bounds.y() < 0 || bounds.bottom() > screen.height
-                        || (!compact && bounds.x() < merchantLeft + MerchantLayout.MERCHANT_WIDTH)) {
-                    throw new AssertionError("Merchant navigation button clipped or overlapped: " + label + " " + bounds);
-                }
-            }
-        });
-    }
-
     private static void assertPick(String trade, int expected) {
         int actual = ProfessionPicks.load(PickFiles.configFile()).picks(LIBRARIAN).getOrDefault(trade, 0);
         if (actual != expected) {
@@ -758,7 +730,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                     .map(entry -> entry.customName() + " (level=" + entry.level() + ", offers=" + entry.trades().size() + ")").toList()
                     + ", observedMenus=" + observedMenus + ", currentMenu=" + menu
                     + ", tracked=" + (tracked == null ? "none" : tracked.getName().getString())
-                    + ", panel=" + TradePickerUi.panelShown() + ", hallActive=" + TradeHall.isActive()
+                    + ", browser=" + (screen instanceof TradeBrowserScreen) + ", hallActive=" + TradeHall.isActive()
                     + ", rerollActive=" + JobSiteReroller.isRunning() + ", queueSize=" + TradeHall.size()
                     + ", nearbyNoviceBlocker=" + (candidate == null ? "unloaded" : TradeHall.blocker(client, candidate.getId()))
                     + ", player=" + (client.player == null ? "none" : client.player.blockPosition())

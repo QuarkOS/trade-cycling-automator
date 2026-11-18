@@ -6,7 +6,10 @@ import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.picker.HallHighlights;
-import dev.quarkos.villagerreroller.picker.TradePickerUi;
+import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.MerchantTradeButton;
+import dev.quarkos.villagerreroller.picker.TradeBrowserScreen;
+import dev.quarkos.villagerreroller.picker.TradeHall;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
@@ -75,7 +78,7 @@ public final class VillagerReroller implements ClientModInitializer {
         dev.quarkos.villagerreroller.harness.ServerJoinHarness.tick(client);
         dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
         HallHighlights.tick(client);
-        TradePickerUi.tick(client);
+        MerchantTradeButton.tick(client);
         boolean pauseScreen = McBridge.currentScreen(client) instanceof PauseScreen;
         if (pauseScreen
                 && (dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()
@@ -91,7 +94,7 @@ public final class VillagerReroller implements ClientModInitializer {
             McBridge.setScreen(client, null);
         }
         if (McBridge.currentScreen(client) == null && AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.consumeClick()) {
-            dev.quarkos.villagerreroller.picker.JobSiteReroller.onToggleKey();
+            openBrowser(client);
         }
         if (AutomatorKeys.CONFIG != null && AutomatorKeys.CONFIG.consumeClick()
                 && !(McBridge.currentScreen(client) instanceof ForgeConfigScreen)) {
@@ -102,6 +105,19 @@ public final class VillagerReroller implements ClientModInitializer {
         }
         dev.quarkos.villagerreroller.picker.JobSiteReroller.tick(client);
         dev.quarkos.villagerreroller.picker.TradeHall.tick(client);
+    }
+
+    public static void openBrowser(Minecraft client) {
+        if (JobSiteReroller.isRunning() || TradeHall.isActive()) {
+            JobSiteReroller.onToggleKey();
+            return;
+        }
+        Screen screen = McBridge.currentScreen(client);
+        if (screen instanceof MerchantScreen merchant) {
+            MerchantTradeButton.open(client, merchant);
+        } else if (screen == null && client.level != null) {
+            McBridge.setScreen(client, new TradeBrowserScreen(null));
+        }
     }
 
     /**
@@ -135,7 +151,7 @@ public final class VillagerReroller implements ClientModInitializer {
     public static void onScreen(Minecraft client, Screen screen) {
         McBridge.hookScreenKeys(screen);
         if (screen instanceof MerchantScreen merchant) {
-            TradePickerUi.attach(client, merchant);
+            MerchantTradeButton.attach(client, merchant);
         }
     }
 

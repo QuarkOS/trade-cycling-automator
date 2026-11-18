@@ -1,6 +1,7 @@
 package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.harness.BrowserHarness;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
@@ -206,15 +207,13 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.waitTicks(10);
             openPicker(context);
             context.runOnClient(client -> {
-                int toggled = 0;
-                for (TradeEntry entry : TradeSession.entries()) {
-                    if (entry.paysEmeralds && toggled < 2) {
-                        TradeSession.toggle(entry);
-                        toggled++;
-                    }
+                BrowserHarness.clearPicks(client);
+                List<TradeEntry> entries = TradeSession.entries().stream().filter(entry -> entry.paysEmeralds).limit(2).toList();
+                for (TradeEntry entry : entries) {
+                    BrowserHarness.pick(client, entry, entry.emeraldMax);
                 }
-                if (toggled == 0) {
-                    throw new AssertionError("picker had no emerald trades to select");
+                if (entries.isEmpty()) {
+                    throw new AssertionError("browser had no emerald trades to select");
                 }
             });
             context.waitTicks(5);
@@ -229,8 +228,6 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
             GameTestSupport.saveShot(context, "picker-scale4");
-            // 1280x960 at scale 4 is only 320 GUI pixels wide, so the panel stays shut.
-            // A 1920-wide window is wide enough for the panel at the same scale.
             scale(context, 4, 1920, 1080);
             context.waitTicks(10);
             reopenMerchant(context, world, x, y, z);
@@ -306,15 +303,8 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
         context.waitTicks(5);
     }
 
-    /**
-     * A merchant opened while the panel was already open gets it for free, and
-     * the offers button would close it. Click only when it is shut.
-     */
     private static void openPicker(ClientGameTestContext context) {
-        if (Boolean.TRUE.equals(context.computeOnClient(client -> TradeSession.panelOpen()))) {
-            return;
-        }
-        context.clickScreenButton("text.villager_reroller.button.offers");
+        context.clickScreenButton("text.villager_reroller.browser.title");
         context.waitTicks(5);
     }
 
@@ -324,7 +314,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
      * teleport. Keep offering the trade until the screen is actually open.
      */
     private static void reopenMerchant(ClientGameTestContext context, TestSingleplayerContext world, int x, int y, int z) {
-        context.runOnClient(client -> McBridge.setScreen(client, null));
+        context.runOnClient(client -> client.player.closeContainer());
         context.waitTicks(10);
         world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + (x + 1.2) + " " + y + " " + (z + 0.5) + " 180 0");
         world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);

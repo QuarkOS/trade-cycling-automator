@@ -118,7 +118,8 @@ public final class TradeEntry {
     *///?}
     //? if >=1.21 {
     public static TradeEntry book(Holder<Enchantment> enchantment, int level, ItemStack icon, String name, boolean curse, int emeraldMin, int emeraldMax, TradeOdds.Roll roll) {
-        Identifier id = enchantment.unwrapKey().orElseThrow().identifier();
+        var key = enchantment.unwrapKey().orElseThrow();
+        Identifier id = key.identifier();
         String entryId = "enchant:" + id + ":" + level;
         return new TradeEntry(entryId, icon, name, curse, emeraldMin, emeraldMax, true, roll, (offer, chosenMax) -> {
             ItemStack cost = offer.getCostA();
@@ -130,7 +131,8 @@ public final class TradeEntry {
                 return false;
             }
             ItemEnchantments stored = result.get(DataComponents.STORED_ENCHANTMENTS);
-            return stored != null && stored.getLevel(enchantment) == level;
+            return stored != null && stored.entrySet().stream()
+                    .anyMatch(entry -> entry.getKey().is(key) && entry.getIntValue() == level);
         });
     }
     //?}
