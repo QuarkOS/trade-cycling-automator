@@ -31,6 +31,7 @@ public final class FabricClientChannels {
     }
 
     public static void register() {
+        FabricChannels.registerPayloadTypes();
         //? if <1.20.5 {
         /*ClientPlayNetworking.registerGlobalReceiver(RerollIds.channel(), (client, handler, buf, responseSender) -> {
             byte[] data = RerollIds.read(buf);

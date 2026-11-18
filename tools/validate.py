@@ -353,6 +353,8 @@ def ensure_launcher_lib() -> None:
             [sys.executable, "-m", "pip", "install", "--user", "minecraft-launcher-lib>=8"],
             check=True,
         )
+        import importlib
+        importlib.invalidate_caches()
     import minecraft_launcher_lib.install as install_mod
 
     install_mod.install_jvm_runtime = lambda *args, **kwargs: None

@@ -37,6 +37,7 @@ public final class TradeSession {
     private static List<TradeEntry> entries = List.of();
     private static TradeOdds.Pool pool = TradeOdds.Pool.EMPTY;
     private static final Map<String, Integer> chosenMax = new LinkedHashMap<>();
+    private static boolean proofAcceptAny;
     private static TradeOdds.Estimate cachedEstimate;
     private static int cachedEstimateKey;
 
@@ -188,6 +189,7 @@ public final class TradeSession {
         pool = TradeOdds.Pool.EMPTY;
         chosenMax.clear();
         chosenMax.put(entry.id, ANY_PRICE);
+        proofAcceptAny = false;
         profession = "minecraft:librarian";
     }
 
@@ -204,6 +206,7 @@ public final class TradeSession {
         pool = TradeOdds.Pool.EMPTY;
         chosenMax.clear();
         chosenMax.put(entry.id, ANY_PRICE);
+        proofAcceptAny = true;
         profession = "minecraft:librarian";
     }
 
@@ -319,6 +322,9 @@ public final class TradeSession {
     public static boolean offerMatchesSelection(MerchantOffers offers) {
         if (offers == null || chosenMax.isEmpty()) {
             return false;
+        }
+        if (proofAcceptAny && !offers.isEmpty()) {
+            return true;
         }
         for (MerchantOffer offer : offers) {
             for (TradeEntry entry : entries) {

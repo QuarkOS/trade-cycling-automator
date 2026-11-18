@@ -237,12 +237,12 @@ public final class ServerJoinHarness {
     private static void waitVillager(Minecraft client) {
         Villager villager = nearestProofVillager(client);
         lectern = findLectern(client);
-        if (client.player != null && villager != null && client.player.distanceToSqr(villager) > 4.0) {
+        if (client.player != null && villager != null && client.player.distanceToSqr(villager) > 2.0) {
             stepToward(client, villager.getX(), villager.getY(), villager.getZ());
             return;
         }
         if (client.player != null && villager == null && lectern != null) {
-            stepToward(client, lectern.getX() + 0.5, client.player.getY(), lectern.getZ() + 0.5);
+            stepToward(client, lectern.getX() + 0.5, lectern.getY(), lectern.getZ() + 0.5);
             return;
         }
         if ("without".equals(MODE) && villager != null && (McBridge.unemployed(villager) || McBridge.nitwit(villager))) {
@@ -635,6 +635,12 @@ public final class ServerJoinHarness {
             }
             phaseTicks++;
             if (phaseTicks >= holdTicks) {
+                if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
+                    if (phaseTicks > holdTicks + timeout(20 * 40)) {
+                        fail("trade screen did not reopen for lock-in");
+                    }
+                    return;
+                }
                 creativeDone = true;
                 note("villager_reroller server harness creative held " + (holdTicks / 20) + "s flying attempts=" + JobSiteReroller.attempts());
                 TradeSession.harnessLockAny();

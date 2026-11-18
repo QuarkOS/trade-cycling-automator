@@ -302,7 +302,10 @@ def one_attempt(cache: Path, output: Path, spec: dict, trade_cycling: bool, args
         row["screenshot"] = publish_screenshot(output, spec, mode, shots)
         if row["status"] != "pass":
             publish_log(output, spec, mode, server_text, client_text)
-        elif not args.keep_runs:
+        else:
+            stale = output / "logs" / spec["version"] / spec["loader"] / f"{mode}.log"
+            stale.unlink(missing_ok=True)
+            if not args.keep_runs:
             shutil.rmtree(run_dir, ignore_errors=True)
         return row
     finally:
@@ -342,7 +345,7 @@ def finish_row(spec, trade_cycling, started, status, reason, survival, creative,
 
 
 def install_server(spec: dict, server_dir: Path) -> None:
-    server_dir.mkdir(parents=True)
+    server_dir.mkdir(parents=True, exist_ok=True)
     marker = server_dir / ".installed"
     if marker.is_file():
         return
@@ -641,12 +644,9 @@ def write_reports(output: Path, selected: list[dict], results: dict, partial: bo
     rows = []
     for spec in selected:
         for tc in (False, True):
-            key = (spec["version"], spec["loader"], tc)
-            row = results.get(key)
+            row = results.get((spec["version"], spec["loader"], tc))
             if row is None:
-                if partial:
-                    continue
-                row = blocked(spec, tc, "not run")
+                continue
             rows.append({k: v for k, v in row.items() if k not in ("timedOut", "exitCode", "logExcerpt")})
     report = {
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

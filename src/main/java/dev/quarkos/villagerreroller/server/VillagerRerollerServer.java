@@ -46,6 +46,7 @@ public final class VillagerRerollerServer implements ModInitializer {
     }
 
     public static void bootstrap() {
+        FabricChannels.registerPayloadTypes();
         if (!Boolean.getBoolean("villager_reroller.proofJobSite")) {
             FabricChannels.registerServer();
         }
