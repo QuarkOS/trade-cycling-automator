@@ -23,28 +23,24 @@ class TradeNameLayoutTest {
     }
 
     @Test
-    void clippedNameStaysOutOfThePriceAtEveryOffset() {
-        int textWidth = 220;
-        int rowLeft = 468;
-        for (int priceWidth = 6; priceWidth <= 36; priceWidth += 5) {
-            int priceX = TradeNameLayout.priceX(rowLeft, ROW_WIDTH, priceWidth);
-            int nameLeft = TradeNameLayout.nameLeft(rowLeft);
-            int nameRight = TradeNameLayout.nameRight(priceX);
-            int available = nameRight - nameLeft;
-            int overflow = textWidth - available;
-            for (int offset = 0; offset <= overflow; offset++) {
-                int visibleRight = TradeNameLayout.clippedRight(nameLeft, nameRight, textWidth, offset);
-                assertTrue(
-                        visibleRight <= priceX - TradeNameLayout.PRICE_GAP,
-                        "price " + priceWidth + " offset " + offset + " reached " + visibleRight + " priceX " + priceX
-                );
-                // A glyph one pixel past its advance is still cut by the same scissor.
-                int overhang = Math.min(nameLeft + textWidth - offset + 1, nameRight);
-                assertTrue(overhang <= priceX - TradeNameLayout.PRICE_GAP);
-            }
-            int atEnd = TradeNameLayout.clippedRight(nameLeft, nameRight, textWidth, overflow);
-            assertEquals(nameRight, atEnd, "maximum scroll should sit on the name clip");
-            assertTrue(priceX - atEnd >= TradeNameLayout.PRICE_GAP);
+    void pickRowsKeepThePriceClearOfTheRemoveButton() {
+        int rowLeft = 12;
+        for (int width : new int[]{256, 288, 336}) {
+            int priceWidth = 47;
+            int priceX = TradeNameLayout.priceX(rowLeft, width, priceWidth);
+            int nameRight = TradeNameLayout.nameLeft(rowLeft) + TradeNameLayout.availableWidth(width, priceWidth);
+            assertEquals(priceX - TradeNameLayout.PRICE_GAP, nameRight);
+            assertEquals(rowLeft + width - 18, priceX + priceWidth);
         }
+    }
+
+    @Test
+    void oversizedTranslatedPriceStillLeavesANameColumnAtMinimumPanelWidth() {
+        int width = 112 - 2 * 8;
+        int budget = TradeNameLayout.priceBudget(width);
+        assertTrue(budget >= 20);
+        assertTrue(TradeNameLayout.availableWidth(width, budget) >= 20);
+        int priceX = TradeNameLayout.priceX(0, width, budget);
+        assertEquals(width - TradeNameLayout.PRICE_RIGHT, priceX + budget);
     }
 }

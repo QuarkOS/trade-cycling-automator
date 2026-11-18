@@ -1,12 +1,10 @@
 package dev.quarkos.villagerreroller.picker;
 
-import net.minecraft.client.Minecraft;
+import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
-//? if >=1.19.3 {
-import net.minecraft.client.gui.components.Tooltip;
-//?}
+import net.minecraft.world.item.ItemStack;
 //? if <1.20 {
 /*import com.mojang.blaze3d.vertex.PoseStack;
 *///?}
@@ -14,21 +12,78 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.GuiGraphics;
 //?}
 
-/**
- * A vanilla button whose label stays the full component (so screen tests can
- * find it) while the drawn text is cut with an ellipsis when it does not fit.
- */
+import java.util.List;
+
+import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
+import static dev.quarkos.villagerreroller.picker.UiLayout.LINE_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiTheme.*;
+
+/** Standard button input and narration with the mod's flat controls and item slots. */
 public final class FitButton extends Button {
-    private FitButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+    private final boolean primary;
+    private Component hint;
+    private boolean selected;
+    private boolean mark;
+    private boolean row;
+    private ItemStack item;
+    private String badge;
+    private boolean locked;
+
+    private FitButton(Rect bounds, Component message, OnPress onPress, boolean primary) {
         //? if <1.19.3 {
-        /*super(x, y, width, height, message, onPress);
+        /*super(bounds.x(), bounds.y(), bounds.width(), bounds.height(), message, onPress);
         *///?} else {
-        super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        super(bounds.x(), bounds.y(), bounds.width(), bounds.height(), message, onPress, DEFAULT_NARRATION);
         //?}
+        this.primary = primary;
     }
 
-    public static Button create(int x, int y, int width, int height, Component message, OnPress onPress) {
-        return new FitButton(x, y, width, height, message, onPress);
+    public static Button create(Rect bounds, Component message, OnPress onPress) {
+        return new FitButton(bounds, message, onPress, false);
+    }
+
+    public static Button primary(Rect bounds, Component message, OnPress onPress) {
+        return new FitButton(bounds, message, onPress, true);
+    }
+
+    static FitButton slot(Rect bounds, Component message, ItemStack icon, String badge, OnPress onPress) {
+        FitButton button = new FitButton(bounds, message, onPress, false);
+        button.setItem(icon, badge);
+        return button;
+    }
+
+    static FitButton mark(Rect bounds, Component message, OnPress onPress) {
+        FitButton button = new FitButton(bounds, message, onPress, false);
+        button.mark = true;
+        return button;
+    }
+
+    /** The parent paints the row, including its selection and focus states. */
+    static FitButton row(Rect bounds, Component message, OnPress onPress) {
+        FitButton button = new FitButton(bounds, message, onPress, false);
+        button.row = true;
+        return button;
+    }
+
+    void setItem(ItemStack icon, String badge) {
+        this.item = icon;
+        this.badge = badge;
+    }
+
+    void setLocked(boolean locked) {
+        this.locked = locked;
+    }
+
+    public static void hint(Button button, Component hint) {
+        if (button instanceof FitButton fit) {
+            fit.hint = hint;
+        }
+    }
+
+    public static void select(Button button, boolean selected) {
+        if (button instanceof FitButton fit) {
+            fit.selected = selected;
+        }
     }
 
     public static void place(AbstractWidget widget, int x, int y) {
@@ -41,109 +96,87 @@ public final class FitButton extends Button {
         //?}
     }
 
-    private int widgetWidth() {
-        //? if <1.19.3 {
-        /*return this.width;
-        *///?} else {
-        return this.getWidth();
-        //?}
-    }
-
-    private void prepareTip(Component full, boolean cut) {
-        //? if >=1.19.3 {
-        if (cut) {
-            setTooltip(Tooltip.create(full));
-        } else {
-            setTooltip(null);
+    private void paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+        if (row) {
+            return;
         }
-        //?}
+        Rect bounds = GuiDraw.bounds(this);
+        Component label = getMessage();
+        boolean hovered = bounds.contains(mouseX, mouseY);
+        boolean focused = active && isFocused();
+        if (mark) {
+            if (focused || active && hovered) {
+                GuiDraw.fill(canvas, bounds, HOVER);
+            }
+            String symbol = selected ? "✓" : "+";
+            int color = !active ? DISABLED : selected ? ACCENT : hovered || focused ? TEXT : MUTED;
+            canvas.text(symbol, bounds.x() + (bounds.width() - canvas.font().width(symbol)) / 2,
+                    bounds.y() + (bounds.height() - LINE_HEIGHT) / 2, color);
+            if (hovered) {
+                canvas.tip(List.of(label), mouseX, mouseY);
+            }
+            return;
+        }
+
+        int fill = locked ? BACKGROUND : active && primary ? ACCENT : active && hovered ? HOVER : RAISED;
+        int border = BORDER;
+        if (active && (primary || focused || selected)) {
+            border = primary && (hovered || focused) ? TEXT : ACCENT;
+        }
+        GuiDraw.frame(canvas, bounds, border, fill);
+
+        boolean cut = false;
+        if (item != null) {
+            GuiDraw.tradeIcon(canvas, item, bounds, badge, locked);
+        } else {
+            String full = label.getString();
+            String shown = GuiDraw.ellipsis(canvas.font(), full, bounds.width() - 2 * GAP);
+            cut = !shown.equals(full);
+            int color = !active ? DISABLED : primary ? BACKGROUND : TEXT;
+            canvas.text(shown, bounds.x() + (bounds.width() - canvas.font().width(shown)) / 2,
+                    bounds.y() + (bounds.height() - LINE_HEIGHT) / 2, color);
+        }
+        if (hovered) {
+            if (cut || item != null) {
+                canvas.tip(hint == null ? List.of(label) : List.of(label, hint), mouseX, mouseY);
+            } else if (hint != null) {
+                canvas.tip(List.of(hint), mouseX, mouseY);
+            }
+        }
     }
 
     //? if <1.19.4 {
     /*@Override
     public void renderButton(PoseStack pose, int mouseX, int mouseY, float partialTick) {
-        Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
-        super.renderButton(pose, mouseX, mouseY, partialTick);
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        paint(GuiDraw.of(pose), mouseX, mouseY);
     }
     *///?}
 
     //? if >=1.19.4 && <1.20 {
     /*@Override
     public void renderWidget(PoseStack pose, int mouseX, int mouseY, float partialTick) {
-        Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
-        super.renderWidget(pose, mouseX, mouseY, partialTick);
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        paint(GuiDraw.of(pose), mouseX, mouseY);
     }
     *///?}
 
     //? if >=1.20 && <1.21.11 {
     /*@Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
-        super.renderWidget(graphics, mouseX, mouseY, partialTick);
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        paint(GuiDraw.of(graphics), mouseX, mouseY);
     }
     *///?}
 
     //? if >=1.21.11 && <26.1 {
     @Override
     protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
-        // Button is abstract here; its concrete Plain subclass is what calls these.
-        this.renderDefaultSprite(graphics);
-        this.renderDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        paint(GuiDraw.of(graphics), mouseX, mouseY);
     }
     //?}
 
     //? if >=26.1 {
     /*@Override
     protected void extractContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        Component full = getMessage();
-        String shown = GuiDraw.ellipsis(Minecraft.getInstance().font, full.getString(), widgetWidth() - 6);
-        boolean cut = !shown.equals(full.getString());
-        if (cut) {
-            setMessage(Component.literal(shown));
-        }
-        this.extractDefaultSprite(graphics);
-        this.extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
-        if (cut) {
-            setMessage(full);
-        }
-        prepareTip(full, cut);
+        paint(GuiDraw.of(graphics), mouseX, mouseY);
     }
     *///?}
 }

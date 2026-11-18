@@ -4,8 +4,12 @@ import dev.quarkos.villagerreroller.VillagerReroller;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
+import dev.quarkos.villagerreroller.config.PickFiles;
+import dev.quarkos.villagerreroller.config.ProfessionPicks;
+import dev.quarkos.villagerreroller.config.VillagerRoster;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -19,10 +23,16 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Runs the single-villager reroller once per queued villager.
@@ -32,8 +42,10 @@ public final class TradeHall {
     private static final Logger LOGGER = LoggerFactory.getLogger("villager_reroller");
     private static final int FOCUS_TICKS = 2;
     private static final int BETWEEN_TICKS = 5;
+    private static final int DISCOVERY_LIMIT = 32;
 
     private static final List<Slot> SLOTS = new ArrayList<>();
+    private static final List<Slot> DISCOVERED_DURING_RUN = new ArrayList<>();
     private static Phase phase = Phase.IDLE;
     private static int index;
     private static int waitTicks;
@@ -53,32 +65,53 @@ public final class TradeHall {
 
     public static final class Slot {
         private final int villagerId;
-        private final String labelKey;
-        private final String description;
+        private final UUID uuid;
+        private final WeakReference<ClientLevel> level;
+        private final String profession;
         private final Map<String, Integer> selections;
         private final String place;
+        private List<VillagerRoster.LockedOffer> offers;
         private Outcome outcome = Outcome.PENDING;
         private String detail = "";
         private int attempts;
 
-        private Slot(int villagerId, String labelKey, String description, Map<String, Integer> selections, String place) {
-            this.villagerId = villagerId;
-            this.labelKey = labelKey;
-            this.description = description == null ? "" : description;
+        private Slot(ClientLevel level, Villager villager, Map<String, Integer> selections, BlockPos job,
+                     List<VillagerRoster.LockedOffer> offers) {
+            this.villagerId = villager.getId();
+            this.uuid = villager.getUUID();
+            this.level = new WeakReference<>(level);
+            this.profession = McBridge.professionId(villager);
             this.selections = Map.copyOf(selections);
-            this.place = place == null ? "" : place;
+            this.place = "(" + job.getX() + ", " + job.getY() + ", " + job.getZ() + ")";
+            this.offers = offers;
         }
 
         public int villagerId() {
             return villagerId;
         }
 
+        UUID uuid() {
+            return uuid;
+        }
+
+        boolean isIn(ClientLevel level) {
+            return level != null && this.level.get() == level;
+        }
+
+        String profession() {
+            return profession;
+        }
+
+        List<VillagerRoster.LockedOffer> offers() {
+            return offers;
+        }
+
         public Component label() {
-            return Component.translatable(labelKey);
+            return TradeIcons.professionName(profession);
         }
 
         public String description() {
-            return description;
+            return GuiDraw.message("hall.target_count", selections.size()).getString();
         }
 
         public String place() {
@@ -132,15 +165,10 @@ public final class TradeHall {
         return phase == Phase.SUMMARY;
     }
 
-    public static boolean queueCurrent(Minecraft client) {
+    static boolean queueCurrent(Minecraft client, MerchantScreen screen, Villager villager) {
         if (isActive()) {
             return false;
         }
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
-            notice(client, "need_screen");
-            return false;
-        }
-        Villager villager = LibrarianTracker.current(client);
         if (villager == null) {
             notice(client, "not_villager");
             return false;
@@ -157,12 +185,8 @@ public final class TradeHall {
         if (job == null) {
             job = villager.blockPosition();
         }
-        Slot slot = new Slot(
-                villager.getId(),
-                labelKey(villager),
-                TradeSession.describeSelection(),
-                TradeSession.copySelections(),
-                "(" + job.getX() + ", " + job.getY() + ", " + job.getZ() + ")");
+        Slot slot = new Slot(client.level, villager, TradeSession.selections(), job,
+                VillagerRosterClient.captureOffers(client, villager, screen.getMenu()));
         for (int i = 0; i < SLOTS.size(); i++) {
             if (SLOTS.get(i).villagerId == villager.getId()) {
                 SLOTS.set(i, slot);
@@ -172,9 +196,124 @@ public final class TradeHall {
             }
         }
         SLOTS.add(slot);
-        LOGGER.info("Queued villager {} ({}) with {} targets", villager.getId(), slot.labelKey, slot.selections.size());
+        LOGGER.info("Queued villager {} ({}) with {} targets", villager.getId(), slot.profession, slot.selections.size());
         noticeQueued(client, slot);
         return true;
+    }
+
+    /** Records the completed trade screen and discovers candidates from the current client level. */
+    static void onRerollMatch(Minecraft client, Villager villager) {
+        MerchantScreen screen = TradeBrowserScreen.activeMerchant(client);
+        if (client.level == null || client.player == null || villager == null || screen == null) {
+            return;
+        }
+        AutomatorConfig config = AutomatorConfig.get();
+        Slot existing = queued(client.level, villager.getUUID());
+        if (existing == null && !config.autoHallDiscovery()) {
+            return;
+        }
+        List<VillagerRoster.LockedOffer> offers;
+        try {
+            offers = VillagerRosterClient.captureOffers(client, villager, screen.getMenu());
+        } catch (RuntimeException error) {
+            LOGGER.warn("Could not catalogue Hall offers for villager {}", villager.getId(), error);
+            offers = List.of();
+        }
+        int added = 0;
+        if (existing != null) {
+            existing.offers = offers;
+        } else {
+            BlockPos job = JobSiteFinder.find(client, villager);
+            addDiscovered(new Slot(client.level, villager, TradeSession.selections(),
+                    job == null ? villager.blockPosition() : job, offers));
+            added++;
+        }
+        if (config.autoHallDiscovery() && config.hallDiscoveryRadius() > 0) {
+            try {
+                added += discoverNearby(client, villager, config.hallDiscoveryRadius());
+            } catch (RuntimeException error) {
+                LOGGER.warn("Could not discover nearby Hall villagers", error);
+            }
+        }
+        TradeHallHud.showDiscovery(client, added);
+    }
+
+    private static int discoverNearby(Minecraft client, Villager source, int radius) {
+        var configured = ProfessionPicks.load(PickFiles.configFile()).snapshot();
+        if (configured.isEmpty()) {
+            return 0;
+        }
+        Set<UUID> queued = new HashSet<>();
+        for (List<Slot> slots : List.of(SLOTS, DISCOVERED_DURING_RUN)) {
+            for (Slot slot : slots) {
+                if (slot.isIn(client.level)) {
+                    queued.add(slot.uuid());
+                }
+            }
+        }
+        HallDiscovery.Position center = position(source);
+        Set<String> lockedRoster = new HashSet<>();
+        for (VillagerRoster.Entry entry : VillagerRosterClient.roster().entries(VillagerRosterClient.currentWorldKey(client))) {
+            lockedRoster.add(entry.uuid());
+        }
+        List<HallDiscovery.Candidate> candidates = new ArrayList<>();
+        Map<UUID, Slot> eligible = new HashMap<>();
+        for (Villager villager : McBridge.nearby(client.level, Villager.class, source.getBoundingBox().inflate(radius))) {
+            UUID id = villager.getUUID();
+            String profession = McBridge.professionId(villager);
+            Map<String, Integer> picks = configured.get(profession);
+            boolean check = picks != null && !queued.contains(id) && !lockedRoster.contains(id.toString());
+            Slot slot = check ? discoverySlot(client, villager, picks) : null;
+            candidates.add(new HallDiscovery.Candidate(id, position(villager), profession, slot != null));
+            if (slot != null) {
+                eligible.put(id, slot);
+            }
+        }
+        List<HallDiscovery.Candidate> nearest = HallDiscovery.select(center, radius, candidates,
+                configured.keySet(), queued, DISCOVERY_LIMIT);
+        for (HallDiscovery.Candidate candidate : nearest) {
+            addDiscovered(eligible.get(candidate.id()));
+        }
+        return nearest.size();
+    }
+
+    private static Slot discoverySlot(Minecraft client, Villager villager, Map<String, Integer> picks) {
+        if (!villager.isAlive() || villager.isBaby() || McBridge.unemployed(villager) || McBridge.nitwit(villager)
+                || locked(villager) || !McBridge.withinEntity(client.player, villager)) {
+            return null;
+        }
+        BlockPos job = JobSiteFinder.find(client, villager);
+        if (job == null || !McBridge.withinBlock(client.player, job)) {
+            return null;
+        }
+        Map<String, Integer> targets = new LinkedHashMap<>();
+        for (TradeEntry entry : TradeCatalog.list(client.level, villager, McBridge.villagerLevel(villager))) {
+            int price = ProfessionPicks.fitPrice(picks.getOrDefault(entry.id, 0), entry.emeraldMin,
+                    entry.emeraldMax, entry.paysEmeralds);
+            if (price > 0) {
+                targets.put(entry.id, price);
+            }
+        }
+        return targets.isEmpty() ? null : new Slot(client.level, villager, targets, job, List.of());
+    }
+
+    private static HallDiscovery.Position position(Villager villager) {
+        return new HallDiscovery.Position(villager.getX(), villager.getY(), villager.getZ());
+    }
+
+    private static Slot queued(ClientLevel level, UUID uuid) {
+        for (List<Slot> slots : List.of(SLOTS, DISCOVERED_DURING_RUN)) {
+            for (Slot slot : slots) {
+                if (slot.isIn(level) && slot.uuid().equals(uuid)) {
+                    return slot;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void addDiscovered(Slot slot) {
+        (isActive() ? DISCOVERED_DURING_RUN : SLOTS).add(slot);
     }
 
     public static void remove(int slotIndex) {
@@ -189,6 +328,7 @@ public final class TradeHall {
             return;
         }
         SLOTS.clear();
+        DISCOVERED_DURING_RUN.clear();
         index = 0;
         phase = Phase.IDLE;
         stopRequested = false;
@@ -221,7 +361,7 @@ public final class TradeHall {
         focusPos = null;
         phase = Phase.FOCUS;
         LOGGER.info("Trading hall started with {} villagers", SLOTS.size());
-        if (client.player != null && McBridge.currentScreen(client) instanceof MerchantScreen) {
+        if (client.player != null && client.player.containerMenu instanceof MerchantMenu) {
             client.player.closeContainer();
         } else if (McBridge.currentScreen(client) != null) {
             McBridge.setScreen(client, null);
@@ -240,7 +380,11 @@ public final class TradeHall {
     }
 
     public static void tick(Minecraft client) {
-        if (phase == Phase.IDLE || phase == Phase.SUMMARY) {
+        if (phase == Phase.IDLE) {
+            SLOTS.removeIf(slot -> !slot.isIn(client.level));
+            return;
+        }
+        if (phase == Phase.SUMMARY) {
             return;
         }
         if (!AutomatorConfig.get().enabled() && phase != Phase.COOLDOWN) {
@@ -295,16 +439,27 @@ public final class TradeHall {
         return hudTitle().copy().append(" · ").append(hudDetail());
     }
 
+    public static UiStatus hudStatus() {
+        return stopRequested ? UiStatus.ERROR : UiStatus.RUNNING;
+    }
+
+    static boolean isCurrent(Slot slot) {
+        return isActive() && index < SLOTS.size() && SLOTS.get(index) == slot;
+    }
+
     public static Component hudTitle() {
         int current = Math.min(index + 1, Math.max(SLOTS.size(), 1));
         Component name = index >= 0 && index < SLOTS.size() ? SLOTS.get(index).label() : Component.literal("-");
         if (phase == Phase.COOLDOWN || phase == Phase.SUMMARY) {
-            return countsLine();
+            return GuiDraw.message(stopRequested ? "status.stopped" : "hall.done");
         }
         return Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.hud", current, SLOTS.size(), name);
     }
 
     public static Component hudDetail() {
+        if (stopRequested && phase != Phase.COOLDOWN) {
+            return GuiDraw.message("hall.stopping");
+        }
         return switch (phase) {
             case FOCUS -> Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.focus");
             case WAIT_SCREEN -> Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.open");
@@ -324,16 +479,19 @@ public final class TradeHall {
         int found = 0;
         int skipped = 0;
         int failed = 0;
+        int cancelled = 0;
         for (Slot slot : SLOTS) {
             switch (slot.outcome) {
                 case FOUND -> found++;
                 case SKIPPED -> skipped++;
                 case FAILED -> failed++;
-                case PENDING, CANCELLED -> {
+                case CANCELLED -> cancelled++;
+                case PENDING -> {
                 }
             }
         }
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.counts", found, skipped, failed);
+        return cancelled > 0 ? GuiDraw.message("hall.counts_cancelled", found, skipped, failed, cancelled)
+                : GuiDraw.message("hall.counts", found, skipped, failed);
     }
 
     public static Component outcomeLine(Slot slot) {
@@ -363,7 +521,7 @@ public final class TradeHall {
             return;
         }
         Slot slot = SLOTS.get(index);
-        String blocked = blocker(client, slot.villagerId);
+        String blocked = slot.isIn(client.level) ? blocker(client, slot.villagerId) : "villager_gone";
         if (blocked != null) {
             mark(slot, skipOutcome(blocked), blocked);
             LOGGER.info("Hall skipped villager {} ({})", slot.villagerId, blocked);
@@ -385,7 +543,6 @@ public final class TradeHall {
         }
         lookAt(player, villager.getEyePosition());
         LibrarianTracker.pin(villager);
-        TradeSession.setPanelOpen(true);
         McBridge.interact(client.gameMode, player, villager, InteractionHand.MAIN_HAND);
         phase = Phase.WAIT_SCREEN;
         waitTicks = 0;
@@ -409,9 +566,9 @@ public final class TradeHall {
         }
         if (McBridge.currentScreen(client) instanceof MerchantScreen screen) {
             LibrarianTracker.pin(villager);
-            TradeSession.rebuild(client.level, villager, screen.getMenu());
+            TradeSession.rebuild(client.level, villager);
             if (TradeSession.restoreSelections(slot.selections) <= 0) {
-                mark(slot, Outcome.FAILED, "need_target");
+                mark(slot, Outcome.FAILED, slot.selections.isEmpty() ? "need_target" : "novice_targets_only");
                 beginPause();
                 return;
             }
@@ -527,6 +684,8 @@ public final class TradeHall {
 
     private static void openSummary(Minecraft client) {
         phase = Phase.SUMMARY;
+        SLOTS.addAll(DISCOVERED_DURING_RUN);
+        DISCOVERED_DURING_RUN.clear();
         stopRequested = false;
         Component summary = countsLine();
         LOGGER.info("Trading hall finished: {}", summary.getString());
@@ -609,13 +768,6 @@ public final class TradeHall {
             return villager;
         }
         return null;
-    }
-
-    private static String labelKey(Villager villager) {
-        String id = McBridge.professionId(villager);
-        int colon = id.indexOf(':');
-        String path = colon >= 0 ? id.substring(colon + 1) : id;
-        return "entity.minecraft.villager." + path;
     }
 
     private static Component reasonText(String detail) {

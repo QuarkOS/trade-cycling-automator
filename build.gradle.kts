@@ -165,7 +165,7 @@ tasks {
     withType<JavaExec>().configureEach {
         val cycling = providers.gradleProperty("withTradeCycling").orNull == "true"
         val mode = if (cycling) "trade-cycling" else "plain"
-        val artifacts = "/opt/cursor/artifacts/${sc.current.version}/$mode"
+        val artifacts = providers.gradleProperty("artifactsDir").orElse("/opt/cursor/artifacts/${sc.current.version}/$mode").get()
         inputs.property("villager_reroller.artifacts", artifacts)
         systemProperty("villager_reroller.artifacts", artifacts)
         systemProperty("villager_reroller.loader", "fabric")
@@ -189,12 +189,19 @@ tasks {
         if (!serverAddress.isNullOrBlank()) {
             systemProperty("villager_reroller.serverAddress", serverAddress)
         }
+        val proofHold = providers.gradleProperty("proofHoldSeconds").orNull
+        if (!proofHold.isNullOrBlank()) {
+            systemProperty("villager_reroller.proofHoldSeconds", proofHold)
+        }
+        if (providers.gradleProperty("proofFly").orNull == "true") {
+            systemProperty("villager_reroller.proofFly", "true")
+        }
         if (providers.gradleProperty("proofWorld").orNull == "true") {
             systemProperty("villager_reroller.proofWorld", "true")
             systemProperty("villager_reroller.serverSelfTest", "true")
         }
         // Integrated servers in this VM fall behind the client. Normal jars leave the property unset.
-        systemProperty("villager_reroller.timeoutScale", "8")
+        systemProperty("villager_reroller.timeoutScale", providers.gradleProperty("timeoutScale").orElse("8").get())
         val glShim = rootProject.file("/tmp/libglx-srgb.so")
         if (sc.current.parsed >= "26.3" && glShim.exists()) {
             // 26.3's SDL3 asks for an sRGB GLX visual. Xvfb's llvmpipe visuals are sRGB=N.

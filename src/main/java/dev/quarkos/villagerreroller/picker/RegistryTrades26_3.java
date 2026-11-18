@@ -3,10 +3,7 @@
 
 import dev.quarkos.villagerreroller.odds.TradeOdds;
 import dev.quarkos.villagerreroller.odds.VanillaRoll;
-import dev.quarkos.villagerreroller.price.VanillaBookPrices;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
@@ -17,14 +14,13 @@ import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.trading.TradeSet;
 import net.minecraft.world.item.trading.VillagerTrade;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.loot.functions.EnchantRandomlyFunction;
 import net.minecraft.world.level.storage.loot.functions.LootItemFunction;
 import net.minecraft.world.level.storage.loot.functions.SequenceFunction;
+import net.minecraft.world.level.storage.loot.functions.SetEnchantmentsFunction;
 import net.minecraft.world.level.storage.loot.providers.number.ints.ConstantValue;
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider;
 import net.minecraft.world.level.storage.loot.providers.number.ints.UniformGenerator;
@@ -41,13 +37,17 @@ public final class RegistryTrades26_3 {
         if (level == null || villager == null) {
             return List.of();
         }
-        ResourceKey<VillagerProfession> professionKey = villager.getVillagerData().profession().unwrapKey().orElse(null);
+        return list(level, villager.getVillagerData().profession().unwrapKey().orElse(null), villagerLevel, villager);
+    }
+
+    static List<TradeEntry> list(Level level, ResourceKey<VillagerProfession> professionKey,
+                                 int villagerLevel, Villager villager) {
         if (professionKey == null || professionKey.equals(VillagerProfession.NONE) || professionKey.equals(VillagerProfession.NITWIT)) {
             return List.of();
         }
         int tradeLevel = Math.max(1, Math.min(5, villagerLevel));
-        RegistryAccess registries = registries(level);
-        HolderLookup.RegistryLookup<VillagerProfession> professions = registries.lookupOrThrow(Registries.VILLAGER_PROFESSION);
+        RegistryAccess registries = ClientTradeRegistries.get(level);
+        var professions = registries.lookupOrThrow(Registries.VILLAGER_PROFESSION);
         VillagerProfession profession = professions.get(professionKey).map(Holder::value).orElse(null);
         if (profession == null) {
             return List.of();
@@ -56,45 +56,39 @@ public final class RegistryTrades26_3 {
         if (setKey == null) {
             return List.of();
         }
-        HolderLookup.RegistryLookup<TradeSet> sets = registries.lookupOrThrow(Registries.TRADE_SET);
-        TradeSet set = sets.get(setKey).map(Holder::value).orElse(null);
+        TradeSet set = registries.lookup(Registries.TRADE_SET).flatMap(lookup -> lookup.get(setKey)).map(Holder::value).orElse(null);
         if (set == null) {
             return List.of();
         }
-        HolderLookup.RegistryLookup<Enchantment> enchantments = registries.lookupOrThrow(Registries.ENCHANTMENT);
         List<TradeEntry> entries = new ArrayList<>();
         int[] index = {0};
-        set.trades().stream().forEach(holder -> expand(holder.value(), enchantments, entries, "trade-" + index[0]++));
+        set.trades().stream().forEach(holder -> expand(holder.value(), registries, villager, entries, "trade-" + index[0]++));
         entries.sort(Comparator
                 .comparing((TradeEntry entry) -> entry.id.startsWith("enchant:"))
                 .thenComparing(entry -> entry.name));
         return List.copyOf(entries);
     }
 
-    public static int[] offerCounts(Level level, Villager villager, int villagerLevel) {
-        TradeSet set = tradeSet(level, villager, villagerLevel);
+    static int[] offerCounts(Level level, ResourceKey<VillagerProfession> professionKey, int villagerLevel) {
+        TradeSet set = tradeSet(level, professionKey, villagerLevel);
         if (set == null) {
             return new int[]{VanillaRoll.OFFERS_PER_LEVEL};
         }
         return counts(set.amount().value());
     }
 
-    public static boolean allowDuplicates(Level level, Villager villager, int villagerLevel) {
-        TradeSet set = tradeSet(level, villager, villagerLevel);
+    static boolean allowDuplicates(Level level, ResourceKey<VillagerProfession> professionKey, int villagerLevel) {
+        TradeSet set = tradeSet(level, professionKey, villagerLevel);
         return set != null && set.allowDuplicates();
     }
 
-    private static TradeSet tradeSet(Level level, Villager villager, int villagerLevel) {
-        if (level == null || villager == null) {
-            return null;
-        }
-        ResourceKey<VillagerProfession> professionKey = villager.getVillagerData().profession().unwrapKey().orElse(null);
+    private static TradeSet tradeSet(Level level, ResourceKey<VillagerProfession> professionKey, int villagerLevel) {
         if (professionKey == null || professionKey.equals(VillagerProfession.NONE) || professionKey.equals(VillagerProfession.NITWIT)) {
             return null;
         }
         int tradeLevel = Math.max(1, Math.min(5, villagerLevel));
-        RegistryAccess registries = registries(level);
-        HolderLookup.RegistryLookup<VillagerProfession> professions = registries.lookupOrThrow(Registries.VILLAGER_PROFESSION);
+        RegistryAccess registries = ClientTradeRegistries.get(level);
+        var professions = registries.lookupOrThrow(Registries.VILLAGER_PROFESSION);
         VillagerProfession profession = professions.get(professionKey).map(Holder::value).orElse(null);
         if (profession == null) {
             return null;
@@ -103,7 +97,7 @@ public final class RegistryTrades26_3 {
         if (setKey == null) {
             return null;
         }
-        return registries.lookupOrThrow(Registries.TRADE_SET).get(setKey).map(Holder::value).orElse(null);
+        return registries.lookup(Registries.TRADE_SET).flatMap(lookup -> lookup.get(setKey)).map(Holder::value).orElse(null);
     }
 
     private static int[] counts(ContextIntProvider provider) {
@@ -118,15 +112,17 @@ public final class RegistryTrades26_3 {
         return new int[]{VanillaRoll.OFFERS_PER_LEVEL};
     }
 
-    private static void expand(VillagerTrade trade, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {
-        if (trade == null) {
-            return;
-        }
-        if (addBooks(trade, enchantments, entries, group)) {
+    private static void expand(VillagerTrade trade, RegistryAccess registries, Villager villager,
+                               List<TradeEntry> entries, String group) {
+        if (!RegistryTradeDetails.fitsVariant(trade, registries, villager == null ? null : villager.getVillagerData().type())) {
             return;
         }
         ItemStack gives = trade.gives.create();
         int[] price = bounds(trade.wants.count().value());
+        if (gives.is(Items.ENCHANTED_BOOK)) {
+            addBooks(trade, registries, entries, group, price);
+            return;
+        }
         if (gives.is(Items.EMERALD)) {
             ItemStack cost = new ItemStack(trade.wants.item().value(), Math.max(1, price[0]));
             int payout = Math.max(1, gives.getCount());
@@ -148,54 +144,22 @@ public final class RegistryTrades26_3 {
         }
     }
 
-    private static boolean addBooks(VillagerTrade trade, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {
-        int before = entries.size();
-        trade.givenItemModifier.ifPresent(holder -> walk(holder.value(), enchantments, entries, group));
-        return entries.size() != before;
+    private static void addBooks(VillagerTrade trade, RegistryAccess registries, List<TradeEntry> entries,
+                                 String group, int[] price) {
+        trade.givenItemModifier.ifPresent(holder -> walk(holder.value(), registries, entries, group, price));
     }
 
-    private static void walk(LootItemFunction function, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {
+    private static void walk(LootItemFunction function, RegistryAccess registries, List<TradeEntry> entries,
+                             String group, int[] price) {
         if (function instanceof EnchantRandomlyFunction random) {
-            HolderSet<Enchantment> options = random.options.orElseGet(() -> enchantments.getOrThrow(EnchantmentTags.TRADEABLE));
-            options.stream().forEach(holder -> addBook(holder, entries, group));
-            return;
+            HolderSet<Enchantment> options = random.options.orElseGet(() ->
+                    registries.lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(EnchantmentTags.TRADEABLE));
+            options.stream().forEach(holder -> RegistryTradeDetails.addRandomBooks(holder, entries, group));
+        } else if (function instanceof SetEnchantmentsFunction) {
+            RegistryTradeDetails.addFixedBooks(function, registries, entries, group, price);
+        } else if (function instanceof SequenceFunction sequence) {
+            sequence.functions.stream().forEach(holder -> walk(holder.value(), registries, entries, group, price));
         }
-        if (function instanceof SequenceFunction sequence) {
-            sequence.functions.stream().forEach(holder -> walk(holder.value(), enchantments, entries, group));
-        }
-    }
-
-    private static void addBook(Holder<Enchantment> holder, List<TradeEntry> entries, String group) {
-        Enchantment enchantment = holder.value();
-        int low = enchantment.getMinLevel();
-        int high = enchantment.getMaxLevel();
-        if (low > high) {
-            return;
-        }
-        boolean treasure = holder.is(EnchantmentTags.DOUBLE_TRADE_PRICE);
-        boolean curse = holder.is(EnchantmentTags.CURSE);
-        for (int level = low; level <= high; level++) {
-            ItemStack icon = EnchantmentHelper.createBook(new EnchantmentInstance(holder, level));
-            String name = enchantment.description().getString();
-            if (level != 1 || enchantment.getMaxLevel() != 1) {
-                name = name + " " + net.minecraft.network.chat.Component.translatable("enchantment.level." + level).getString();
-            }
-            String enchantmentId = holder.unwrapKey().map(key -> key.identifier().toString()).orElse("unknown");
-            entries.add(TradeEntry.book(holder, level, icon, name, curse, VanillaBookPrices.min(level, treasure), VanillaBookPrices.max(level, treasure), TradeOdds.Roll.book(group, enchantmentId, VanillaRoll.UNIFORM_ENCHANTMENT_WEIGHT, level, treasure)));
-        }
-    }
-
-    private static RegistryAccess registries(Level level) {
-        // trade_set is a world registry. The client connection only has synchronized registries.
-        var server = Minecraft.getInstance().getSingleplayerServer();
-        if (server != null) {
-            return server.registryAccess();
-        }
-        var connection = Minecraft.getInstance().getConnection();
-        if (connection != null && connection.registryAccess().lookup(Registries.TRADE_SET).isPresent()) {
-            return connection.registryAccess();
-        }
-        return level.registryAccess();
     }
 
     private static int[] bounds(ContextIntProvider provider) {

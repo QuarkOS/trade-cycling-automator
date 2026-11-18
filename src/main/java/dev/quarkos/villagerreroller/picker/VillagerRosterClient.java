@@ -84,22 +84,7 @@ public final class VillagerRosterClient {
         if (TradeHall.isActive() || JobSiteReroller.isRunning()) {
             return;
         }
-        List<TradeEntry> catalog = new ArrayList<>();
         int traderLevel = Math.max(1, menu.getTraderLevel());
-        for (int level = 1; level <= traderLevel; level++) {
-            catalog.addAll(TradeCatalog.list(client.level, villager, level));
-        }
-        List<VillagerRoster.LockedOffer> trades = new ArrayList<>();
-        for (MerchantOffer offer : menu.getOffers()) {
-            TradeEntry match = null;
-            for (TradeEntry entry : catalog) {
-                if (entry.identifies(offer)) {
-                    match = entry;
-                    break;
-                }
-            }
-            trades.add(locked(offer, match));
-        }
         BlockPos job = JobSiteFinder.find(client, villager);
         if (job == null) {
             job = villager.blockPosition();
@@ -117,11 +102,34 @@ public final class VillagerRosterClient {
                 McBridge.professionId(villager),
                 traderLevel,
                 System.currentTimeMillis(),
-                List.copyOf(trades)
+                captureOffers(client, villager, menu)
         );
         VillagerRoster stored = roster();
         stored.upsert(currentWorldKey(client), entry);
         stored.save(VillagerRosterFiles.configFile());
+    }
+
+    /** Copies offers sent for this merchant screen. Unopened villagers do not sync their offers. */
+    static List<VillagerRoster.LockedOffer> captureOffers(Minecraft client, Villager villager, MerchantMenu menu) {
+        if (menu.getOffers().isEmpty()) {
+            return List.of();
+        }
+        List<TradeEntry> catalog = new ArrayList<>();
+        for (int tier = 1; tier <= Math.max(1, menu.getTraderLevel()); tier++) {
+            catalog.addAll(TradeCatalog.list(client.level, villager, tier));
+        }
+        List<VillagerRoster.LockedOffer> trades = new ArrayList<>();
+        for (MerchantOffer offer : menu.getOffers()) {
+            TradeEntry match = null;
+            for (TradeEntry entry : catalog) {
+                if (entry.identifies(offer)) {
+                    match = entry;
+                    break;
+                }
+            }
+            trades.add(locked(offer, match));
+        }
+        return List.copyOf(trades);
     }
 
     /**

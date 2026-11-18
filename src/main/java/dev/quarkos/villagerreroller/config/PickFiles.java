@@ -7,6 +7,8 @@ import net.fabricmc.loader.api.FabricLoader;
 //?}
 
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Client file for the trade picker's saved targets. One file for every world.
@@ -23,5 +25,14 @@ public final class PickFiles {
         *///?} else {
         return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
         //?}
+    }
+
+    /** Updates one target while preserving saved choices outside this screen. */
+    public static boolean writePick(String profession, String tradeId, int ceiling) {
+        Path file = configFile();
+        ProfessionPicks picks = ProfessionPicks.load(file);
+        picks.replaceCatalog(profession, Set.of(tradeId),
+                ceiling > 0 ? Map.of(tradeId, ceiling) : Map.of());
+        return picks.save(file);
     }
 }

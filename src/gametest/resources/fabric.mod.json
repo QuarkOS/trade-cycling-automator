@@ -6,6 +6,8 @@
   "environment": "client",
   "entrypoints": {
     "fabric-client-gametest": [
+      "dev.quarkos.villagerreroller.gametest.BrowserRerollClientGameTest",
+      "dev.quarkos.villagerreroller.gametest.UiV3ClientGameTest",
       "dev.quarkos.villagerreroller.gametest.PickPersistenceGameTest",
       "dev.quarkos.villagerreroller.gametest.TradePickerClientGameTest",
       "dev.quarkos.villagerreroller.gametest.TradeHallClientGameTest",
