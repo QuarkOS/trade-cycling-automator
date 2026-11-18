@@ -195,7 +195,6 @@ public final class DedicatedProof {
     }
 
     private static void command(MinecraftServer server, String command) {
-        try {
             Object commands = server.getCommands();
             Object source = server.createCommandSourceStack();
             List<Method> candidates = new ArrayList<>();
@@ -225,9 +224,6 @@ public final class DedicatedProof {
                 }
             }
             LOGGER.warn("villager_reroller proof command failed: {} {}", command, last == null ? "" : last.toString());
-        } catch (ReflectiveOperationException ex) {
-            LOGGER.warn("villager_reroller proof command failed: {} {}", command, ex.getCause() == null ? ex.toString() : ex.getCause().toString());
-        }
     }
 
     private static int commandScore(Method method) {
