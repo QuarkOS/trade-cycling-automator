@@ -1,6 +1,7 @@
 package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
 import dev.quarkos.villagerreroller.config.VillagerRoster;
@@ -149,6 +150,17 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.waitTicks(5);
             saveShot(context, "hall-empty-scale4");
             scale(context, 2, 1280, 720);
+            context.setScreen(() -> new ForgeConfigScreen(null));
+            context.waitTicks(8);
+            saveShot(context, "settings-scale2");
+            scale(context, 4, 1280, 960);
+            context.setScreen(() -> new ForgeConfigScreen(null));
+            context.waitTicks(8);
+            saveShot(context, "settings-scale4");
+            scale(context, 2, 1280, 720);
+            // The settings screen pauses the integrated server. Close it before the villager has to claim a lectern.
+            context.runOnClient(client -> McBridge.setScreen(client, null));
+            context.waitTicks(40);
 
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 4;
@@ -213,6 +225,13 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
             saveShot(context, "picker-scale4");
+            // 1280x960 at scale 4 is only 320 GUI pixels wide, so the panel stays shut.
+            // A 1920-wide window is wide enough for the panel at the same scale.
+            scale(context, 4, 1920, 1080);
+            context.waitTicks(10);
+            reopenMerchant(context, world, x, y, z);
+            openPicker(context);
+            saveShot(context, "picker-scale4-wide");
             context.runOnClient(client -> McBridge.setScreen(client, null));
         } finally {
             restore(picks, picksBackup);

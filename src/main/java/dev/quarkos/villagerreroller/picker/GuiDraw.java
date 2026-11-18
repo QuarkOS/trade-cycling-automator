@@ -306,10 +306,21 @@ public final class GuiDraw {
             if (lines.isEmpty()) {
                 return;
             }
+            int screenW = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledWidth());
+            int screenH = Math.max(1, Minecraft.getInstance().getWindow().getGuiScaledHeight());
+            int width = Math.min(240, Math.max(8, screenW - 2 * PADDING));
             List<FormattedCharSequence> wrapped = new ArrayList<>();
-            int width = Math.min(240, Minecraft.getInstance().getWindow().getGuiScaledWidth() - 2 * PADDING);
             for (Component line : lines) {
-                wrapped.addAll(font.split(line, Math.max(1, width)));
+                wrapped.addAll(font.split(line, width));
+            }
+            if (wrapped.isEmpty()) {
+                return;
+            }
+            // Vanilla tooltips do not shrink a list that is taller than the window.
+            int maxLines = Math.max(1, (screenH - 20) / 12);
+            if (wrapped.size() > maxLines) {
+                wrapped = new ArrayList<>(wrapped.subList(0, Math.max(0, maxLines - 1)));
+                wrapped.add(FormattedCharSequence.forward("…", net.minecraft.network.chat.Style.EMPTY));
             }
             //? if >=1.21.6 {
             graphics.setTooltipForNextFrame(font, wrapped, mouseX, mouseY);
