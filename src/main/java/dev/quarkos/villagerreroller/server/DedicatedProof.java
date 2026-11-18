@@ -195,8 +195,14 @@ public final class DedicatedProof {
         try {
             Object commands = server.getCommands();
             Object source = server.createCommandSourceStack();
-            for (Method method : commands.getClass().getMethods()) {
-                if (method.getName().equals("performPrefixedCommand") && method.getParameterCount() == 2) {
+            for (String name : new String[] {"performPrefixedCommand", "performCommand"}) {
+                for (Method method : commands.getClass().getMethods()) {
+                    if (!method.getName().equals(name) || method.getParameterCount() != 2) {
+                        continue;
+                    }
+                    if (method.getParameterTypes()[1] != String.class) {
+                        continue;
+                    }
                     method.invoke(commands, source, command);
                     return;
                 }

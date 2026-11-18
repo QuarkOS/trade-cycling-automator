@@ -383,7 +383,9 @@ def loader_installer_url(spec: dict) -> str:
 def download(url: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     print(f"download {url}", flush=True)
-    urllib.request.urlretrieve(url, destination)
+    request = urllib.request.Request(url, headers={"User-Agent": "villager-reroller-reroll-test"})
+    with urllib.request.urlopen(request, timeout=120) as response, destination.open("wb") as handle:
+        shutil.copyfileobj(response, handle)
 
 
 def prepare_server(server_dir: Path, spec: dict, trade_cycling: bool, port: int, cache: Path) -> None:
