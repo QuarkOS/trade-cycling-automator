@@ -24,6 +24,8 @@ public final class FitButton extends Button {
     private Component hint;
     private boolean selected;
     private boolean mark;
+    private boolean row;
+    private Icon icon;
     private ItemStack item;
     private String badge;
 
@@ -56,6 +58,20 @@ public final class FitButton extends Button {
         return button;
     }
 
+    /** The parent paints the row, including its selection and focus states. */
+    static FitButton row(Rect bounds, Component message, OnPress onPress) {
+        FitButton button = new FitButton(bounds, message, onPress, false);
+        button.row = true;
+        return button;
+    }
+
+    static FitButton icon(Rect bounds, Component label, Icon icon, OnPress onPress) {
+        FitButton button = new FitButton(bounds, label, onPress, false);
+        button.icon = icon;
+        button.hint = label;
+        return button;
+    }
+
     void setItem(ItemStack icon, String badge) {
         this.item = icon;
         this.badge = badge;
@@ -84,6 +100,9 @@ public final class FitButton extends Button {
     }
 
     private void paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+        if (row) {
+            return;
+        }
         Rect bounds = GuiDraw.bounds(this);
         Component label = getMessage();
         boolean hovered = bounds.contains(mouseX, mouseY);
@@ -113,6 +132,9 @@ public final class FitButton extends Button {
         if (item != null) {
             canvas.item(item, bounds.x() + (bounds.width() - 16) / 2,
                     bounds.y() + (bounds.height() - 16) / 2, badge);
+        } else if (icon != null) {
+            icon.paint(canvas, bounds.x() + bounds.width() / 2, bounds.y() + bounds.height() / 2,
+                    !active ? DISABLED : selected ? ACCENT : TEXT);
         } else {
             String full = label.getString();
             String shown = GuiDraw.ellipsis(canvas.font(), full, bounds.width() - 2 * GAP);
@@ -126,6 +148,24 @@ public final class FitButton extends Button {
                 canvas.tip(hint == null ? List.of(label) : List.of(label, hint), mouseX, mouseY);
             } else if (hint != null) {
                 canvas.tip(List.of(hint), mouseX, mouseY);
+            }
+        }
+    }
+
+    enum Icon {
+        GRID, LIST;
+
+        void paint(GuiDraw.Canvas canvas, int x, int y, int color) {
+            if (this == GRID) {
+                for (int dy = -5; dy <= 1; dy += 6) {
+                    GuiDraw.fill(canvas, new Rect(x - 5, y + dy, 4, 4), color);
+                    GuiDraw.fill(canvas, new Rect(x + 1, y + dy, 4, 4), color);
+                }
+            } else {
+                for (int dy = -5; dy <= 3; dy += 4) {
+                    GuiDraw.fill(canvas, new Rect(x - 6, y + dy, 2, 2), color);
+                    GuiDraw.fill(canvas, new Rect(x - 2, y + dy, 8, 2), color);
+                }
             }
         }
     }

@@ -24,7 +24,11 @@ import static dev.quarkos.villagerreroller.picker.UiTheme.*;
 /** Inventory slots for the vanilla job blocks, items, and offer variants. */
 public final class TradeBrowserScreen extends PanelScreen {
     private static final int SLOT = 18;
-    private static final int SLOT_STEP = SLOT + 1;
+    private static final int MIN_ITEM_PANEL_WIDTH = 272;
+    private static final int MAX_ITEM_PANEL_WIDTH = 352;
+    private static final int MIN_ITEM_SLOT = 24;
+    private static final int MAX_ITEM_SLOT = 28;
+    private static final int ITEM_COLUMNS = 8;
     private static final int BOOK_ROW = 22;
     private static final int PRICE_WIDTH = 142;
 
@@ -49,6 +53,8 @@ public final class TradeBrowserScreen extends PanelScreen {
     private Rect body;
     private Rect footer;
     private Rect grid;
+    private int slotSize;
+    private int slotStep;
     private int columns;
     private int rows;
     private int pageCount;
@@ -75,11 +81,13 @@ public final class TradeBrowserScreen extends PanelScreen {
     protected void init() {
         int frameHeight = switch (step) {
             case JOB -> 132;
-            case ITEM -> 170;
+            case ITEM -> items.size() <= ITEM_COLUMNS ? 140 : 170;
             case LEVEL -> 214;
             case PRICE -> 158;
         };
-        frame = UiLayout.frame(width, height, 280, frameHeight);
+        int frameWidth = step == Step.ITEM
+                ? Math.min(MAX_ITEM_PANEL_WIDTH, Math.max(MIN_ITEM_PANEL_WIDTH, width * 2 / 3)) : 280;
+        frame = UiLayout.frame(width, height, frameWidth, frameHeight);
         Rect inner = frame.inset(PADDING);
         breadcrumb = new Rect(inner.x(), inner.y() + LINE_HEIGHT + GAP, inner.width(), LINE_HEIGHT);
         int promptY = breadcrumb.bottom() + GAP;
@@ -102,6 +110,7 @@ public final class TradeBrowserScreen extends PanelScreen {
 
     private void addGrid() {
         boolean books = showingBooks();
+        boolean itemGrid = step == Step.ITEM;
         if (books) {
             int searchWidth = Math.min(110, prompt.width() / 2);
             Rect search = new Rect(prompt.right() - searchWidth, prompt.y(), searchWidth, prompt.height());
@@ -123,12 +132,28 @@ public final class TradeBrowserScreen extends PanelScreen {
         FitButton.hint(next, message("ui.next_page"));
 
         int columnBudget = books ? body.width() / 2 : body.width();
-        int maxColumns = books ? 5 : step == Step.JOB ? 7 : 12;
-        columns = Math.max(1, Math.min(maxColumns, columnBudget / SLOT_STEP));
-        rows = Math.max(1, body.height() / (books ? BOOK_ROW : SLOT_STEP));
-        int gridWidth = columns * SLOT_STEP - 1;
+        int spacing = itemGrid ? GAP : 1;
+        int extraWidth = Math.max(0, frame.width() - MIN_ITEM_PANEL_WIDTH);
+        slotSize = itemGrid ? MIN_ITEM_SLOT + extraWidth * (MAX_ITEM_SLOT - MIN_ITEM_SLOT)
+                / (MAX_ITEM_PANEL_WIDTH - MIN_ITEM_PANEL_WIDTH) : SLOT;
+        slotStep = slotSize + spacing;
+        int maxColumns = books ? 5 : switch (step) {
+            case JOB -> 7;
+            case ITEM -> ITEM_COLUMNS;
+            default -> 12;
+        };
+        int availableWidth = itemGrid ? columnBudget - GAP : columnBudget;
+        columns = Math.max(1, Math.min(maxColumns, availableWidth / slotStep));
+        int rowHeight = books ? BOOK_ROW : slotStep;
+        rows = Math.max(1, (body.height() - (itemGrid ? GAP : 0)) / rowHeight);
+        int gridWidth = columns * slotStep - spacing;
         int x = books ? body.right() - gridWidth - GAP : body.x() + (body.width() - gridWidth) / 2;
-        grid = new Rect(x, body.y(), gridWidth, rows * (books ? BOOK_ROW : SLOT_STEP));
+        int y = body.y();
+        if (itemGrid) {
+            int usedRows = Math.max(1, Math.min(rows, (items.size() + columns - 1) / columns));
+            y += (body.height() - (usedRows * rowHeight - spacing)) / 2;
+        }
+        grid = new Rect(x, y, gridWidth, rows * rowHeight);
         slots.clear();
         for (int index = 0; index < rows * columns; index++) {
             int cell = index;
@@ -140,8 +165,10 @@ public final class TradeBrowserScreen extends PanelScreen {
     }
 
     private Rect slotBounds(int index) {
-        int rowHeight = showingBooks() ? BOOK_ROW : SLOT_STEP;
-        return new Rect(grid.x() + index % columns * SLOT_STEP, grid.y() + index / columns * rowHeight + 1, SLOT, SLOT);
+        int rowHeight = showingBooks() ? BOOK_ROW : slotStep;
+        int topInset = step == Step.ITEM ? 0 : 1;
+        return new Rect(grid.x() + index % columns * slotStep, grid.y() + index / columns * rowHeight + topInset,
+                slotSize, slotSize);
     }
 
     private void updateSlots() {

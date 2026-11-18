@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
+import dev.quarkos.villagerreroller.config.AutomatorConfig.HallView;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
@@ -26,6 +27,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
@@ -64,6 +66,7 @@ import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
 public final class UiV3ClientGameTest implements FabricClientGameTest {
     private static final String LIBRARIAN = "minecraft:librarian";
     private static final String MENDING = "enchant:minecraft:mending:1";
+    private static final String MENDING_NAME = "Mending I";
     private static final String UNBREAKING = "enchant:minecraft:unbreaking:3";
     private static final String EFFICIENCY = "enchant:minecraft:efficiency:5";
     private static final String SOURCE = "Match";
@@ -77,15 +80,19 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext context) {
         Path picksFile = PickFiles.configFile();
         Path rosterFile = VillagerRosterFiles.configFile();
+        Path configFile = automatorConfigFile();
         byte[] previousPicks = read(picksFile);
         byte[] previousRoster = read(rosterFile);
+        byte[] previousConfig = read(configFile);
         ConfigState previous = context.computeOnClient(client -> {
             observedMenus.clear();
             AutomatorConfig config = AutomatorConfig.get();
-            ConfigState saved = new ConfigState(config.enabled(), config.autoHallDiscovery(), config.hallDiscoveryRadius());
+            ConfigState saved = new ConfigState(config.enabled(), config.autoHallDiscovery(), config.hallDiscoveryRadius(),
+                    config.hallView());
             config.setEnabled(true);
             config.setAutoHallDiscovery(true);
             config.setHallDiscoveryRadius(16);
+            config.setHallView(HallView.GRID);
             TradeHall.clear();
             TradeSession.simulateClientRestart();
             client.options.pauseOnLostFocus = false;
@@ -187,6 +194,8 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                 config.setEnabled(previous.enabled());
                 config.setAutoHallDiscovery(previous.discovery());
                 config.setHallDiscoveryRadius(previous.radius());
+                config.setHallView(previous.view());
+                restore(configFile, previousConfig);
             });
         }
     }
@@ -327,6 +336,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         assertButton(context, "Weaponsmith", true);
         shot(context, "browser-job", viewport);
         clickLabel(context, "Librarian");
+        assertBrowserItemLayout(context);
         shot(context, "browser-item", viewport);
         clickLabel(context, "Enchanted Book");
         context.runOnClient(client -> McBridge.currentScreen(client).children().stream()
@@ -362,25 +372,19 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
 
     private void captureHall(ClientGameTestContext context, Viewport viewport) {
         openHall(context);
+        assertHallView(context, HallView.GRID);
         shot(context, "hall-all", viewport);
         click(context, "hall.filter.available");
-        assertButton(context, "Mending", true);
+        assertButton(context, MENDING_NAME, true);
         assertButton(context, "Efficiency V", false);
         shot(context, "hall-available", viewport);
         click(context, "hall.filter.missing");
         assertButton(context, "Efficiency V", true);
-        assertButton(context, "Mending", false);
+        assertButton(context, MENDING_NAME, false);
         shot(context, "hall-missing", viewport);
 
         click(context, "hall.filter.available");
-        clickLabel(context, GuiDraw.message("hall.want_trade", "Bookshelf").getString());
-        if (ProfessionPicks.load(PickFiles.configFile()).picks(LIBRARIAN).size() != 4) {
-            throw new AssertionError("Hall tile marker did not save its want");
-        }
-        clickLabel(context, GuiDraw.message("hall.unwant_trade", "Bookshelf").getString());
-        if (ProfessionPicks.load(PickFiles.configFile()).picks(LIBRARIAN).size() != 3) {
-            throw new AssertionError("Hall tile marker did not clear its want");
-        }
+        assertBookshelfWantedRoundTrip(context);
 
         click(context, "hall.queue");
         shot(context, "hall-queue", viewport);
@@ -390,32 +394,9 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         waitForScreen(context, TradeBrowserScreen.class);
         click(context, "button.back");
         waitForScreen(context, TradeHallScreen.class);
-        List<String> highlighted = List.of(SOURCE, LOCKED[0], LOCKED[1], LOCKED[2]);
-        waitFor(context, "all Hall outline fixtures to be loaded",
-                client -> highlighted.stream().allMatch(name -> named(client, name) != null));
-        clickLabel(context, "Mending");
-        context.runOnClient(client -> {
-            Villager cheapest = named(client, LOCKED[0]);
-            Villager mostExpensive = named(client, LOCKED[2]);
-            for (String name : highlighted) {
-                Villager villager = named(client, name);
-                if (villager == null || !client.shouldEntityAppearGlowing(villager)) {
-                    throw new AssertionError("Missing Hall outline for " + name);
-                }
-            }
-            if (cheapest.getTeamColor() != (UiTheme.GREEN & 0xFFFFFF)
-                    || mostExpensive.getTeamColor() != (UiTheme.RED & 0xFFFFFF)) {
-                throw new AssertionError("Hall outlines were not ranked by price");
-            }
-        });
-        shot(context, "hall-selected", viewport);
-        clickLabel(context, "Mending");
-        context.runOnClient(client -> {
-            if (client.shouldEntityAppearGlowing(named(client, LOCKED[0]))) {
-                throw new AssertionError("Clicking the selected tile did not clear its outlines");
-            }
-        });
-        clickLabel(context, "Mending");
+        Map<String, Integer> gridHighlights = captureGridSelection(context, viewport);
+        captureHallSearchAndList(context, viewport, gridHighlights);
+        clickLabel(context, MENDING_NAME);
         click(context, "hall.view_world");
         waitForScreen(context, null);
         shot(context, "hall-highlight-world", viewport);
@@ -424,6 +405,77 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             Villager villager = named(client, LOCKED[0]);
             return McBridge.currentScreen(client) == null && villager != null && !client.shouldEntityAppearGlowing(villager);
         });
+    }
+
+    private Map<String, Integer> captureGridSelection(ClientGameTestContext context, Viewport viewport) {
+        Map<String, Integer> expected = Map.of(LOCKED[0], UiTheme.GREEN & 0xFFFFFF, LOCKED[1], UiTheme.YELLOW & 0xFFFFFF,
+                SOURCE, UiTheme.AMBER & 0xFFFFFF, LOCKED[2], UiTheme.RED & 0xFFFFFF);
+        waitFor(context, "all Hall outline fixtures to be loaded",
+                client -> expected.keySet().stream().allMatch(name -> named(client, name) != null));
+        clickLabel(context, MENDING_NAME);
+        Map<String, Integer> highlights = hallHighlights(context);
+        if (!highlights.equals(expected)) {
+            throw new AssertionError("Expected price-ranked Hall outlines " + expected + ", saw " + highlights);
+        }
+        shot(context, "hall-selected", viewport);
+        clickLabel(context, MENDING_NAME);
+        assertNoHallHighlights(context);
+        return highlights;
+    }
+
+    private void captureHallSearchAndList(ClientGameTestContext context, Viewport viewport, Map<String, Integer> gridHighlights) {
+        click(context, "hall.filter.all");
+        TradeHallScreen hall = focusHallSearch(context);
+        context.getInput().pressKey(InputConstants.KEY_E);
+        context.getInput().typeChar('e');
+        assertHallSearch(context, hall, "e", true);
+        context.getInput().pressKey(InputConstants.KEY_T);
+        context.getInput().typeChar('t');
+        assertHallSearch(context, hall, "et", true);
+
+        replaceHallQuery(context, "et", "mend");
+        context.getInput().pressKey(InputConstants.KEY_RETURN);
+        assertHallSearch(context, hall, "mend", true);
+        assertHallTrades(context, List.of(MENDING_NAME));
+        shot(context, "hall-search", viewport);
+        click(context, "hall.filter.missing");
+        assertHallTrades(context, List.of());
+        click(context, "hall.filter.all");
+        assertHallTrades(context, List.of(MENDING_NAME));
+
+        focusHallSearch(context);
+        String noMatch = "no such enchantment";
+        replaceHallQuery(context, "mend", noMatch);
+        assertHallSearch(context, hall, noMatch, true);
+        assertHallTrades(context, List.of());
+        shot(context, "hall-search-empty", viewport);
+        context.getInput().pressKey(InputConstants.KEY_ESCAPE);
+        assertHallSearch(context, hall, noMatch, false);
+        context.getInput().pressKey(InputConstants.KEY_ESCAPE);
+        waitForScreen(context, MerchantScreen.class);
+        openHall(context);
+
+        click(context, "hall.list_view");
+        assertHallView(context, HallView.LIST);
+        assertSavedHallView(HallView.LIST);
+        shot(context, "hall-list", viewport);
+        assertListScroll(context);
+        assertBookshelfWantedRoundTrip(context);
+        clickLabel(context, MENDING_NAME);
+        Map<String, Integer> listHighlights = hallHighlights(context);
+        if (!listHighlights.equals(gridHighlights)) {
+            throw new AssertionError("List selection showed " + listHighlights + ", grid selection showed " + gridHighlights);
+        }
+        shot(context, "hall-list-selected", viewport);
+        clickLabel(context, MENDING_NAME);
+        assertNoHallHighlights(context);
+
+        click(context, "button.back");
+        waitForScreen(context, MerchantScreen.class);
+        openHall(context);
+        assertHallView(context, HallView.LIST);
+        click(context, "hall.grid_view");
+        assertHallView(context, HallView.GRID);
     }
 
     private void captureCompact(ClientGameTestContext context, TestSingleplayerContext world, int y,
@@ -442,10 +494,17 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             }
         });
         openPanel(context);
+        click(context, "button.browse");
+        waitForScreen(context, TradeBrowserScreen.class);
+        clickLabel(context, "Librarian");
+        assertBrowserItemLayout(context);
+        click(context, "button.back");
+        click(context, "button.back");
+        waitForScreen(context, MerchantScreen.class);
         openHall(context);
         shot(context, "hall-all", viewport);
-        clickLabel(context, "Mending");
-        shot(context, "hall-selected", viewport);
+        Map<String, Integer> gridHighlights = captureGridSelection(context, viewport);
+        captureHallSearchAndList(context, viewport, gridHighlights);
         click(context, "hall.queue");
         shot(context, "hall-queue", viewport);
         click(context, "button.back");
@@ -456,6 +515,165 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     private void openHall(ClientGameTestContext context) {
         clickLabel(context, context.computeOnClient(client -> GuiDraw.message("button.hall", TradeHall.size()).getString()));
         waitForScreen(context, TradeHallScreen.class);
+    }
+
+    private static TradeHallScreen focusHallSearch(ClientGameTestContext context) {
+        return context.computeOnClient(client -> {
+            TradeHallScreen hall = (TradeHallScreen) McBridge.currentScreen(client);
+            clickWidget(hall, hallSearch(hall));
+            return hall;
+        });
+    }
+
+    private static SearchBox hallSearch(TradeHallScreen hall) {
+        return hall.children().stream().filter(SearchBox.class::isInstance).map(SearchBox.class::cast)
+                .findFirst().orElseThrow(() -> new AssertionError("Hall Trades had no search box"));
+    }
+
+    private static void replaceHallQuery(ClientGameTestContext context, String previous, String query) {
+        var input = context.getInput();
+        input.pressKey(InputConstants.KEY_END);
+        for (int i = 0; i < previous.length(); i++) {
+            input.pressKey(InputConstants.KEY_BACKSPACE);
+        }
+        input.typeChars(query);
+    }
+
+    private static void assertHallSearch(ClientGameTestContext context, TradeHallScreen expected, String query, boolean focused) {
+        context.runOnClient(client -> {
+            Screen screen = McBridge.currentScreen(client);
+            if (screen != expected) {
+                throw new AssertionError("Typing in Hall search opened " + screen + " instead of staying in the Hall");
+            }
+            SearchBox search = hallSearch(expected);
+            if (!search.getValue().equals(query) || search.isFocused() != focused) {
+                throw new AssertionError("Expected Hall query " + query + " with focused=" + focused
+                        + ", saw " + search.getValue() + " with focused=" + search.isFocused());
+            }
+        });
+    }
+
+    private static void assertHallTrades(ClientGameTestContext context, List<String> expected) {
+        context.runOnClient(client -> {
+            Screen hall = McBridge.currentScreen(client);
+            List<String> visible = hall.children().stream().filter(Button.class::isInstance).map(Button.class::cast)
+                    .filter(button -> button.visible).map(button -> button.getMessage().getString()).toList();
+            // Both layouts pair each visible trade button with its wanted marker.
+            List<String> trades = visible.stream().filter(label ->
+                    visible.contains(GuiDraw.message("hall.want_trade", label).getString())
+                            || visible.contains(GuiDraw.message("hall.unwant_trade", label).getString())).toList();
+            if (!trades.equals(expected)) {
+                throw new AssertionError("Expected Hall trade results " + expected + ", saw " + trades);
+            }
+        });
+    }
+
+    private static void assertHallView(ClientGameTestContext context, HallView expected) {
+        context.runOnClient(client -> {
+            Button mending = findButton(McBridge.currentScreen(client), MENDING_NAME);
+            if (mending == null || (mending.getWidth() > mending.getHeight()) != (expected == HallView.LIST)) {
+                throw new AssertionError("Mending did not have a " + expected + " button in the Hall");
+            }
+        });
+    }
+
+    private static Path automatorConfigFile() {
+        return PickFiles.configFile().resolveSibling("villager_reroller.json");
+    }
+
+    private static void assertSavedHallView(HallView expected) {
+        try (var reader = Files.newBufferedReader(automatorConfigFile())) {
+            HallView saved = AutomatorConfig.parse(reader).hallView();
+            if (saved != expected) {
+                throw new AssertionError("Expected saved Hall view " + expected + ", saw " + saved);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void assertListScroll(ClientGameTestContext context) {
+        context.runOnClient(client -> {
+            Screen hall = McBridge.currentScreen(client);
+            Button first = findButton(hall, "Efficiency V");
+            if (first == null) {
+                throw new AssertionError("Expected Efficiency V at the top of the Hall list");
+            }
+            var bounds = GuiDraw.bounds(first);
+            if (!hall.mouseScrolled(bounds.x() + GAP, bounds.y() + GAP, 0, -1)
+                    || findButton(hall, "Efficiency V") != null) {
+                throw new AssertionError("Scrolling down did not move the first Hall row out of view");
+            }
+            if (!hall.mouseScrolled(bounds.x() + GAP, bounds.y() + GAP, 0, 1)
+                    || findButton(hall, "Efficiency V") == null) {
+                throw new AssertionError("Scrolling up did not restore the first Hall row");
+            }
+
+            Button mark = findButton(hall, GuiDraw.message("hall.unwant_trade", "Efficiency V").getString());
+            if (mark == null) {
+                throw new AssertionError("The first Hall row had no wanted marker");
+            }
+            double thumbX = GuiDraw.bounds(mark).right() + 3;
+            double thumbY = bounds.y() + GAP;
+            MouseButtonInfo left = new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0);
+            var grab = new MouseButtonEvent(thumbX, thumbY, left);
+            var bottom = new MouseButtonEvent(thumbX, hall.height - 1, left);
+            if (!hall.mouseClicked(grab, false) || !hall.mouseDragged(bottom, 0, bottom.y() - grab.y())
+                    || findButton(hall, "Efficiency V") != null) {
+                throw new AssertionError("Dragging the Hall scrollbar down did not move the list");
+            }
+            hall.mouseDragged(grab, 0, grab.y() - bottom.y());
+            hall.mouseReleased(grab);
+            if (findButton(hall, "Efficiency V") == null) {
+                throw new AssertionError("Dragging the Hall scrollbar back did not restore the first row");
+            }
+        });
+    }
+
+    private static void assertBookshelfWantedRoundTrip(ClientGameTestContext context) {
+        clickLabel(context, GuiDraw.message("hall.want_trade", "Bookshelf").getString());
+        if (ProfessionPicks.load(PickFiles.configFile()).picks(LIBRARIAN).size() != 4) {
+            throw new AssertionError("Hall marker did not save the Bookshelf target");
+        }
+        clickLabel(context, GuiDraw.message("hall.unwant_trade", "Bookshelf").getString());
+        if (ProfessionPicks.load(PickFiles.configFile()).picks(LIBRARIAN).size() != 3) {
+            throw new AssertionError("Hall marker did not clear the Bookshelf target");
+        }
+    }
+
+    private static Map<String, Integer> hallHighlights(ClientGameTestContext context) {
+        return context.computeOnClient(client -> {
+            Map<String, Integer> colors = new LinkedHashMap<>();
+            for (String name : List.of(LOCKED[0], LOCKED[1], SOURCE, LOCKED[2])) {
+                Villager villager = named(client, name);
+                if (villager != null && client.shouldEntityAppearGlowing(villager)) {
+                    colors.put(name, villager.getTeamColor());
+                }
+            }
+            return colors;
+        });
+    }
+
+    private static void assertNoHallHighlights(ClientGameTestContext context) {
+        Map<String, Integer> highlights = hallHighlights(context);
+        if (!highlights.isEmpty()) {
+            throw new AssertionError("Clicking the already-selected trade left outlines " + highlights);
+        }
+    }
+
+    private static void assertBrowserItemLayout(ClientGameTestContext context) {
+        context.runOnClient(client -> {
+            Screen browser = McBridge.currentScreen(client);
+            Button book = findButton(browser, "Enchanted Book");
+            if (book == null) {
+                throw new AssertionError("The book slot was missing from the browser item grid");
+            }
+            var bounds = GuiDraw.bounds(book);
+            if (bounds.width() < 24 || bounds.width() > 28 || bounds.width() != bounds.height()
+                    || bounds.x() < 0 || bounds.right() > browser.width || bounds.y() < 0 || bounds.bottom() > browser.height) {
+                throw new AssertionError("Unexpected browser item slot " + bounds + " at " + currentViewport(client));
+            }
+        });
     }
 
     private static void assertMerchantLayout(ClientGameTestContext context, boolean compact) {
@@ -507,14 +725,18 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             if (button == null || !button.active) {
                 throw new AssertionError("Could not click " + label + " in " + screen);
             }
-            var bounds = GuiDraw.bounds(button);
-            var click = new MouseButtonEvent(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0,
-                    new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
-            if (!screen.mouseClicked(click, false)) {
-                throw new AssertionError("Screen did not handle " + label);
-            }
-            screen.mouseReleased(click);
+            clickWidget(screen, button);
         });
+    }
+
+    private static void clickWidget(Screen screen, AbstractWidget widget) {
+        var bounds = GuiDraw.bounds(widget);
+        var click = new MouseButtonEvent(bounds.x() + bounds.width() / 2.0, bounds.y() + bounds.height() / 2.0,
+                new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0));
+        if (!screen.mouseClicked(click, false)) {
+            throw new AssertionError("Screen did not handle " + widget.getMessage().getString());
+        }
+        screen.mouseReleased(click);
     }
 
     private static Button findButton(Screen screen, String label) {
@@ -552,7 +774,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     }
 
     private static void shot(ClientGameTestContext context, String name, Viewport viewport) {
-        context.waitTicks(3);
+        context.waitTicks(GameTestSupport.scaled(5));
         context.runOnClient(client -> {
             if (!viewport.matches(client)) {
                 throw new AssertionError("Expected " + viewport + " for " + name + ", saw " + currentViewport(client));
@@ -652,6 +874,6 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private record ConfigState(boolean enabled, boolean discovery, int radius) {
+    private record ConfigState(boolean enabled, boolean discovery, int radius, HallView view) {
     }
 }

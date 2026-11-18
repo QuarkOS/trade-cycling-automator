@@ -18,6 +18,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 
 public final class AutomatorConfig {
     public static final int NORMAL_TICKS = 8;
@@ -42,6 +43,7 @@ public final class AutomatorConfig {
     private boolean allowBareHand = true;
     private boolean autoHallDiscovery = true;
     private int hallDiscoveryRadius = DEFAULT_HALL_DISCOVERY_RADIUS;
+    private HallView hallView = HallView.GRID;
     private boolean serverFriendly = false;
     private int ticksBetweenCycles = NORMAL_TICKS;
     private int timeoutMultiplier = NORMAL_TIMEOUT;
@@ -103,6 +105,10 @@ public final class AutomatorConfig {
         if (radius != null) {
             config.setHallDiscoveryRadius(radius);
         }
+        JsonElement hallView = object.get("hallView");
+        if (hallView != null && hallView.isJsonPrimitive() && HallView.LIST.name().equals(hallView.getAsString())) {
+            config.hallView = HallView.LIST;
+        }
         if (bool(object, "serverFriendly") != null) {
             config.serverFriendly = bool(object, "serverFriendly");
         }
@@ -128,6 +134,7 @@ public final class AutomatorConfig {
         object.addProperty("allowBareHand", allowBareHand);
         object.addProperty("autoHallDiscovery", autoHallDiscovery);
         object.addProperty("hallDiscoveryRadius", hallDiscoveryRadius);
+        object.addProperty("hallView", hallView.name());
         object.addProperty("serverFriendly", serverFriendly);
         object.addProperty("ticksBetweenCycles", ticksBetweenCycles);
         object.addProperty("timeoutMultiplier", timeoutMultiplier);
@@ -258,6 +265,16 @@ public final class AutomatorConfig {
     public void setHallDiscoveryRadius(int radius) {
         hallDiscoveryRadius = Math.max(0, Math.min(MAX_HALL_DISCOVERY_RADIUS, radius));
     }
+
+    public HallView hallView() {
+        return hallView;
+    }
+
+    public void setHallView(HallView view) {
+        hallView = Objects.requireNonNull(view);
+    }
+
+    public enum HallView { GRID, LIST }
 
     public boolean serverFriendly() {
         return serverFriendly;

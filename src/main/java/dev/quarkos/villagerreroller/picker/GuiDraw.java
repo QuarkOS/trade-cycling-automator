@@ -155,19 +155,26 @@ public final class GuiDraw {
     public static void empty(Canvas canvas, Rect box, Component title, Component hint, int mouseX, int mouseY) {
         Font font = canvas.font();
         int width = Math.max(0, box.width() - 2 * GAP);
-        String heading = ellipsis(font, title.getString(), width);
+        List<String> heading = wrap(font, title.getString(), width);
         List<String> detail = wrap(font, hint.getString(), width);
-        int capacity = Math.max(0, box.height() / LINE_HEIGHT - 1);
-        int shown = Math.min(detail.size(), capacity);
-        int top = box.y() + (box.height() - (shown + 1) * LINE_HEIGHT) / 2;
-        if (box.height() >= LINE_HEIGHT) {
-            canvas.text(heading, box.x() + (box.width() - font.width(heading)) / 2, top, TEXT);
+        int capacity = box.height() / LINE_HEIGHT;
+        int titleLines = Math.min(heading.size(), Math.min(2, capacity));
+        int hintLines = Math.min(detail.size(), capacity - titleLines);
+        int y = box.y() + (box.height() - (titleLines + hintLines) * LINE_HEIGHT) / 2;
+        for (int i = 0; i < titleLines; i++) {
+            String line = heading.get(i);
+            if (i == titleLines - 1 && titleLines < heading.size()) {
+                line = ellipsis(font, line + "…", width);
+            }
+            canvas.text(line, box.x() + (box.width() - font.width(line)) / 2, y, TEXT);
+            y += LINE_HEIGHT;
         }
-        for (int i = 0; i < shown; i++) {
+        for (int i = 0; i < hintLines; i++) {
             String line = detail.get(i);
-            canvas.text(line, box.x() + (box.width() - font.width(line)) / 2, top + (i + 1) * LINE_HEIGHT, MUTED);
+            canvas.text(line, box.x() + (box.width() - font.width(line)) / 2, y, MUTED);
+            y += LINE_HEIGHT;
         }
-        if (box.contains(mouseX, mouseY) && (!heading.equals(title.getString()) || shown < detail.size())) {
+        if (box.contains(mouseX, mouseY) && (titleLines < heading.size() || hintLines < detail.size())) {
             canvas.tip(List.of(title, hint), mouseX, mouseY);
         }
     }

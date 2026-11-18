@@ -8,7 +8,6 @@ import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller.StopReason;
 import dev.quarkos.villagerreroller.picker.MerchantLayout.Panel;
 import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
-import dev.quarkos.villagerreroller.text.ScrollingNames;
 import dev.quarkos.villagerreroller.text.TradeNameLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -35,11 +34,6 @@ import net.minecraft.network.chat.Component;
 //? if <1.20.2 {
 /*import net.minecraft.resources.Identifier;
 *///?}
-//? if <1.21.11 {
-/*import net.minecraft.Util;
-*///?} else {
-import net.minecraft.util.Util;
-//?}
 import net.minecraft.world.entity.npc.villager.Villager;
 
 import java.util.ArrayList;
@@ -733,21 +727,10 @@ public final class TradePickerUi {
             Price price = price(font, entry, selected);
             int nameLeft = TradeNameLayout.nameLeft(row.x());
             int nameRight = TradeNameLayout.nameRight(price.x());
-            int nameWidth = nameRight - nameLeft;
             int nameColor = entry.curse ? UiStatus.ERROR.color() : TEXT;
+            GuiDraw.label(canvas, Component.literal(entry.name),
+                    new Rect(nameLeft, row.y(), nameRight - nameLeft, row.height()), nameColor, mouseX, mouseY);
             int textY = row.y() + (TRADE_ROW_HEIGHT - LINE_HEIGHT) / 2;
-            int textWidth = font.width(entry.name);
-            if (textWidth > nameWidth) {
-                int offset = ScrollingNames.offset(textWidth, nameWidth, Util.getMillis());
-                canvas.scissor(nameLeft, row.y(), nameRight, row.bottom());
-                canvas.text(entry.name, nameLeft - offset, textY, nameColor);
-                canvas.unscissor();
-                if (hovered && mouseX >= nameLeft && mouseX < nameRight) {
-                    canvas.tip(List.of(Component.literal(entry.name)), mouseX, mouseY);
-                }
-            } else {
-                canvas.text(entry.name, nameLeft, textY, nameColor);
-            }
             int textX = price.x();
             if (price.editable()) {
                 GuiDraw.frame(canvas, new Rect(price.x(), row.y() + 3, row.right() - 2 - price.x(),

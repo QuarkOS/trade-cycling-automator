@@ -89,8 +89,8 @@ final class HallTrades {
     record Key(String profession, String tradeId) {
     }
 
-    record Tile(Key key, Component name, ItemStack icon, String badge, int wantedMax, int defaultMax,
-                int knownCount, Map<String, Integer> localPrices) {
+    record Tile(Key key, Component name, Component profession, ItemStack icon, String badge, int wantedMax,
+                int defaultMax, int knownCount, int bestPrice, Map<String, Integer> localPrices) {
         boolean wanted() {
             return wantedMax > 0;
         }
@@ -129,15 +129,21 @@ final class HallTrades {
             }
             int level = sample != null && sample.enchantmentLevel() > 0
                     ? sample.enchantmentLevel() : TradeIcons.bookLevel(key.tradeId());
+            String badge = TradeIcons.levelBadge(level);
+            if (badge != null && !name.endsWith(" " + badge)
+                    && !name.endsWith(" " + Component.translatable("enchantment.level." + level).getString())) {
+                name += " " + badge;
+            }
             int defaultMax = entry != null && entry.paysEmeralds ? entry.emeraldMax : TradeSession.ANY_PRICE;
+            int bestPrice = offers.values().stream().mapToInt(KnownOffer::price).filter(price -> price > 0).min().orElse(0);
             Map<String, Integer> prices = new HashMap<>();
             offers.forEach((uuid, offer) -> {
                 if (dimension.equals(offer.dimension()) && offer.price() > 0) {
                     prices.put(uuid, offer.price());
                 }
             });
-            return new Tile(key, Component.literal(name), icon, TradeIcons.levelBadge(level), wantedMax, defaultMax,
-                    offers.size(), Map.copyOf(prices));
+            return new Tile(key, Component.literal(name), TradeIcons.professionName(key.profession()), icon, badge,
+                    wantedMax, defaultMax, offers.size(), bestPrice, Map.copyOf(prices));
         }
     }
 }

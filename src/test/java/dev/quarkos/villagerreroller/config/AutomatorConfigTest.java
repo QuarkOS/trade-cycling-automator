@@ -26,6 +26,7 @@ class AutomatorConfigTest {
         assertTrue(config.allowBareHand());
         assertTrue(config.autoHallDiscovery());
         assertEquals(16, config.hallDiscoveryRadius());
+        assertEquals(AutomatorConfig.HallView.GRID, config.hallView());
         assertFalse(config.serverFriendly());
         assertEquals(AutomatorConfig.NORMAL_TICKS, config.ticksBetweenCycles());
         assertEquals(AutomatorConfig.NORMAL_TIMEOUT, config.timeoutMultiplier());
@@ -86,5 +87,18 @@ class AutomatorConfigTest {
         assertEquals(0, config.hallDiscoveryRadius());
         config.setHallDiscoveryRadius(65);
         assertEquals(64, config.hallDiscoveryRadius());
+    }
+
+    @Test
+    void hallViewRoundTripsAndUnknownValuesUseGrid() {
+        AutomatorConfig config = AutomatorConfig.parse(new StringReader("""
+                {"hallView": "unknown"}
+                """));
+        assertEquals(AutomatorConfig.HallView.GRID, config.hallView());
+
+        config.setHallView(AutomatorConfig.HallView.LIST);
+        assertEquals("LIST", config.toJson().get("hallView").getAsString());
+        AutomatorConfig again = AutomatorConfig.parse(new StringReader(config.toJson().toString()));
+        assertEquals(AutomatorConfig.HallView.LIST, again.hallView());
     }
 }
