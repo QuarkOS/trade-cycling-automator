@@ -11,6 +11,7 @@ import dev.quarkos.villagerreroller.config.VillagerRoster;
 import dev.quarkos.villagerreroller.config.VillagerRosterFiles;
 import dev.quarkos.villagerreroller.picker.GuiDraw;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.MerchantLayout;
 import dev.quarkos.villagerreroller.picker.MyVillagersScreen;
 import dev.quarkos.villagerreroller.picker.SearchBox;
 import dev.quarkos.villagerreroller.picker.TradeBrowserScreen;
@@ -35,6 +36,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -50,8 +52,13 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
+
+import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
 
 @SuppressWarnings("UnstableApiUsage")
 public final class UiV3ClientGameTest implements FabricClientGameTest {
@@ -62,6 +69,9 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     private static final String SOURCE = "Match";
     private static final String CANDIDATE = "Nearby novice";
     private static final String[] LOCKED = {"Alder", "Birch", "Cedar"};
+    private static final int SYNC_TICKS = 20 * 20;
+
+    private final Map<String, MenuState> observedMenus = new LinkedHashMap<>();
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -70,6 +80,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         byte[] previousPicks = read(picksFile);
         byte[] previousRoster = read(rosterFile);
         ConfigState previous = context.computeOnClient(client -> {
+            observedMenus.clear();
             AutomatorConfig config = AutomatorConfig.get();
             ConfigState saved = new ConfigState(config.enabled(), config.autoHallDiscovery(), config.hallDiscoveryRadius());
             config.setEnabled(true);
@@ -91,9 +102,12 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                             .findFirst()
                             .ifPresent(settings::setWorldType);
                 }).create()) {
-            context.getInput().resizeWindow(1920, 1080);
-            scale(context, 2);
-            GameTestSupport.waitForChunks(world);
+            resize(context, new Viewport(1920, 1080, 2));
+            try {
+                GameTestSupport.waitForChunks(world);
+            } catch (AssertionError timeout) {
+                throw waitFailure(context, "chunks to render", timeout);
+            }
             BlockPos origin = context.computeOnClient(client -> client.player.blockPosition().offset(4, 0, 6));
             Fixture source = new Fixture(SOURCE, origin.getX() + 0.5, origin.getZ() + 2.5, 14, false);
             List<Fixture> librarians = List.of(
@@ -102,20 +116,30 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                     new Fixture(LOCKED[2], origin.getX() - 1.5, origin.getZ() + 6.3, 23, true));
             setup(world, origin, source, librarians);
             setupPicks(context);
-            for (Fixture librarian : librarians) {
+            for (int i = 0; i < librarians.size(); i++) {
+                Fixture librarian = librarians.get(i);
                 openMerchant(context, world, origin.getY(), librarian);
-                openPanel(context);
+                if (i == 0) {
+                    openPanel(context);
+                } else {
+                    waitFor(context, "the panel to reopen automatically for " + librarian.name(),
+                            client -> TradePickerUi.panelShown());
+                }
+                waitFor(context, librarian.name() + " to be saved with all offers", client -> recorded(client, librarian));
                 closeMerchant(context);
             }
-            context.waitFor(client -> VillagerRosterClient.count(client) == librarians.size(), GameTestSupport.scaled(80));
+            waitFor(context, librarians.size() + " locked villagers in the roster",
+                    client -> VillagerRosterClient.count(client) == librarians.size());
 
             openMerchant(context, world, origin.getY(), source);
             openPanel(context);
-            context.runOnClient(client -> {
+            waitFor(context, "nearby novice and its job site in reach", client -> {
                 Villager candidate = named(client, CANDIDATE);
-                if (candidate == null || TradeHall.blocker(client, candidate.getId()) != null) {
-                    throw new AssertionError("Nearby novice was not ready for Hall discovery");
-                }
+                return candidate != null && TradeHall.blocker(client, candidate.getId()) == null;
+            });
+            waitFor(context, "the match's saved target and enabled Start button", client -> {
+                Button start = findButton(McBridge.currentScreen(client), GuiDraw.message("button.start").getString());
+                return TradeSession.selected(MENDING) && start != null && start.active;
             });
             // The first menu already has the target. The normal Start action reaches
             // the success callback without relying on a random replacement roll.
@@ -135,17 +159,22 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             closeMerchant(context);
 
             for (int scale : new int[]{2, 4}) {
-                scale(context, scale);
+                Viewport viewport = new Viewport(1920, 1080, scale);
+                resize(context, viewport);
                 openMerchant(context, world, origin.getY(), source);
                 openPanel(context);
-                captureBrowser(context, scale);
-                captureHall(context, scale);
+                assertMerchantLayout(context, false);
+                captureBrowser(context, viewport);
+                captureHall(context, viewport);
                 context.setScreen(() -> new MyVillagersScreen(null));
-                shot(context, "my-villagers", scale);
+                shot(context, "my-villagers", viewport);
                 context.setScreen(() -> new ForgeConfigScreen(null));
-                shot(context, "settings", scale);
+                shot(context, "settings", viewport);
                 context.runOnClient(client -> McBridge.setScreen(client, null));
-                context.waitForScreen(null);
+                waitForScreen(context, null);
+            }
+            for (int height : new int[]{960, 720}) {
+                captureCompact(context, world, origin.getY(), source, new Viewport(1280, height, 4));
             }
         } finally {
             context.runOnClient(client -> {
@@ -164,6 +193,14 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
 
     private static boolean queued(Villager villager) {
         return villager != null && TradeHall.slots().stream().anyMatch(slot -> slot.villagerId() == villager.getId());
+    }
+
+    private static boolean recorded(Minecraft client, Fixture fixture) {
+        Villager villager = named(client, fixture.name());
+        String worldKey = VillagerRosterClient.currentWorldKey(client);
+        return villager != null && VillagerRosterClient.roster().entries(worldKey).stream().anyMatch(entry ->
+                entry.uuid().equals(villager.getUUID().toString()) && entry.level() == fixture.level()
+                        && entry.trades().size() == fixture.offerCount());
     }
 
     private static void setupPicks(ClientGameTestContext context) {
@@ -194,25 +231,26 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         for (Fixture fixture : librarians) {
             summon(world, y, fixture);
         }
+        List<Fixture> fixtures = new ArrayList<>(librarians);
+        fixtures.add(source);
         world.getServer().runOnServer(server -> {
             var level = server.overworld();
             var enchantment = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.MENDING);
-            for (Villager villager : level.getEntitiesOfClass(Villager.class, new AABB(origin).inflate(16),
-                    entity -> entity.getCustomName() != null)) {
-                String name = villager.getCustomName().getString();
-                Fixture fixture = SOURCE.equals(name) ? source : librarians.stream()
-                        .filter(known -> known.name().equals(name)).findFirst().orElse(null);
-                if (fixture == null) {
-                    continue;
-                }
+            var villagers = level.getEntitiesOfClass(Villager.class, new AABB(origin).inflate(16),
+                    entity -> entity.getCustomName() != null);
+            for (Fixture fixture : fixtures) {
+                Villager villager = villagers.stream()
+                        .filter(entity -> fixture.name().equals(entity.getCustomName().getString()))
+                        .findFirst().orElseThrow(() -> new AssertionError("Missing server fixture " + fixture.name()));
+                villager.setVillagerData(villager.getVillagerData().withLevel(fixture.level()));
+                villager.setVillagerXp(fixture.xp());
                 ItemStack book = EnchantmentHelper.createBook(new EnchantmentInstance(enchantment, 1));
                 MerchantOffers offers = new MerchantOffers();
                 offers.add(new MerchantOffer(new ItemCost(Items.EMERALD, fixture.price()), book, 12, 1, 0F));
                 if (fixture.locked()) {
-                    villager.setVillagerXp(25);
-                    if (LOCKED[0].equals(name)) {
+                    if (LOCKED[0].equals(fixture.name())) {
                         offers.add(new MerchantOffer(new ItemCost(Items.EMERALD, 9), new ItemStack(Items.BOOKSHELF), 12, 1, 0F));
-                    } else if (LOCKED[1].equals(name)) {
+                    } else if (LOCKED[1].equals(fixture.name())) {
                         offers.add(new MerchantOffer(new ItemCost(Items.PAPER, 24), new ItemStack(Items.EMERALD), 12, 1, 0F));
                     } else {
                         offers.add(new MerchantOffer(new ItemCost(Items.EMERALD), new ItemStack(Items.GLASS, 4), 12, 1, 0F));
@@ -224,36 +262,47 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     }
 
     private static void summon(TestSingleplayerContext world, int y, Fixture fixture) {
-        int level = fixture.locked() ? 2 : 1;
         world.getServer().runCommand("summon minecraft:villager " + fixture.x() + " " + y + " " + fixture.z()
                 + " {NoAI:1b,PersistenceRequired:1b,CustomName:{text:\"" + fixture.name()
-                + "\"},VillagerData:{profession:\"minecraft:librarian\",level:" + level + ",type:\"minecraft:plains\"}}");
+                + "\"},VillagerData:{profession:\"minecraft:librarian\",level:" + fixture.level() + ",type:\"minecraft:plains\"}}");
     }
 
-    private static void openMerchant(ClientGameTestContext context, TestSingleplayerContext world, int y, Fixture fixture) {
-        world.getServer().runCommand("tp @p " + fixture.x() + " " + y + " " + (fixture.z() - 2) + " 0 0");
-        context.waitFor(client -> {
-            Villager villager = named(client, fixture.name());
-            return villager != null && McBridge.withinEntity(client.player, villager);
-        }, GameTestSupport.scaled(80));
-        for (int attempt = 0; attempt < GameTestSupport.scaled(12); attempt++) {
-            boolean open = context.computeOnClient(client -> {
-                if (McBridge.currentScreen(client) instanceof MerchantScreen merchant) {
-                    return !merchant.getMenu().getOffers().isEmpty();
-                }
-                Villager villager = named(client, fixture.name());
-                if (villager != null && McBridge.withinEntity(client.player, villager)) {
-                    LibrarianTracker.remember(villager);
-                    McBridge.interact(client.gameMode, client.player, villager, InteractionHand.MAIN_HAND);
-                }
-                return false;
-            });
-            if (open) {
-                return;
-            }
-            context.waitTicks(4);
+    private void openMerchant(ClientGameTestContext context, TestSingleplayerContext world, int y, Fixture fixture) {
+        try {
+            GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(SYNC_TICKS),
+                    server -> server.getPlayerList().getPlayers().stream()
+                            .anyMatch(player -> player.containerMenu == player.inventoryMenu),
+                    "Waiting for the player's inventory menu");
+        } catch (AssertionError timeout) {
+            throw waitFailure(context, "server to close the prior merchant before opening " + fixture.name(), timeout);
         }
-        throw new AssertionError("Could not open offers for " + fixture.name());
+        double z = fixture.z() - 2;
+        world.getServer().runCommand("tp @p " + fixture.x() + " " + y + " " + z + " 0 0");
+        waitFor(context, "teleport near " + fixture.name(), client -> {
+            Villager villager = named(client, fixture.name());
+            return villager != null && client.player != null && client.gameMode != null
+                    && client.player.distanceToSqr(fixture.x(), y, z) < 0.25
+                    && McBridge.withinEntity(client.player, villager);
+        });
+        context.runOnClient(client -> {
+            Villager villager = named(client, fixture.name());
+            LibrarianTracker.remember(villager);
+            McBridge.interact(client.gameMode, client.player, villager, InteractionHand.MAIN_HAND);
+        });
+        waitFor(context, "synced offers for " + fixture.name() + " (xp=" + fixture.xp()
+                + ", level=" + fixture.level() + ", offers=" + fixture.offerCount() + ")", client -> {
+            if (!(McBridge.currentScreen(client) instanceof MerchantScreen merchant)
+                    || !fixture.name().equals(merchant.getTitle().getString())) {
+                return false;
+            }
+            MenuState state = MenuState.read(merchant.getMenu());
+            observedMenus.put(fixture.name(), state);
+            Villager villager = named(client, fixture.name());
+            return villager != null && LibrarianTracker.current(client) == villager
+                    && client.player != null && client.player.containerMenu == merchant.getMenu()
+                    && state.xp() == fixture.xp() && state.level() == fixture.level()
+                    && state.offers() == fixture.offerCount() && state.locked() == fixture.locked();
+        });
     }
 
     private static void openPanel(ClientGameTestContext context) {
@@ -265,27 +314,27 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private static void closeMerchant(ClientGameTestContext context) {
+    private void closeMerchant(ClientGameTestContext context) {
         context.runOnClient(client -> client.player.closeContainer());
-        context.waitForScreen(null);
+        waitForScreen(context, null);
     }
 
-    private static void captureBrowser(ClientGameTestContext context, int scale) {
-        shot(context, "trade-panel", scale);
+    private void captureBrowser(ClientGameTestContext context, Viewport viewport) {
+        shot(context, "trade-panel", viewport);
         click(context, "button.browse");
-        context.waitForScreen(TradeBrowserScreen.class);
+        waitForScreen(context, TradeBrowserScreen.class);
         assertButton(context, "Armorer", true);
         assertButton(context, "Weaponsmith", true);
-        shot(context, "browser-job", scale);
+        shot(context, "browser-job", viewport);
         clickLabel(context, "Librarian");
-        shot(context, "browser-item", scale);
+        shot(context, "browser-item", viewport);
         clickLabel(context, "Enchanted Book");
         context.runOnClient(client -> McBridge.currentScreen(client).children().stream()
                 .filter(SearchBox.class::isInstance).map(SearchBox.class::cast).findFirst().orElseThrow().setValue("Unbreaking"));
-        shot(context, "browser-level", scale);
+        shot(context, "browser-level", viewport);
         clickLabel(context, "Unbreaking III");
-        shot(context, "browser-price", scale);
-        if (scale == 2) {
+        shot(context, "browser-price", viewport);
+        if (viewport.guiScale() == 2) {
             context.getInput().holdKey(InputConstants.KEY_LSHIFT);
             try {
                 clickLabel(context, "−");
@@ -300,52 +349,55 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             assertPick(UNBREAKING, TradeSession.ANY_PRICE);
         }
         context.getInput().pressKey(InputConstants.KEY_ESCAPE);
-        assertButton(context, "Unbreaking III", true);
+        waitFor(context, "the browser's level grid after Esc",
+                client -> findButton(McBridge.currentScreen(client), "Unbreaking III") != null);
         for (int i = 0; i < 3; i++) {
             click(context, "button.back");
         }
-        context.waitForScreen(MerchantScreen.class);
+        waitForScreen(context, MerchantScreen.class);
         if (!context.computeOnClient(client -> TradeSession.selected(UNBREAKING))) {
             throw new AssertionError("The quick panel did not load the browser pick");
         }
     }
 
-    private static void captureHall(ClientGameTestContext context, int scale) {
-        clickLabel(context, context.computeOnClient(client -> GuiDraw.message("button.hall", TradeHall.size()).getString()));
-        context.waitForScreen(TradeHallScreen.class);
-        shot(context, "hall-all", scale);
+    private void captureHall(ClientGameTestContext context, Viewport viewport) {
+        openHall(context);
+        shot(context, "hall-all", viewport);
         click(context, "hall.filter.available");
         assertButton(context, "Mending", true);
         assertButton(context, "Efficiency V", false);
-        shot(context, "hall-available", scale);
+        shot(context, "hall-available", viewport);
         click(context, "hall.filter.missing");
         assertButton(context, "Efficiency V", true);
         assertButton(context, "Mending", false);
-        shot(context, "hall-missing", scale);
+        shot(context, "hall-missing", viewport);
 
         click(context, "hall.filter.available");
         clickLabel(context, GuiDraw.message("hall.want_trade", "Bookshelf").getString());
         if (ProfessionPicks.load(PickFiles.configFile()).picks(LIBRARIAN).size() != 4) {
-            throw new AssertionError("Hall tile checkbox did not save its want");
+            throw new AssertionError("Hall tile marker did not save its want");
         }
         clickLabel(context, GuiDraw.message("hall.unwant_trade", "Bookshelf").getString());
         if (ProfessionPicks.load(PickFiles.configFile()).picks(LIBRARIAN).size() != 3) {
-            throw new AssertionError("Hall tile checkbox did not clear its want");
+            throw new AssertionError("Hall tile marker did not clear its want");
         }
 
         click(context, "hall.queue");
-        shot(context, "hall-queue", scale);
+        shot(context, "hall-queue", viewport);
         click(context, "hall.trades");
         click(context, "hall.filter.available");
         click(context, "button.browse");
-        context.waitForScreen(TradeBrowserScreen.class);
+        waitForScreen(context, TradeBrowserScreen.class);
         click(context, "button.back");
-        context.waitForScreen(TradeHallScreen.class);
+        waitForScreen(context, TradeHallScreen.class);
+        List<String> highlighted = List.of(SOURCE, LOCKED[0], LOCKED[1], LOCKED[2]);
+        waitFor(context, "all Hall outline fixtures to be loaded",
+                client -> highlighted.stream().allMatch(name -> named(client, name) != null));
         clickLabel(context, "Mending");
         context.runOnClient(client -> {
             Villager cheapest = named(client, LOCKED[0]);
             Villager mostExpensive = named(client, LOCKED[2]);
-            for (String name : List.of(SOURCE, LOCKED[0], LOCKED[1], LOCKED[2])) {
+            for (String name : highlighted) {
                 Villager villager = named(client, name);
                 if (villager == null || !client.shouldEntityAppearGlowing(villager)) {
                     throw new AssertionError("Missing Hall outline for " + name);
@@ -356,7 +408,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                 throw new AssertionError("Hall outlines were not ranked by price");
             }
         });
-        shot(context, "hall-selected", scale);
+        shot(context, "hall-selected", viewport);
         clickLabel(context, "Mending");
         context.runOnClient(client -> {
             if (client.shouldEntityAppearGlowing(named(client, LOCKED[0]))) {
@@ -365,14 +417,67 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         });
         clickLabel(context, "Mending");
         click(context, "hall.view_world");
-        context.waitForScreen(null);
-        shot(context, "hall-highlight-world", scale);
+        waitForScreen(context, null);
+        shot(context, "hall-highlight-world", viewport);
         context.getInput().pressKey(InputConstants.KEY_ESCAPE);
-        context.waitForScreen(null);
-        context.runOnClient(client -> {
+        waitFor(context, "Esc to clear the Hall outlines", client -> {
             Villager villager = named(client, LOCKED[0]);
-            if (villager == null || client.shouldEntityAppearGlowing(villager)) {
-                throw new AssertionError("Esc did not clear the Hall outlines");
+            return McBridge.currentScreen(client) == null && villager != null && !client.shouldEntityAppearGlowing(villager);
+        });
+    }
+
+    private void captureCompact(ClientGameTestContext context, TestSingleplayerContext world, int y,
+                                Fixture source, Viewport viewport) {
+        resize(context, viewport);
+        openMerchant(context, world, y, source);
+        openPanel(context);
+        assertMerchantLayout(context, true);
+        shot(context, "trade-panel", viewport);
+        click(context, "button.back");
+        context.runOnClient(client -> {
+            MerchantScreen screen = (MerchantScreen) McBridge.currentScreen(client);
+            int left = McBridge.merchantLeft(screen);
+            if (TradePickerUi.panelShown() || left < 0 || left + MerchantLayout.MERCHANT_WIDTH > screen.width) {
+                throw new AssertionError("Back did not restore the merchant at " + viewport);
+            }
+        });
+        openPanel(context);
+        openHall(context);
+        shot(context, "hall-all", viewport);
+        clickLabel(context, "Mending");
+        shot(context, "hall-selected", viewport);
+        click(context, "hall.queue");
+        shot(context, "hall-queue", viewport);
+        click(context, "button.back");
+        waitForScreen(context, MerchantScreen.class);
+        closeMerchant(context);
+    }
+
+    private void openHall(ClientGameTestContext context) {
+        clickLabel(context, context.computeOnClient(client -> GuiDraw.message("button.hall", TradeHall.size()).getString()));
+        waitForScreen(context, TradeHallScreen.class);
+    }
+
+    private static void assertMerchantLayout(ClientGameTestContext context, boolean compact) {
+        context.runOnClient(client -> {
+            MerchantScreen screen = (MerchantScreen) McBridge.currentScreen(client);
+            int merchantLeft = McBridge.merchantLeft(screen);
+            if (TradePickerUi.compactShown() != compact || (compact && merchantLeft < screen.width)) {
+                throw new AssertionError("Unexpected merchant layout at " + screen.width + "x" + screen.height);
+            }
+            for (String label : List.of(GuiDraw.message("button.queue").getString(),
+                    GuiDraw.message("button.hall", TradeHall.size()).getString(),
+                    GuiDraw.message("button.list").getString())) {
+                Button button = findButton(screen, label);
+                if (button == null) {
+                    throw new AssertionError("Missing merchant navigation button " + label);
+                }
+                var bounds = GuiDraw.bounds(button);
+                if (client.font.width(label) > bounds.width() - 2 * GAP || bounds.x() < 0 || bounds.right() > screen.width
+                        || bounds.y() < 0 || bounds.bottom() > screen.height
+                        || (!compact && bounds.x() < merchantLeft + MerchantLayout.MERCHANT_WIDTH)) {
+                    throw new AssertionError("Merchant navigation button clipped or overlapped: " + label + " " + bounds);
+                }
             }
         });
     }
@@ -413,11 +518,17 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     }
 
     private static Button findButton(Screen screen, String label) {
+        if (screen == null) {
+            return null;
+        }
         return screen.children().stream().filter(Button.class::isInstance).map(Button.class::cast)
                 .filter(button -> button.visible && button.getMessage().getString().equals(label)).findFirst().orElse(null);
     }
 
     private static Villager named(Minecraft client, String name) {
+        if (client.level == null) {
+            return null;
+        }
         for (var entity : client.level.entitiesForRendering()) {
             if (entity instanceof Villager villager && villager.getCustomName() != null
                     && name.equals(villager.getCustomName().getString())) {
@@ -427,28 +538,71 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         return null;
     }
 
-    private static void scale(ClientGameTestContext context, int scale) {
+    private void resize(ClientGameTestContext context, Viewport viewport) {
+        context.getInput().resizeWindow(viewport.width(), viewport.height());
         context.runOnClient(client -> {
-            client.options.guiScale().set(scale);
+            client.options.guiScale().set(viewport.guiScale());
             //? if >=26.1 {
             /*client.resizeGui();
             *///?} else {
             client.resizeDisplay();
             //?}
         });
-        context.waitFor(client -> client.getWindow().getWidth() == 1920 && client.getWindow().getHeight() == 1080
-                && client.getWindow().getGuiScale() == scale, GameTestSupport.scaled(60));
+        waitFor(context, "window " + viewport, viewport::matches);
     }
 
-    private static void shot(ClientGameTestContext context, String name, int scale) {
+    private static void shot(ClientGameTestContext context, String name, Viewport viewport) {
         context.waitTicks(3);
         context.runOnClient(client -> {
-            var window = client.getWindow();
-            if (window.getWidth() != 1920 || window.getHeight() != 1080 || window.getGuiScale() != scale) {
-                throw new AssertionError("Wrong window or GUI scale for " + name);
+            if (!viewport.matches(client)) {
+                throw new AssertionError("Expected " + viewport + " for " + name + ", saw " + currentViewport(client));
             }
         });
-        GameTestSupport.saveShot(context, "v3-" + name + "-s" + scale);
+        String suffix = viewport.width() == 1920 ? "" : "-" + viewport.width() + "x" + viewport.height();
+        GameTestSupport.saveShot(context, "v3-" + name + "-s" + viewport.guiScale() + suffix);
+    }
+
+    private void waitForScreen(ClientGameTestContext context, Class<? extends Screen> expected) {
+        waitFor(context, expected == null ? "the world view" : expected.getSimpleName(), client -> {
+            Screen screen = McBridge.currentScreen(client);
+            return expected == null ? screen == null : expected.isInstance(screen);
+        });
+    }
+
+    private void waitFor(ClientGameTestContext context, String description, Predicate<Minecraft> condition) {
+        try {
+            context.waitFor(condition, GameTestSupport.scaled(SYNC_TICKS));
+        } catch (AssertionError timeout) {
+            throw waitFailure(context, description, timeout);
+        }
+    }
+
+    private AssertionError waitFailure(ClientGameTestContext context, String description, AssertionError cause) {
+        String observed = context.computeOnClient(client -> {
+            String worldKey = VillagerRosterClient.currentWorldKey(client);
+            Screen screen = McBridge.currentScreen(client);
+            Villager tracked = LibrarianTracker.current(client);
+            Villager candidate = named(client, CANDIDATE);
+            String menu = screen instanceof MerchantScreen merchant
+                    ? merchant.getTitle().getString() + " " + MenuState.read(merchant.getMenu()) : "none";
+            return "worldKey=" + worldKey + ", rosterCount=" + VillagerRosterClient.count(client)
+                    + ", roster=" + VillagerRosterClient.roster().entries(worldKey).stream()
+                    .map(entry -> entry.customName() + " (level=" + entry.level() + ", offers=" + entry.trades().size() + ")").toList()
+                    + ", observedMenus=" + observedMenus + ", currentMenu=" + menu
+                    + ", tracked=" + (tracked == null ? "none" : tracked.getName().getString())
+                    + ", panel=" + TradePickerUi.panelShown() + ", hallActive=" + TradeHall.isActive()
+                    + ", rerollActive=" + JobSiteReroller.isRunning() + ", queueSize=" + TradeHall.size()
+                    + ", nearbyNoviceBlocker=" + (candidate == null ? "unloaded" : TradeHall.blocker(client, candidate.getId()))
+                    + ", player=" + (client.player == null ? "none" : client.player.blockPosition())
+                    + ", screen=" + (screen == null ? "none" : screen.getClass().getSimpleName())
+                    + ", window=" + currentViewport(client);
+        });
+        return new AssertionError("Timed out waiting for " + description + ". Observed " + observed, cause);
+    }
+
+    private static String currentViewport(Minecraft client) {
+        var window = client.getWindow();
+        return window.getWidth() + "x" + window.getHeight() + " at GUI scale " + window.getGuiScale();
     }
 
     private static byte[] read(Path file) {
@@ -472,6 +626,30 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     }
 
     private record Fixture(String name, double x, double z, int price, boolean locked) {
+        int xp() {
+            return locked ? 25 : 0;
+        }
+
+        int level() {
+            return locked ? 2 : 1;
+        }
+
+        int offerCount() {
+            return locked ? 2 : 1;
+        }
+    }
+
+    private record MenuState(int xp, int level, int offers, boolean locked) {
+        static MenuState read(MerchantMenu menu) {
+            return new MenuState(menu.getTraderXp(), menu.getTraderLevel(), menu.getOffers().size(), TradeHall.menuLocked(menu));
+        }
+    }
+
+    private record Viewport(int width, int height, int guiScale) {
+        boolean matches(Minecraft client) {
+            var window = client.getWindow();
+            return width == window.getWidth() && height == window.getHeight() && guiScale == window.getGuiScale();
+        }
     }
 
     private record ConfigState(boolean enabled, boolean discovery, int radius) {

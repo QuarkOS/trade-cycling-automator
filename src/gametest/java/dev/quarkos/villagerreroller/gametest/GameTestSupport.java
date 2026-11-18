@@ -55,13 +55,14 @@ final class GameTestSupport {
     }
 
     static void waitForChunks(TestSingleplayerContext world) {
+        int timeout = scaled(20 * 45);
         //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
+        /*world.getConnection().waitForChunksRender(timeout);
         *///?} else {
         //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
+        /*world.getClientLevel().waitForChunksRender(timeout);
         *///?} else {
-        world.getClientWorld().waitForChunksRender();
+        world.getClientWorld().waitForChunksRender(timeout);
         //?}
         //?}
     }

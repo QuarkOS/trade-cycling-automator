@@ -22,9 +22,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.ImageButton;
-//? if >=1.19.3 {
-import net.minecraft.client.gui.components.Tooltip;
-//?}
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -46,7 +43,9 @@ import net.minecraft.util.Util;
 import net.minecraft.world.entity.npc.villager.Villager;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static dev.quarkos.villagerreroller.picker.UiTheme.MUTED;
@@ -71,15 +70,17 @@ public final class TradePickerUi {
     private static int savedMerchantLeft = Integer.MIN_VALUE;
     private static int savedMerchantTop;
     private static UUID resultVillager;
+    private static boolean awaitingOffers;
 
     private static final List<AbstractWidget> panelWidgets = new ArrayList<>();
+    private static final Map<AbstractWidget, Boolean> merchantButtons = new HashMap<>();
+    private static Button offersButton;
     private static OfferList list;
     private static EditBox searchBox;
     private static Button actionButton;
     private static Button methodButton;
     private static Button queueButton;
     private static Button hallButton;
-    private static Button listButton;
     private static Button browserButton;
 
     private TradePickerUi() {
@@ -89,17 +90,42 @@ public final class TradePickerUi {
         return list != null;
     }
 
+    public static boolean compactShown() {
+        return !merchantButtons.isEmpty();
+    }
+
+    public static void offerButtonTooltip(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+        if (offersButton != null && offersButton.visible && GuiDraw.bounds(offersButton).contains(mouseX, mouseY)) {
+            canvas.tip(List.of(offersButton.getMessage()), mouseX, mouseY);
+        }
+    }
+
+    public static void tick(Minecraft client) {
+        if (!awaitingOffers || busy() || !(McBridge.currentScreen(client) instanceof MerchantScreen screen)
+                || screen.getMenu().getOffers().isEmpty()) {
+            return;
+        }
+        // The offers packet can arrive after screen initialization. Refresh once with its level and XP.
+        Villager villager = LibrarianTracker.current(client);
+        if (villager != null && client.level != null) {
+            TradeSession.rebuild(client.level, villager, screen.getMenu());
+        }
+        awaitingOffers = false;
+        syncButtons(startBlocker(client, screen));
+    }
+
     public static void attach(Minecraft client, MerchantScreen screen) {
         // init() already rebuilt the vanilla widgets at the centered position.
         panelWidgets.clear();
+        merchantButtons.clear();
         list = null;
         searchBox = null;
         actionButton = null;
         methodButton = null;
         queueButton = null;
         hallButton = null;
-        listButton = null;
         browserButton = null;
+        awaitingOffers = false;
         merchantShift = 0;
         savedMerchantLeft = Integer.MIN_VALUE;
         savedMerchantTop = Integer.MIN_VALUE;
@@ -107,7 +133,7 @@ public final class TradePickerUi {
         int left = (screen.width - MERCHANT_WIDTH) / 2;
         int top = (screen.height - MERCHANT_HEIGHT) / 2;
         //? if <1.20.2 {
-        /*dev.quarkos.villagerreroller.client.McBridge.buttons(screen).add(new ImageButton(
+        /*offersButton = new ImageButton(
                 left + MERCHANT_WIDTH - 24,
                 top + 4,
                 20,
@@ -119,23 +145,20 @@ public final class TradePickerUi {
                 256,
                 256,
                 button -> toggle(client, screen),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".button.offers")
-        ));
+                message("button.offers")
+        );
         *///?} else {
-        ImageButton offers = new ImageButton(
+        offersButton = new ImageButton(
                 left + MERCHANT_WIDTH - 24,
                 top + 4,
                 20,
                 18,
                 RecipeBookComponent.RECIPE_BUTTON_SPRITES,
                 button -> toggle(client, screen),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".button.offers")
+                message("button.offers")
         );
-        //? if >=1.19.3 {
-        offers.setTooltip(Tooltip.create(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.offers")));
         //?}
-        dev.quarkos.villagerreroller.client.McBridge.buttons(screen).add(offers);
-        //?}
+        McBridge.buttons(screen).add(offersButton);
         if (TradeSession.panelOpen() || JobSiteReroller.isRunning() || TradeHall.isActive()) {
             TradeSession.setPanelOpen(true);
             open(client, screen);
@@ -161,6 +184,9 @@ public final class TradePickerUi {
         close(screen);
         MerchantLayout.Placement placement = MerchantLayout.place(screen.width, merchantBackgroundFollowsLeftPos);
         Panel panel = Panel.place(placement, screen.height);
+        if (!panel.shown() && merchantBackgroundFollowsLeftPos) {
+            panel = Panel.compact(screen.width, screen.height);
+        }
         if (!panel.shown()) {
             return false;
         }
@@ -168,19 +194,32 @@ public final class TradePickerUi {
         if (villager != null && client.level != null) {
             TradeSession.rebuild(client.level, villager, screen.getMenu());
         }
+        awaitingOffers = screen.getMenu().getOffers().isEmpty();
         savedMerchantLeft = McBridge.merchantLeft(screen);
         savedMerchantTop = McBridge.merchantTop(screen);
-        merchantShift = placement.merchantLeft() - savedMerchantLeft;
-        McBridge.placeMerchant(screen, placement.merchantLeft(), savedMerchantTop);
+        boolean compact = panel.back() != null;
+        int merchantLeft = compact ? screen.width + GAP : placement.merchantLeft();
+        merchantShift = merchantLeft - savedMerchantLeft;
+        McBridge.placeMerchant(screen, merchantLeft, savedMerchantTop);
 
+        if (compact) {
+            screen.setFocused(null);
+        }
         if (merchantShift != 0) {
             for (AbstractWidget widget : McBridge.buttons(screen)) {
+                if (compact) {
+                    merchantButtons.put(widget, widget.active);
+                    widget.active = false;
+                }
                 Rect bounds = GuiDraw.bounds(widget);
                 FitButton.place(widget, bounds.x() + merchantShift, bounds.y());
             }
         }
 
         add(screen, new PanelBackground(screen, panel));
+        if (compact) {
+            add(screen, FitButton.create(panel.back(), message("button.back"), pressed -> toggle(client, screen)));
+        }
         Rect toolbar = panel.search();
         int browseWidth = Math.min(54, toolbar.width() / 2);
         Rect searchBounds = new Rect(toolbar.x(), toolbar.y(), toolbar.width() - browseWidth - GAP, toolbar.height());
@@ -204,11 +243,10 @@ public final class TradePickerUi {
                 pressed -> TradeHall.queueCurrent(client)));
         hallButton = add(screen, FitButton.create(navigation.column(1, 3), message("button.hall", TradeHall.size()),
                 pressed -> McBridge.setScreen(client, new TradeHallScreen(screen))));
-        listButton = add(screen, FitButton.create(navigation.column(2, 3),
-                message("button.list", VillagerRosterClient.count(client)),
+        Button saved = add(screen, FitButton.create(navigation.column(2, 3), message("button.list"),
                 pressed -> McBridge.setScreen(client, new MyVillagersScreen(screen))));
         FitButton.hint(hallButton, message("button.hall.tooltip"));
-        FitButton.hint(listButton, message("button.list.tooltip"));
+        FitButton.hint(saved, message("button.list.tooltip"));
         if (RerollMethod.showToggle()) {
             methodButton = add(screen, FitButton.create(panel.method(), RerollMethod.label(), pressed -> {
                 RerollMethod.toggle();
@@ -217,7 +255,7 @@ public final class TradePickerUi {
         }
         actionButton = add(screen, FitButton.primary(panel.action(), actionLabel(), pressed -> onAction(client, screen)));
         list = add(screen, new OfferList(panel.trades(), () -> onAction(client, screen)));
-        syncButtons(client, startBlocker(client, screen));
+        syncButtons(startBlocker(client, screen));
         return true;
     }
 
@@ -236,6 +274,8 @@ public final class TradePickerUi {
             buttons.remove(widget);
         }
         panelWidgets.clear();
+        merchantButtons.forEach((widget, active) -> widget.active = active);
+        merchantButtons.clear();
         if (merchantShift != 0) {
             for (AbstractWidget widget : buttons) {
                 Rect bounds = GuiDraw.bounds(widget);
@@ -253,8 +293,8 @@ public final class TradePickerUi {
         methodButton = null;
         hallButton = null;
         queueButton = null;
-        listButton = null;
         browserButton = null;
+        awaitingOffers = false;
     }
 
     /** Pixels available to a row name, also used by the client screenshot checks. */
@@ -294,6 +334,9 @@ public final class TradePickerUi {
         if (villager == null) {
             return StopReason.NOT_VILLAGER;
         }
+        if (awaitingOffers) {
+            return StopReason.NO_OFFERS;
+        }
         if (TradeHall.menuLocked(screen.getMenu())) {
             return StopReason.LOCKED;
         }
@@ -303,19 +346,19 @@ public final class TradePickerUi {
         return TradeSession.hasSelection() ? null : StopReason.NEED_TARGET;
     }
 
-    private static void syncButtons(Minecraft client, StopReason blocker) {
+    private static void syncButtons(StopReason blocker) {
         actionButton.active = blocker == null;
         actionButton.setMessage(actionLabel());
-        FitButton.hint(actionButton, blocker == null ? null : message(blocker.id()));
+        FitButton.hint(actionButton, blocker == null ? null
+                : message(blocker == StopReason.NO_OFFERS ? "panel.waiting" : blocker.id()));
 
         boolean busy = busy();
         browserButton.active = !busy;
-        queueButton.active = !busy;
+        queueButton.active = !busy && !awaitingOffers;
         FitButton.hint(queueButton, message(busy ? "ui.busy" :
-                TradeSession.hasSelection() ? "button.queue.tooltip" : "need_target"));
+                awaitingOffers ? "panel.waiting" : TradeSession.hasSelection() ? "button.queue.tooltip" : "need_target"));
         hallButton.active = !TradeHall.isActive();
         hallButton.setMessage(message("button.hall", TradeHall.size()));
-        listButton.setMessage(message("button.list", VillagerRosterClient.count(client)));
 
         if (methodButton != null) {
             methodButton.active = RerollMethod.canChoose() && !busy;
@@ -490,9 +533,9 @@ public final class TradePickerUi {
         private void paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
             Minecraft client = Minecraft.getInstance();
             StopReason blocker = startBlocker(client, screen);
-            syncButtons(client, blocker);
-            GuiDraw.panel(canvas, panel.bounds());
-            GuiDraw.well(canvas, panel.status());
+            syncButtons(blocker);
+            GuiDraw.well(canvas, panel.bounds());
+            GuiDraw.frame(canvas, panel.status(), BORDER, RAISED);
             int level = Math.max(1, Math.min(5, screen.getMenu().getTraderLevel()));
             Component title = message("panel.title", Component.translatable("merchant.level." + level));
             Component picked = message("panel.picked", TradeSession.selectionCount());
@@ -527,6 +570,10 @@ public final class TradePickerUi {
             }
             if (blocker == StopReason.NEED_TARGET) {
                 GuiDraw.empty(canvas, panel.status(), message("panel.no_picks"), message("panel.pick_hint"), mouseX, mouseY);
+                return;
+            }
+            if (blocker == StopReason.NO_OFFERS) {
+                status(canvas, UiStatus.IDLE, message("panel.waiting"), List.of(), mouseX, mouseY);
                 return;
             }
             List<Component> details = new ArrayList<>();
@@ -646,12 +693,16 @@ public final class TradePickerUi {
         //?}
 
         private void paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
+            GuiDraw.fill(canvas, bounds, RAISED);
+            if (awaitingOffers && !busy()) {
+                return;
+            }
             List<TradeEntry> rows = TradeSession.visible();
             int visible = visibleCount();
             bar.clamp(ListScroll.maxOffset(rows.size(), visible));
             if (rows.isEmpty()) {
                 boolean emptyCatalog = TradeSession.entries().isEmpty();
-                GuiDraw.well(canvas, bounds);
+                GuiDraw.frame(canvas, bounds, BORDER, RAISED);
                 GuiDraw.empty(canvas, bounds, message(emptyCatalog ? "panel.empty" : "ui.no_results"),
                         message(emptyCatalog ? "panel.empty.hint" : "ui.clear_search"), mouseX, mouseY);
             } else {
@@ -744,6 +795,9 @@ public final class TradePickerUi {
         private boolean clickRow(double mouseX, double mouseY, int button) {
             if (!bounds.contains(mouseX, mouseY)) {
                 return false;
+            }
+            if (awaitingOffers && !busy()) {
+                return true;
             }
             Rect track = track();
             if (track.contains(mouseX, mouseY)) {

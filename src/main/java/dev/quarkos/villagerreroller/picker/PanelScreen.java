@@ -35,20 +35,24 @@ public abstract class PanelScreen extends Screen {
     //? if <1.20 {
     /*@Override
     public void render(PoseStack pose, int mouseX, int mouseY, float partialTick) {
+        GuiDraw.beginTooltips();
         GuiDraw.Canvas canvas = GuiDraw.of(pose);
         List<Component> tip = paintPanel(canvas, mouseX, mouseY);
         super.render(pose, mouseX, mouseY, partialTick);
         canvas.tip(tip, mouseX, mouseY);
+        GuiDraw.drawTooltip(pose);
     }
     *///?}
 
     //? if >=1.20 && <26.1 {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        GuiDraw.beginTooltips();
         GuiDraw.Canvas canvas = GuiDraw.of(graphics);
         List<Component> tip = paintPanel(canvas, mouseX, mouseY);
         super.render(graphics, mouseX, mouseY, partialTick);
         canvas.tip(tip, mouseX, mouseY);
+        GuiDraw.drawTooltip(graphics);
     }
     //?}
 
@@ -61,10 +65,12 @@ public abstract class PanelScreen extends Screen {
     //? if >=26.1 {
     /*@Override
     public void extractRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        GuiDraw.beginTooltips();
         GuiDraw.Canvas canvas = GuiDraw.of(graphics);
         List<Component> tip = paintPanel(canvas, mouseX, mouseY);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         canvas.tip(tip, mouseX, mouseY);
+        GuiDraw.drawTooltip(graphics);
     }
 
     @Override

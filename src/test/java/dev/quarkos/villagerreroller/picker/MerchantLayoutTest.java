@@ -96,6 +96,28 @@ class MerchantLayoutTest {
         assertFalse(MerchantLayout.Panel.place(MerchantLayout.place(640, true), 130).shown());
     }
 
+    @Test
+    void compactPanelFitsBoth1280WideWindowsAtScaleFour() {
+        MerchantLayout.Placement side = MerchantLayout.place(320, true);
+        assertFalse(side.shown());
+        MerchantLayout.Panel shortPanel = MerchantLayout.Panel.compact(320, 180);
+        MerchantLayout.Panel tallPanel = MerchantLayout.Panel.compact(320, 240);
+
+        assertTrue(shortPanel.trades().height() >= 2 * MerchantLayout.TRADE_ROW_HEIGHT);
+        assertTrue(tallPanel.trades().height() >= 4 * MerchantLayout.TRADE_ROW_HEIGHT);
+        for (MerchantLayout.Panel panel : new MerchantLayout.Panel[]{shortPanel, tallPanel}) {
+            assertTrue(panel.shown());
+            assertTrue(panel.bounds().x() >= MerchantLayout.PANEL_MARGIN);
+            assertTrue(panel.bounds().right() <= 320 - MerchantLayout.PANEL_MARGIN);
+            assertEquals(panel.title().right() + GAP, panel.back().x());
+            assertEquals(panel.title().bottom(), panel.back().bottom());
+            assertEquals(panel.search().right(), panel.back().right());
+            checkPanel(panel);
+        }
+        assertTrue(shortPanel.bounds().bottom() <= 180 - MerchantLayout.PANEL_MARGIN);
+        assertTrue(tallPanel.bounds().bottom() <= 240 - MerchantLayout.PANEL_MARGIN);
+    }
+
     private static void checkPanel(MerchantLayout.Panel panel) {
         assertTrue(panel.title().bottom() + GAP <= panel.search().y());
         assertTrue(panel.search().bottom() + GAP <= panel.trades().y());

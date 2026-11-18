@@ -23,7 +23,7 @@ public final class FitButton extends Button {
     private final boolean primary;
     private Component hint;
     private boolean selected;
-    private boolean checkbox;
+    private boolean mark;
     private ItemStack item;
     private String badge;
 
@@ -50,10 +50,9 @@ public final class FitButton extends Button {
         return button;
     }
 
-    static FitButton checkbox(Rect bounds, Component message, boolean checked, OnPress onPress) {
+    static FitButton mark(Rect bounds, Component message, OnPress onPress) {
         FitButton button = new FitButton(bounds, message, onPress, false);
-        button.checkbox = true;
-        button.selected = checked;
+        button.mark = true;
         return button;
     }
 
@@ -89,12 +88,14 @@ public final class FitButton extends Button {
         Component label = getMessage();
         boolean hovered = bounds.contains(mouseX, mouseY);
         boolean focused = active && isFocused();
-        if (checkbox) {
-            GuiDraw.frame(canvas, bounds, active && (selected || focused) ? ACCENT : BORDER,
-                    active && hovered ? HOVER : BACKGROUND);
-            if (selected) {
-                canvas.text("✓", bounds.x() + 2, bounds.y() + 2, active ? ACCENT : DISABLED);
+        if (mark) {
+            if (focused || active && hovered) {
+                GuiDraw.fill(canvas, bounds, HOVER);
             }
+            String symbol = selected ? "✓" : "+";
+            int color = !active ? DISABLED : selected ? ACCENT : hovered || focused ? TEXT : MUTED;
+            canvas.text(symbol, bounds.x() + (bounds.width() - canvas.font().width(symbol)) / 2,
+                    bounds.y() + (bounds.height() - LINE_HEIGHT) / 2, color);
             if (hovered) {
                 canvas.tip(List.of(label), mouseX, mouseY);
             }

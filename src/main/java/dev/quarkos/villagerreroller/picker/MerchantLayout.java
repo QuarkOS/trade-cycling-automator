@@ -30,14 +30,26 @@ public final class MerchantLayout {
     }
 
     public record Panel(Rect bounds, Rect title, Rect search, Rect trades, Rect status,
-                        Rect method, Rect navigation, Rect action, int statusLines) {
+                        Rect method, Rect navigation, Rect action, Rect back, int statusLines) {
         public static Panel place(Placement placement, int screenHeight) {
             int height = Math.min(PANEL_HEIGHT, screenHeight - 2 * PANEL_MARGIN);
-            boolean sharedFooter = height < PANEL_HEIGHT;
             Rect bounds = new Rect(placement.panelX(), (screenHeight - height) / 2,
                     placement.panelWidth(), height);
-            Rect inner = bounds.inset(PADDING);
-            Rect title = new Rect(inner.x(), inner.y(), inner.width(), LINE_HEIGHT);
+            return layout(bounds, false);
+        }
+
+        public static Panel compact(int screenWidth, int screenHeight) {
+            int width = Math.min(240, screenWidth - 2 * PANEL_MARGIN);
+            int height = Math.min(PANEL_HEIGHT, screenHeight - 2 * PANEL_MARGIN);
+            return layout(new Rect((screenWidth - width) / 2, (screenHeight - height) / 2, width, height), true);
+        }
+
+        private static Panel layout(Rect bounds, boolean compact) {
+            boolean sharedFooter = bounds.height() < PANEL_HEIGHT;
+            Rect inner = bounds.inset(compact ? 6 : PADDING);
+            Rect back = compact ? new Rect(inner.right() - 56, inner.y(), 56, 16) : null;
+            Rect title = back == null ? new Rect(inner.x(), inner.y(), inner.width(), LINE_HEIGHT)
+                    : new Rect(inner.x(), inner.y(), back.x() - GAP - inner.x(), back.height());
             Rect search = new Rect(inner.x(), title.bottom() + GAP, inner.width(), BUTTON_HEIGHT);
             int actionY = inner.bottom() - BUTTON_HEIGHT;
             int methodWidth = sharedFooter ? inner.width() * 2 / 5 : inner.width();
@@ -47,13 +59,13 @@ public final class MerchantLayout {
             Rect navigation = new Rect(inner.x(), actionY - BUTTON_HEIGHT - GAP, inner.width(), BUTTON_HEIGHT);
             Rect method = new Rect(inner.x(), sharedFooter ? actionY : navigation.y() - BUTTON_HEIGHT - GAP,
                     methodWidth, BUTTON_HEIGHT);
-            int statusLines = height < 188 ? 2 : 3;
+            int statusLines = bounds.height() < 188 ? 2 : 3;
             int statusHeight = statusLines * LINE_HEIGHT + 2 * GAP;
             Rect status = new Rect(inner.x(), Math.min(method.y(), navigation.y()) - GAP - statusHeight,
                     inner.width(), statusHeight);
             int listY = search.bottom() + GAP;
             Rect trades = new Rect(inner.x(), listY, inner.width(), status.y() - GAP - listY);
-            return new Panel(bounds, title, search, trades, status, method, navigation, action, statusLines);
+            return new Panel(bounds, title, search, trades, status, method, navigation, action, back, statusLines);
         }
 
         public boolean shown() {

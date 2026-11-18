@@ -6,6 +6,7 @@ import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.picker.HallHighlights;
+import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.price.LibrarianBookPrices;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
@@ -74,6 +75,7 @@ public final class VillagerReroller implements ClientModInitializer {
         dev.quarkos.villagerreroller.harness.ServerJoinHarness.tick(client);
         dev.quarkos.villagerreroller.harness.ClientHarness121.start(client);
         HallHighlights.tick(client);
+        TradePickerUi.tick(client);
         boolean pauseScreen = McBridge.currentScreen(client) instanceof PauseScreen;
         if (pauseScreen
                 && (dev.quarkos.villagerreroller.picker.JobSiteReroller.isRunning()
@@ -133,7 +135,7 @@ public final class VillagerReroller implements ClientModInitializer {
     public static void onScreen(Minecraft client, Screen screen) {
         McBridge.hookScreenKeys(screen);
         if (screen instanceof MerchantScreen merchant) {
-            dev.quarkos.villagerreroller.picker.TradePickerUi.attach(client, merchant);
+            TradePickerUi.attach(client, merchant);
         }
     }
 

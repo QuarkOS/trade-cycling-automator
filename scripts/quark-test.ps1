@@ -222,7 +222,7 @@ try {
         try { Step "harness" @($HarnessTask, "-Pharness=true", "-PartifactsDir=$OutDir\screens\harness") $GameTestMinutes }
         finally { Stop-RepoJava; Exit-McLock }
         $res = Get-ChildItem "$OutDir\screens\harness" -Recurse -Filter harness-result.txt -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($res) { $results["harnessResult"] = (Get-Content $res.FullName -TotalCount 1) }
+        if ($res) { $results["harnessResult"] = [string](@(Get-Content $res.FullName -TotalCount 1)[0]) }
     }
 } finally {
     Stop-RepoJava

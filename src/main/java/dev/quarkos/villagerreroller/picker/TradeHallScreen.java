@@ -26,9 +26,10 @@ import static dev.quarkos.villagerreroller.picker.UiTheme.*;
 
 /** Wanted and recorded trades, with a separate view of the reroll queue. */
 public final class TradeHallScreen extends PanelScreen {
-    private static final int TILE_WIDTH = 36;
+    private static final int TILE_WIDTH = 33;
     private static final int TILE_HEIGHT = 24;
     private static final int TILE_GAP = 3;
+    private static final int ITEM_SLOT = 18;
     private static final int PAGER_WIDTH = 96;
     private static final int QUEUE_ROW = 24;
     private static final int REMOVE_WIDTH = 48;
@@ -175,10 +176,10 @@ public final class TradeHallScreen extends PanelScreen {
         for (int index = 0; index < columns * visibleRows; index++) {
             int cell = index;
             Rect tile = tileBounds(index);
-            FitButton icon = addRenderableWidget(FitButton.slot(new Rect(tile.x() + 1, tile.y() + 1, 21, 22),
+            FitButton icon = addRenderableWidget(FitButton.slot(new Rect(tile.x() + 3, tile.y() + 3, ITEM_SLOT, ITEM_SLOT),
                     Component.empty(), ItemStack.EMPTY, null, pressed -> selectTile(tileAt(cell))));
-            FitButton wanted = addRenderableWidget(FitButton.checkbox(new Rect(tile.right() - 14, tile.y() + 2, 12, 12),
-                    Component.empty(), false, pressed -> toggleWanted(tileAt(cell))));
+            FitButton wanted = addRenderableWidget(FitButton.mark(new Rect(tile.right() - 12, tile.y() + 1, 11, 12),
+                    Component.empty(), pressed -> toggleWanted(tileAt(cell))));
             tradeButtons.add(new TileWidgets(icon, wanted));
         }
         int pagerWidth = Math.min(PAGER_WIDTH, well.right() - GuiDraw.bounds(backButton).right() - GAP);
@@ -303,7 +304,8 @@ public final class TradeHallScreen extends PanelScreen {
 
     private void initQueue(Rect inner, int top) {
         info = new Rect(inner.x(), top, inner.width(), LINE_HEIGHT);
-        caption = new Rect(info.x(), info.bottom() + GAP, info.width(), LINE_HEIGHT);
+        int hintLines = GuiDraw.wrap(font, message("hall.hint").getString(), info.width()).size();
+        caption = new Rect(info.x(), info.bottom() + GAP, info.width(), Math.min(2, Math.max(1, hintLines)) * LINE_HEIGHT);
         int listTop = caption.bottom() + GAP;
         well = new Rect(inner.x(), listTop, inner.width(), Math.max(0, footer.y() - GAP - listTop));
         track = new Rect(well.right() - SCROLLBAR_SPACE, well.y(), SCROLLBAR_SPACE, well.height());
@@ -420,8 +422,6 @@ public final class TradeHallScreen extends PanelScreen {
             tradeButtons.get(index).wanted().active = browseButton.active;
             Rect box = tileBounds(index);
             GuiDraw.frame(canvas, box, isSelected(tile) ? ACCENT : BORDER, RAISED);
-            int statusColor = tile.available() ? GREEN : AMBER;
-            canvas.fill(box.right() - 12, box.bottom() - 6, box.right() - 4, box.bottom() - 4, statusColor);
         }
         if (pageCount() > 1) {
             GuiDraw.label(canvas, message("ui.page", page + 1, pageCount()), pageLabel, MUTED, mouseX, mouseY);
@@ -443,31 +443,38 @@ public final class TradeHallScreen extends PanelScreen {
             return;
         }
         Rect content = details.inset(GAP);
-        canvas.item(tile.icon(), content.x(), content.y(), tile.badge());
-        Rect name = new Rect(content.x() + 18, content.y(), content.width() - 18, 18);
+        GuiDraw.frame(canvas, new Rect(content.x(), content.y(), ITEM_SLOT, ITEM_SLOT), BORDER, RAISED);
+        canvas.item(tile.icon(), content.x() + 1, content.y() + 1, tile.badge());
+        int nameInset = ITEM_SLOT + GAP;
+        Rect name = new Rect(content.x() + nameInset, content.y(), content.width() - nameInset, LINE_HEIGHT);
         GuiDraw.label(canvas, tile.name(), name, TEXT, mouseX, mouseY);
-        detailLine(canvas, TradeIcons.professionName(tile.key().profession()), 22, MUTED, mouseX, mouseY);
+        Rect profession = new Rect(name.x(), name.bottom(), name.width(), LINE_HEIGHT);
+        GuiDraw.label(canvas, TradeIcons.professionName(tile.key().profession()), profession, MUTED, mouseX, mouseY);
         Component availability = tile.available() ? message("hall.known_count", tile.knownCount()) : message("hall.missing");
-        detailLine(canvas, availability, 35, tile.available() ? GREEN : AMBER, mouseX, mouseY);
+        int y = profession.bottom() + GAP;
+        detailLine(canvas, availability, y, tile.available() ? GREEN : AMBER, mouseX, mouseY);
+        y += LINE_HEIGHT;
         if (tile.wanted()) {
             Component target = tile.wantedMax() == TradeSession.ANY_PRICE ? message("any")
                     : message("hall.max_price", tile.wantedMax());
-            detailLine(canvas, message("hall.wanted_price", target), 48, ACCENT, mouseX, mouseY);
+            detailLine(canvas, message("hall.wanted_price", target), y, ACCENT, mouseX, mouseY);
+            y += LINE_HEIGHT;
         }
-        int rankY = 64;
+        int rankY = y + GAP / 2;
         List<PriceRanking.Ranked> ranks = HallHighlights.ranks();
         if (ranks.isEmpty() && tile.available()) {
             detailLine(canvas, message("hall.no_loaded"), rankY, MUTED, mouseX, mouseY);
         }
         for (int index = 0; index < Math.min(ranks.size(), HallHighlights.PREVIEW_COUNT); index++) {
             PriceRanking.Ranked rank = ranks.get(index);
-            detailLine(canvas, HallHighlights.label(rank), rankY + index * 13, rank.color(), mouseX, mouseY);
+            detailLine(canvas, HallHighlights.label(rank), rankY + index * LINE_HEIGHT, rank.color(), mouseX, mouseY);
         }
     }
 
     private void detailLine(GuiDraw.Canvas canvas, Component line, int y, int color, int mouseX, int mouseY) {
-        Rect rect = new Rect(details.x() + GAP, details.y() + GAP + y, details.width() - 2 * GAP, LINE_HEIGHT);
-        if (rect.bottom() <= details.bottom() - GAP) {
+        Rect rect = new Rect(details.x() + GAP, y, details.width() - 2 * GAP, LINE_HEIGHT);
+        int bottom = details.bottom() - GAP - (saveFailed ? LINE_HEIGHT : 0);
+        if (rect.bottom() <= bottom) {
             GuiDraw.label(canvas, line, rect, color, mouseX, mouseY);
         }
     }
@@ -509,7 +516,7 @@ public final class TradeHallScreen extends PanelScreen {
             GuiDraw.label(canvas, message("hall.ready_count", ready, TradeHall.size()), info,
                     ready > 0 ? GREEN : MUTED, mouseX, mouseY);
             Component hint = blocker == null || TradeHall.size() == 0 ? message("hall.hint") : blocker;
-            GuiDraw.label(canvas, hint, caption, blocker != null && TradeHall.size() > 0 ? RED : MUTED, mouseX, mouseY);
+            GuiDraw.hint(canvas, hint, caption, blocker != null && TradeHall.size() > 0 ? RED : MUTED, mouseX, mouseY);
         }
     }
 
@@ -532,10 +539,12 @@ public final class TradeHallScreen extends PanelScreen {
         Component targetCount = Component.literal(slot.description());
         int textWidth = right - textX;
         GuiDraw.line(canvas, identity.getString(), new Rect(textX, row.y() + 2, textWidth, LINE_HEIGHT), TEXT);
-        int statusWidth = Math.min(canvas.font().width(status.text()), textWidth * 2 / 3);
-        GuiDraw.line(canvas, status.text().getString(), new Rect(textX, row.y() + 13, statusWidth, LINE_HEIGHT), status.tone().color());
-        int picksX = textX + statusWidth + GAP;
-        GuiDraw.line(canvas, targetCount.getString(), new Rect(picksX, row.y() + 13, right - picksX, LINE_HEIGHT), MUTED);
+        String targets = GuiDraw.ellipsis(canvas.font(), targetCount.getString(), textWidth / 3);
+        int targetsX = right - canvas.font().width(targets);
+        int detailY = row.y() + 13;
+        GuiDraw.line(canvas, status.text().getString(), new Rect(textX, detailY, targetsX - GAP - textX, LINE_HEIGHT),
+                status.tone().color());
+        canvas.text(targets, targetsX, detailY, MUTED);
         if (hovered && mouseX < right) {
             hover = List.of(identity, status.text(), targetCount);
         }
