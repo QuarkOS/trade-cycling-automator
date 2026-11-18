@@ -306,7 +306,7 @@ def one_attempt(cache: Path, output: Path, spec: dict, trade_cycling: bool, args
             stale = output / "logs" / spec["version"] / spec["loader"] / f"{mode}.log"
             stale.unlink(missing_ok=True)
             if not args.keep_runs:
-            shutil.rmtree(run_dir, ignore_errors=True)
+                shutil.rmtree(run_dir, ignore_errors=True)
         return row
     finally:
         terminate(server)
