@@ -195,19 +195,26 @@ public final class DedicatedProof {
         try {
             Object commands = server.getCommands();
             Object source = server.createCommandSourceStack();
-            for (String name : new String[] {"performPrefixedCommand", "performCommand"}) {
-                for (Method method : commands.getClass().getMethods()) {
-                    if (!method.getName().equals(name) || method.getParameterCount() != 2) {
-                        continue;
-                    }
-                    if (method.getParameterTypes()[1] != String.class) {
-                        continue;
-                    }
-                    method.invoke(commands, source, command);
-                    return;
+            Method performer = null;
+            for (Method method : commands.getClass().getMethods()) {
+                Class<?>[] params = method.getParameterTypes();
+                if (params.length != 2 || params[1] != String.class || method.getReturnType() != int.class) {
+                    continue;
+                }
+                if (!params[0].isInstance(source)) {
+                    continue;
+                }
+                // Mojmap keeps the name. Intermediary builds do not, so the
+                // signature is the match and a readable name only breaks the tie.
+                if (performer == null || method.getName().contains("Prefixed")) {
+                    performer = method;
                 }
             }
-            LOGGER.warn("villager_reroller proof command missing performer: {}", command);
+            if (performer == null) {
+                LOGGER.warn("villager_reroller proof command missing performer: {}", command);
+                return;
+            }
+            performer.invoke(commands, source, command);
         } catch (ReflectiveOperationException ex) {
             LOGGER.warn("villager_reroller proof command failed: {} {}", command, ex.getCause() == null ? ex.toString() : ex.getCause().toString());
         }
