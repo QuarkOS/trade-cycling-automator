@@ -737,7 +737,16 @@ entityShadows:false
 """
 
 
-def launch_command(minecraft_dir: Path, spec: dict, game_dir: Path, shots: Path, java: Path, heap_mb: int) -> list[str]:
+def launch_command(
+    minecraft_dir: Path,
+    spec: dict,
+    game_dir: Path,
+    shots: Path,
+    java: Path,
+    heap_mb: int,
+    jvm_arguments: list[str] | None = None,
+    allow_multiplayer: bool = False,
+) -> list[str]:
     import minecraft_launcher_lib.command as command
 
     version_id = installed_version_id(spec)
@@ -754,17 +763,19 @@ def launch_command(minecraft_dir: Path, spec: dict, game_dir: Path, shots: Path,
         "jvmArguments": [
             f"-Xmx{heap_mb}m",
             "-Xms512m",
-            "-Dvillager_reroller.harness=true",
-            f"-Dvillager_reroller.artifacts={shots}",
-            f"-Dvillager_reroller.loader={spec['loader']}",
-            "-Dvillager_reroller.timeoutScale=8",
+            *(jvm_arguments if jvm_arguments is not None else [
+                "-Dvillager_reroller.harness=true",
+                f"-Dvillager_reroller.artifacts={shots}",
+                f"-Dvillager_reroller.loader={spec['loader']}",
+                "-Dvillager_reroller.timeoutScale=8",
+            ]),
             "-Djava.net.preferIPv4Stack=true",
         ],
         "gameDirectory": str(game_dir),
         "customResolution": True,
         "resolutionWidth": "1280",
         "resolutionHeight": "720",
-        "disableMultiplayer": True,
+        "disableMultiplayer": not allow_multiplayer,
         "launcherName": "villager-reroller-validate",
         "launcherVersion": "1.0",
     }

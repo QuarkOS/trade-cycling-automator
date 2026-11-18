@@ -48,3 +48,8 @@ replay_*.log
 
 # compiled by tools/validate for the 26.3 Xvfb sRGB shim
 tools/*.so
+
+# reroll matrix keeps the summary and drops the bulky logs
+artifacts/reroll-test/logs/
+artifacts/reroll-test/screenshots/
+artifacts/reroll-test/runs/
