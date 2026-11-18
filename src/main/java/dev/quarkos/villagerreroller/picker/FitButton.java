@@ -19,6 +19,8 @@ import net.minecraft.client.gui.GuiGraphics;
  * find it) while the drawn text is cut with an ellipsis when it does not fit.
  */
 public final class FitButton extends Button {
+    private Component pinnedTip;
+
     private FitButton(int x, int y, int width, int height, Component message, OnPress onPress) {
         //? if <1.19.3 {
         /*super(x, y, width, height, message, onPress);
@@ -29,6 +31,12 @@ public final class FitButton extends Button {
 
     public static Button create(int x, int y, int width, int height, Component message, OnPress onPress) {
         return new FitButton(x, y, width, height, message, onPress);
+    }
+
+    public static void hint(Button button, Component tip) {
+        if (button instanceof FitButton fit) {
+            fit.pinnedTip = tip;
+        }
     }
 
     public static void place(AbstractWidget widget, int x, int y) {
@@ -51,10 +59,11 @@ public final class FitButton extends Button {
 
     private void prepareTip(Component full, boolean cut) {
         //? if >=1.19.3 {
-        if (cut) {
-            setTooltip(Tooltip.create(full));
-        } else {
+        Component shown = cut ? full : pinnedTip;
+        if (shown == null) {
             setTooltip(null);
+        } else {
+            setTooltip(Tooltip.create(shown));
         }
         //?}
     }
