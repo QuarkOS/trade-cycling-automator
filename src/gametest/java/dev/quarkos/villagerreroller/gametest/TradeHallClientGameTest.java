@@ -116,7 +116,7 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
                 summon(world, tag, cellX[i] + 0.5, y, z + 1.5, false);
                 // One available lectern at a time gives every novice the job site
                 // that the client will break. Profession sync alone cannot prove this.
-                GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(120),
+                GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(20 * 60),
                         server -> claimsJob(server, tag, job), tag + " did not claim " + job);
                 freeze(world, tag);
             }

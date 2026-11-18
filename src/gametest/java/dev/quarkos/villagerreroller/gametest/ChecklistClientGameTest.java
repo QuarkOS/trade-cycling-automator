@@ -168,7 +168,9 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("summon minecraft:villager " + (x + 1.2) + " " + y + " " + (z + 0.5) + " {PersistenceRequired:1b}");
             world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);
             BlockPos job = new BlockPos(x, y, z);
-            GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(100), server ->
+            // Claiming a job site can take a minute of server time when the PC is busy. The wait
+            // returns as soon as the librarian exists, so a generous bound costs nothing on a fast run.
+            GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(20 * 60), server ->
                     !server.overworld().getEntitiesOfClass(Villager.class, new AABB(job).inflate(4), villager ->
                             villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)).isEmpty(),
                     "Checklist librarian did not claim the lectern");

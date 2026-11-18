@@ -6,12 +6,12 @@
   "environment": "client",
   "entrypoints": {
     "fabric-client-gametest": [
+      "dev.quarkos.villagerreroller.gametest.UiV3ClientGameTest",
       "dev.quarkos.villagerreroller.gametest.PickPersistenceGameTest",
       "dev.quarkos.villagerreroller.gametest.TradePickerClientGameTest",
       "dev.quarkos.villagerreroller.gametest.TradeHallClientGameTest",
       "dev.quarkos.villagerreroller.gametest.LecternBreakClientGameTest",
-      "dev.quarkos.villagerreroller.gametest.ChecklistClientGameTest",
-      "dev.quarkos.villagerreroller.gametest.UiV3ClientGameTest"
+      "dev.quarkos.villagerreroller.gametest.ChecklistClientGameTest"
     ]
   },
   "depends": {
