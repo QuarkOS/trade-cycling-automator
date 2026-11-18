@@ -186,7 +186,7 @@ Remove-Item $stopLock -ErrorAction SilentlyContinue
 if ($InSession) {
     $lockArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File",
         "`"$PSScriptRoot\quark-window-lock.ps1`"", "-Repo", "`"$Repo`"", "-StopFile", "`"$stopLock`"", "-ParentPid", $PID,
-        "-LogFile", "`"$OutDir\logs\window-lock.log`"")
+        "-LogFile", "`"$OutDir\logs\window-lock.log`"", "-LiveShot", "`"$OutDir\logs\live.png`"")
     if ($NoClickThrough) { $lockArgs += "-NoClickThrough" }
     Start-Process powershell.exe -ArgumentList $lockArgs -WindowStyle Hidden | Out-Null
 }
