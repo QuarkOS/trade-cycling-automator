@@ -103,13 +103,22 @@ public final class GuiDraw {
     }
 
     public static void panel(Canvas canvas, Rect box) {
-        fill(canvas, box, 0xFF515151);
-        fill(canvas, box.inset(1), PANEL);
+        frame(canvas, box, 0xFF515151, PANEL);
     }
 
     public static void well(Canvas canvas, Rect box) {
-        fill(canvas, box, 0xFF393939);
-        fill(canvas, box.inset(1), WELL);
+        frame(canvas, box, 0xFF393939, WELL);
+    }
+
+    private static void frame(Canvas canvas, Rect box, int border, int interior) {
+        if (box.width() < 2 || box.height() < 2) {
+            return;
+        }
+        canvas.fill(box.x(), box.y(), box.right(), box.y() + 1, border);
+        canvas.fill(box.x(), box.bottom() - 1, box.right(), box.bottom(), border);
+        canvas.fill(box.x(), box.y() + 1, box.x() + 1, box.bottom() - 1, border);
+        canvas.fill(box.right() - 1, box.y() + 1, box.right(), box.bottom() - 1, border);
+        fill(canvas, box.inset(1), interior);
     }
 
     public static void fill(Canvas canvas, Rect box, int color) {
