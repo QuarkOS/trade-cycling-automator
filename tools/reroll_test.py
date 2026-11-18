@@ -448,6 +448,10 @@ def prepare_client(client_dir: Path, spec: dict, trade_cycling: bool, cache: Pat
         dep = validate.dep_path(cache, group, artifact, version)
         shutil.copy(dep, mods / dep.name)
     (client_dir / "options.txt").write_text(OPTIONS)
+    # A 60 second stress run can cycle faster than the player-facing cap of 500.
+    config = client_dir / "config"
+    config.mkdir(parents=True, exist_ok=True)
+    (config / "villager_reroller.json").write_text('{"maxAttempts": 100000}\n')
 
 
 def allocate_port() -> int:
