@@ -173,9 +173,9 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                 context.runOnClient(client -> McBridge.setScreen(client, null));
                 waitForScreen(context, null);
             }
-            for (int height : new int[]{960, 720}) {
-                captureCompact(context, world, origin.getY(), source, new Viewport(1280, height, 4));
-            }
+            // Vanilla caps the GUI scale at window height / 240, so 1280x720 cannot reach scale 4.
+            // 1280x960 at scale 4 (320x240 GUI) is the narrowest layout that exists.
+            captureCompact(context, world, origin.getY(), source, new Viewport(1280, 960, 4));
         } finally {
             context.runOnClient(client -> {
                 TradeHall.clear();
