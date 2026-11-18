@@ -65,7 +65,7 @@ New-Item -ItemType Directory -Force -Path $OutDir, "$OutDir\screens", "$OutDir\l
 # Unless -Hidden is given, re-run this script as a one-shot interactive scheduled task in the
 # logged-in user's session, wait for it, print its summary, and delete the task.
 if (-not $InSession -and -not $Hidden) {
-    $task = "McTest-$ModName"
+    $task = "McTest-" + ($ModName -replace "[^A-Za-z0-9_.-]", "_")
     $done = Join-Path $OutDir "done.flag"
     Remove-Item $done, (Join-Path $OutDir "summary.json") -ErrorAction SilentlyContinue
     $pass = @()
