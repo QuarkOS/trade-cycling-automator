@@ -8,6 +8,7 @@ public final class TradeNameLayout {
     public static final int NAME_LEFT = 36;
     public static final int PRICE_GAP = 4;
     public static final int PRICE_RIGHT = 10;
+    private static final int MIN_NAME_WIDTH = 20;
 
     private TradeNameLayout() {
     }
@@ -29,6 +30,10 @@ public final class TradeNameLayout {
 
     public static int availableWidth(int rowWidth, int priceWidth) {
         return nameRight(priceX(0, rowWidth, priceWidth)) - NAME_LEFT;
+    }
+
+    public static int priceBudget(int rowWidth) {
+        return Math.max(0, availableWidth(rowWidth, 0) - MIN_NAME_WIDTH);
     }
 
     /**

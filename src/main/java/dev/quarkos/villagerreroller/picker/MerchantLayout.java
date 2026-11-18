@@ -1,5 +1,12 @@
 package dev.quarkos.villagerreroller.picker;
 
+import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
+
+import static dev.quarkos.villagerreroller.picker.UiLayout.BUTTON_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
+import static dev.quarkos.villagerreroller.picker.UiLayout.LINE_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.PADDING;
+
 /**
  * Where the vanilla merchant screen and the Reroll panel sit.
  * The merchant is 276 pixels wide. When the centered screen does not leave a
@@ -13,11 +20,45 @@ public final class MerchantLayout {
     public static final int PANEL_MIN = 112;
     public static final int PANEL_GAP = 4;
     public static final int PANEL_MARGIN = 2;
+    public static final int TRADE_ROW_HEIGHT = 20;
+    private static final int PANEL_HEIGHT = 248;
 
     private MerchantLayout() {
     }
 
     public record Placement(int merchantLeft, int panelX, int panelWidth, boolean shown) {
+    }
+
+    public record Panel(Rect bounds, Rect title, Rect search, Rect trades, Rect status,
+                        Rect method, Rect navigation, Rect action, int statusLines) {
+        public static Panel place(Placement placement, int screenHeight) {
+            int height = Math.min(PANEL_HEIGHT, screenHeight - 2 * PANEL_MARGIN);
+            boolean sharedFooter = height < PANEL_HEIGHT;
+            Rect bounds = new Rect(placement.panelX(), (screenHeight - height) / 2,
+                    placement.panelWidth(), height);
+            Rect inner = bounds.inset(PADDING);
+            Rect title = new Rect(inner.x(), inner.y(), inner.width(), LINE_HEIGHT);
+            Rect search = new Rect(inner.x(), title.bottom() + GAP, inner.width(), BUTTON_HEIGHT);
+            int actionY = inner.bottom() - BUTTON_HEIGHT;
+            int methodWidth = sharedFooter ? inner.width() * 2 / 5 : inner.width();
+            Rect action = sharedFooter
+                    ? new Rect(inner.x() + methodWidth + GAP, actionY, inner.width() - methodWidth - GAP, BUTTON_HEIGHT)
+                    : new Rect(inner.x(), actionY, inner.width(), BUTTON_HEIGHT);
+            Rect navigation = new Rect(inner.x(), actionY - BUTTON_HEIGHT - GAP, inner.width(), BUTTON_HEIGHT);
+            Rect method = new Rect(inner.x(), sharedFooter ? actionY : navigation.y() - BUTTON_HEIGHT - GAP,
+                    methodWidth, BUTTON_HEIGHT);
+            int statusLines = height < 188 ? 2 : 3;
+            int statusHeight = statusLines * LINE_HEIGHT + 2 * GAP;
+            Rect status = new Rect(inner.x(), Math.min(method.y(), navigation.y()) - GAP - statusHeight,
+                    inner.width(), statusHeight);
+            int listY = search.bottom() + GAP;
+            Rect trades = new Rect(inner.x(), listY, inner.width(), status.y() - GAP - listY);
+            return new Panel(bounds, title, search, trades, status, method, navigation, action, statusLines);
+        }
+
+        public boolean shown() {
+            return bounds.width() >= PANEL_MIN && trades.height() >= TRADE_ROW_HEIGHT;
+        }
     }
 
     public static Placement place(int screenWidth, boolean backgroundFollows) {

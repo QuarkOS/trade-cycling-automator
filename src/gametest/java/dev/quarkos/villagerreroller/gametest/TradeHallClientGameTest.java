@@ -232,7 +232,9 @@ public class TradeHallClientGameTest implements FabricClientGameTest {
             // The queue setup teleports the player and five villagers. Give the
             // integrated server time to apply that before the first lectern break,
             // or a lag spike lets the client predict air while the server keeps the block.
-            context.waitTicks(100);
+            // On a loaded machine the server is still several seconds behind after
+            // 100 ticks, and the first break then times out in WAIT_UNEMPLOYED.
+            context.waitTicks(400);
             context.clickScreenButton("text.villager_reroller.button.hall_start");
             String phase = "running";
             for (int tick = 0; tick < 20 * 300 * 3; tick++) {

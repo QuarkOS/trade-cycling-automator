@@ -295,16 +295,27 @@ public final class TradeHall {
         return hudTitle().copy().append(" · ").append(hudDetail());
     }
 
+    public static UiStatus hudStatus() {
+        return stopRequested ? UiStatus.ERROR : UiStatus.RUNNING;
+    }
+
+    static boolean isCurrent(Slot slot) {
+        return isActive() && index < SLOTS.size() && SLOTS.get(index) == slot;
+    }
+
     public static Component hudTitle() {
         int current = Math.min(index + 1, Math.max(SLOTS.size(), 1));
         Component name = index >= 0 && index < SLOTS.size() ? SLOTS.get(index).label() : Component.literal("-");
         if (phase == Phase.COOLDOWN || phase == Phase.SUMMARY) {
-            return countsLine();
+            return GuiDraw.message(stopRequested ? "status.stopped" : "hall.done");
         }
         return Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.hud", current, SLOTS.size(), name);
     }
 
     public static Component hudDetail() {
+        if (stopRequested && phase != Phase.COOLDOWN) {
+            return GuiDraw.message("hall.stopping");
+        }
         return switch (phase) {
             case FOCUS -> Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.focus");
             case WAIT_SCREEN -> Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.open");
@@ -324,16 +335,19 @@ public final class TradeHall {
         int found = 0;
         int skipped = 0;
         int failed = 0;
+        int cancelled = 0;
         for (Slot slot : SLOTS) {
             switch (slot.outcome) {
                 case FOUND -> found++;
                 case SKIPPED -> skipped++;
                 case FAILED -> failed++;
-                case PENDING, CANCELLED -> {
+                case CANCELLED -> cancelled++;
+                case PENDING -> {
                 }
             }
         }
-        return Component.translatable("text." + VillagerReroller.MOD_ID + ".hall.counts", found, skipped, failed);
+        return cancelled > 0 ? GuiDraw.message("hall.counts_cancelled", found, skipped, failed, cancelled)
+                : GuiDraw.message("hall.counts", found, skipped, failed);
     }
 
     public static Component outcomeLine(Slot slot) {

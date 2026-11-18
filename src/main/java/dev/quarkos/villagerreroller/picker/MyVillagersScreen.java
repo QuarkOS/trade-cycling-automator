@@ -7,6 +7,9 @@ import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
 import dev.quarkos.villagerreroller.config.VillagerRoster;
+import dev.quarkos.villagerreroller.config.VillagerRosterFiles;
+import dev.quarkos.villagerreroller.picker.UiLayout.ChecklistSections;
+import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -35,39 +38,44 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Per-world checklist of locked villagers and the wanted trades still missing.
- */
-public final class MyVillagersScreen extends Screen {
-    private static final int ROW = 26;
+import static dev.quarkos.villagerreroller.picker.GuiDraw.MUTED;
+import static dev.quarkos.villagerreroller.picker.GuiDraw.TEXT;
+import static dev.quarkos.villagerreroller.picker.GuiDraw.message;
+import static dev.quarkos.villagerreroller.picker.UiLayout.BUTTON_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.GAP;
+import static dev.quarkos.villagerreroller.picker.UiLayout.LINE_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.PADDING;
+import static dev.quarkos.villagerreroller.picker.UiLayout.ROW_HEIGHT;
+import static dev.quarkos.villagerreroller.picker.UiLayout.SCROLLBAR_SPACE;
 
+/** Per-world checklist of locked villagers and wanted trades. */
+public final class MyVillagersScreen extends Screen {
+    private static final int WANTED_ROW = BUTTON_HEIGHT;
+    private static final int REMOVE_WIDTH = 48;
     private final Screen parent;
-    private final List<Hit> hits = new ArrayList<>();
-    private final List<TabHit> tabs = new ArrayList<>();
-    private EditBox search;
-    private Button hallButton;
-    private Button clearButton;
+    private final ListScroll villagersBar = new ListScroll();
+    private final ListScroll wantedBar = new ListScroll();
+    private final List<Button> filterButtons = new ArrayList<>();
+    private final List<Button> removeButtons = new ArrayList<>();
+    private String[] removeIds;
     private String query = "";
     private Filter filter = Filter.ALL;
-    private final ListScroll rosterBar = new ListScroll();
-    private final ListScroll neededBar = new ListScroll();
-    private int rosterCount;
-    private int neededCount;
-    private int neededVisible;
-    private int wellX;
-    private int wellY;
-    private int wellW;
-    private int wellH;
-    private int needX;
-    private int needY;
-    private int needW;
-    private int needH;
-    private int visibleRows;
-    private int maxScroll;
+    private Button hallButton;
+    private Button clearButton;
+    private Rect frame;
+    private Rect header;
+    private Rect body;
+    private Rect footer;
+    private Rect villagersWell = new Rect(0, 0, 0, 0);
+    private Rect wantedWell = new Rect(0, 0, 0, 0);
+    private int villagersCount;
+    private int villagersVisible;
+    private int wantedCount;
+    private int wantedVisible;
     private List<Component> hover = List.of();
 
     public MyVillagersScreen(Screen parent) {
-        super(Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.title"));
+        super(message("checklist.title"));
         this.parent = parent;
     }
 
@@ -76,7 +84,7 @@ public final class MyVillagersScreen extends Screen {
     }
 
     public void scrollTo(int index) {
-        rosterBar.setOffset(index);
+        villagersBar.setOffset(index);
     }
 
     @Override
@@ -86,76 +94,99 @@ public final class MyVillagersScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (this.minecraft != null) {
-            McBridge.setScreen(this.minecraft, parent);
+        if (minecraft != null) {
+            McBridge.setScreen(minecraft, parent);
         }
     }
 
     @Override
     protected void init() {
-        Frame frame = frame();
-        int hallW = Math.min(84, Math.max(40, frame.w / 4));
+        frame = UiLayout.frame(width, height, 424, 280);
+        Rect inner = frame.inset(PADDING);
+        Rect top = new Rect(inner.x(), inner.y(), inner.width(), BUTTON_HEIGHT);
+        int hallWidth = Math.min(104, top.width() / 3);
+        header = new Rect(top.x(), top.y(), top.width() - hallWidth - GAP, top.height());
         hallButton = addRenderableWidget(FitButton.create(
-                frame.left + frame.w - hallW - 6,
-                frame.top + 4,
-                hallW,
-                14,
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall_queue", TradeHall.size()),
-                pressed -> {
-                    if (this.minecraft != null) {
-                        McBridge.setScreen(this.minecraft, new TradeHallScreen());
-                    }
-                }));
-        int searchW = Math.min(122, Math.max(48, frame.w - 210));
-        if (frame.w < 280) {
-            searchW = Math.max(40, frame.w / 3);
-        }
-        search = new SearchBox(this.font, frame.left + 8, frame.top + 20, searchW, 14,
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.search"));
-        //? if >=1.19.3 {
-        String hint = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.search").getString();
-        String shown = GuiDraw.ellipsis(this.font, hint, searchW - 8);
-        search.setHint(Component.literal(shown));
-        if (!shown.equals(hint)) {
-            search.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(hint)));
-        }
-        //?}
+                new Rect(top.right() - hallWidth, top.y(), hallWidth, BUTTON_HEIGHT),
+                message("button.hall_queue", TradeHall.size()), pressed -> openHall()));
+        FitButton.hint(hallButton, message("button.hall.tooltip"));
+
+        int toolbarY = top.bottom() + GAP;
+        int searchWidth = Math.min(112, top.width() / 4);
+        Rect searchBounds = new Rect(top.x(), toolbarY, searchWidth, BUTTON_HEIGHT);
+        SearchBox search = new SearchBox(font, searchBounds, message("checklist.search"), () -> {});
         search.setValue(query);
         search.setResponder(value -> {
             query = value;
-            rosterBar.setOffset(0);
+            villagersBar.setOffset(0);
         });
         addRenderableWidget(search);
-        int buttonY = frame.top + frame.h - 22;
-        int doneW = Math.min(66, Math.max(36, (frame.w - 24) / 4));
+        Rect filters = new Rect(searchBounds.right() + GAP, toolbarY, inner.width() - searchWidth - GAP, BUTTON_HEIGHT);
+        filterButtons.clear();
+        for (Filter value : Filter.values()) {
+            Button button = addRenderableWidget(FitButton.create(filters.column(value.ordinal(), Filter.values().length),
+                    message("checklist.filter." + value.key, 0), pressed -> {
+                        filter = value;
+                        villagersBar.setOffset(0);
+                    }));
+            filterButtons.add(button);
+        }
+
+        footer = new Rect(inner.x(), inner.bottom() - BUTTON_HEIGHT, inner.width(), BUTTON_HEIGHT);
+        int bodyY = filters.bottom() + GAP;
+        body = new Rect(inner.x(), bodyY, inner.width(), footer.y() - GAP - bodyY);
+        addRemoveButtons();
+        Rect left = footer.column(0, 3);
         clearButton = addRenderableWidget(FitButton.create(
-                frame.left + frame.w - doneW * 2 - 12,
-                buttonY,
-                doneW,
-                16,
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.clear_dead"),
-                pressed -> {
-                    if (this.minecraft == null) {
-                        return;
-                    }
-                    //? if >=1.21.9 {
-                    if (this.minecraft.hasShiftDown()) {
-                    //?} else {
-                    /*if (hasShiftDown()) {
-                    *///?}
-                        VillagerRosterClient.clearWorld(this.minecraft);
-                    } else {
-                        VillagerRosterClient.pruneDeadLoadedVillagers(this.minecraft);
-                    }
-                    rosterBar.setOffset(0);
-                }));
-        addRenderableWidget(FitButton.create(
-                frame.left + frame.w - doneW - 6,
-                buttonY,
-                doneW,
-                16,
-                Component.translatable("gui.done"),
-                pressed -> onClose()));
+                new Rect(left.x(), left.y(), Math.min(86, left.width()), BUTTON_HEIGHT),
+                message("checklist.clear_dead"), pressed -> clearDead()));
+        FitButton.hint(clearButton, message("checklist.clear_dead.tooltip"));
+        addRenderableWidget(FitButton.primary(footer.column(2, 3), Component.translatable("gui.done"), pressed -> onClose()));
+    }
+
+    private void openHall() {
+        if (minecraft != null) {
+            McBridge.setScreen(minecraft, parent instanceof TradeHallScreen ? parent : new TradeHallScreen(this));
+        }
+    }
+
+    private void clearDead() {
+        if (minecraft == null) {
+            return;
+        }
+        //? if >=1.21.9 {
+        if (minecraft.hasShiftDown()) {
+        //?} else {
+        /*if (hasShiftDown()) {
+        *///?}
+            VillagerRosterClient.clearWorld(minecraft);
+        } else {
+            VillagerRosterClient.pruneDeadLoadedVillagers(minecraft);
+        }
+        villagersBar.setOffset(0);
+    }
+
+    private void addRemoveButtons() {
+        removeButtons.clear();
+        removeIds = new String[Math.max(0, body.height() / ROW_HEIGHT)];
+        for (int i = 0; i < removeIds.length; i++) {
+            int row = i;
+            Button button = addRenderableWidget(FitButton.create(new Rect(0, 0, REMOVE_WIDTH, BUTTON_HEIGHT),
+                    message("button.remove"), pressed -> removeVillager(row)));
+            button.visible = false;
+            button.active = false;
+            removeButtons.add(button);
+        }
+    }
+
+    private void removeVillager(int row) {
+        String id = removeIds[row];
+        if (minecraft != null && id != null) {
+            VillagerRosterClient.roster().remove(VillagerRosterClient.currentWorldKey(minecraft), id);
+            VillagerRosterClient.roster().save(VillagerRosterFiles.configFile());
+            removeIds[row] = null;
+            removeButtons.get(row).active = false;
+        }
     }
 
     //? if <1.20 {
@@ -164,9 +195,7 @@ public final class MyVillagersScreen extends Screen {
         GuiDraw.Canvas canvas = GuiDraw.of(pose);
         paint(canvas, mouseX, mouseY);
         super.render(pose, mouseX, mouseY, partialTick);
-        if (!hover.isEmpty()) {
-            canvas.tip(hover, mouseX, mouseY);
-        }
+        canvas.tip(hover, mouseX, mouseY);
     }
     *///?}
 
@@ -176,9 +205,7 @@ public final class MyVillagersScreen extends Screen {
         GuiDraw.Canvas canvas = GuiDraw.of(graphics);
         paint(canvas, mouseX, mouseY);
         super.render(graphics, mouseX, mouseY, partialTick);
-        if (!hover.isEmpty()) {
-            canvas.tip(hover, mouseX, mouseY);
-        }
+        canvas.tip(hover, mouseX, mouseY);
     }
     //?}
 
@@ -188,419 +215,214 @@ public final class MyVillagersScreen extends Screen {
         GuiDraw.Canvas canvas = GuiDraw.of(graphics);
         paint(canvas, mouseX, mouseY);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        if (!hover.isEmpty()) {
-            canvas.tip(hover, mouseX, mouseY);
-        }
+        canvas.tip(hover, mouseX, mouseY);
     }
     *///?}
 
     private void paint(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
         hover = List.of();
-        hits.clear();
-        tabs.clear();
-        Frame frame = frame();
-        if (hallButton != null) {
-            hallButton.setMessage(Component.translatable("text." + VillagerReroller.MOD_ID + ".button.hall_queue", TradeHall.size()));
+        GuiDraw.panel(canvas, frame);
+        GuiDraw.line(canvas, title.getString(), header, TEXT);
+        if (header.contains(mouseX, mouseY)) {
+            Component key = AutomatorKeys.CHECKLIST == null
+                    ? Component.literal("V") : AutomatorKeys.CHECKLIST.getTranslatedKeyMessage();
+            hover = List.of(title, message("checklist.key_hint", key));
         }
+        hallButton.setMessage(message("button.hall_queue", TradeHall.size()));
+
         List<VillagerRoster.Entry> roster = roster();
         List<VillagerRoster.WantedCheck> checks = VillagerRoster.evaluateWanted(
                 ProfessionPicks.load(PickFiles.configFile()), roster, null);
-        int neededCount = 0;
-        int lockedIn = 0;
-        List<VillagerRoster.WantedCheck> needed = new ArrayList<>();
-        for (VillagerRoster.WantedCheck check : checks) {
-            if (check.state() == VillagerRoster.WantedState.LOCKED_IN) {
-                lockedIn++;
-            } else {
-                neededCount++;
-                needed.add(check);
-            }
-        }
-        if (clearButton != null) {
-            clearButton.active = !roster.isEmpty();
-        }
-        GuiDraw.beveled(canvas, frame.left, frame.top, frame.w, frame.h);
-        int hallLeft = hallButton == null ? frame.left + frame.w - 8 : widgetX(hallButton);
-        String title = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.title").getString();
-        String keyName = AutomatorKeys.CHECKLIST == null
-                ? "V"
-                : AutomatorKeys.CHECKLIST.getTranslatedKeyMessage().getString();
-        String keyLabel = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.key_hint", keyName).getString();
-        int titleW = Math.min(canvas.font().width(title), Math.max(20, hallLeft - frame.left - 16));
-        String titleTip = GuiDraw.fit(canvas, title, frame.left + 8, frame.top + 7, titleW, GuiDraw.TEXT);
-        int cursor = frame.left + 8 + canvas.font().width(GuiDraw.ellipsis(canvas.font(), title, titleW)) + 4;
-        if (cursor + canvas.font().width(keyLabel) + 8 < hallLeft) {
-            cursor += GuiDraw.pill(canvas, cursor, frame.top + 5, keyLabel, 0xFFDCDCDC, 0xFF707070, 0xFF404040) + 3;
-        }
-        cursor = drawCountPills(canvas, cursor, frame.top + 5, hallLeft - 4, roster.size(), lockedIn, checks.size(), neededCount);
-        if (titleTip != null && mouseX >= frame.left + 8 && mouseX <= frame.left + 8 + titleW && mouseY >= frame.top + 4 && mouseY <= frame.top + 16) {
-            hover = List.of(Component.literal(titleTip));
+        List<VillagerRoster.WantedCheck> needed = checks.stream()
+                .filter(check -> check.state() != VillagerRoster.WantedState.LOCKED_IN).toList();
+        int librarians = professionCount(roster, true);
+        int[] counts = {roster.size(), neededVillagers(roster, checks), librarians, roster.size() - librarians};
+        for (Filter value : Filter.values()) {
+            Button button = filterButtons.get(value.ordinal());
+            button.setMessage(message("checklist.filter." + value.key, counts[value.ordinal()]));
+            FitButton.select(button, value == filter);
         }
 
-        layoutTabs(canvas, frame, frame.left + frame.w - 6, mouseX, mouseY);
-        int bodyTop = frame.top + 36;
-        int bodyBottom = frame.top + frame.h - 26;
-        boolean banner = neededCount == 0 && !checks.isEmpty();
-        int sectionH;
-        if (neededCount > 0) {
-            sectionH = Math.min(52, Math.max(28, bodyBottom - bodyTop - ROW - 4));
-        } else if (banner) {
-            sectionH = 16;
-        } else {
-            sectionH = 0;
+        clearButton.active = !roster.isEmpty();
+        for (Button button : removeButtons) {
+            button.visible = false;
+            button.active = false;
         }
-        needX = frame.left + 8;
-        needY = bodyTop;
-        needW = frame.w - 16;
-        needH = sectionH;
-        if (neededCount > 0) {
-            paintNeeded(canvas, needed, lockedIn, checks.size(), mouseX, mouseY);
-        } else if (banner) {
-            canvas.fill(needX, needY, needX + needW, needY + needH, 0xFFD7ECD9);
-            canvas.fill(needX, needY, needX + 3, needY + needH, 0xFF2E7D32);
-            String line = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.all_locked", checks.size()).getString();
-            String tip = GuiDraw.fit(canvas, line, needX + 6, needY + 4, needW - 12, 0xFF1B5E20);
-            if (tip != null && inside(mouseX, mouseY, needX, needY, needW, needH)) {
-                hover = List.of(Component.literal(tip));
-            }
-        }
-        int gap = sectionH == 0 ? 0 : 2;
-        wellX = frame.left + 8;
-        wellY = bodyTop + sectionH + gap;
-        wellW = frame.w - 16;
-        wellH = Math.max(20, bodyBottom - wellY);
-        paintRoster(canvas, roster, checks, mouseX, mouseY);
-        String footer = roster.isEmpty()
-                ? Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.tip").getString()
-                : Component.translatable(
-                        "text." + VillagerReroller.MOD_ID + ".checklist.showing",
-                        rosterBar.offset() + 1,
-                        Math.min(rosterBar.offset() + Math.max(visibleRows, 1), filtered(roster, checks).size()),
-                        filtered(roster, checks).size()).getString();
-        int footerW = frame.w - 160;
-        if (footerW < 20) {
-            footerW = frame.w / 2;
-        }
-        String footerTip = GuiDraw.fit(canvas, footer, frame.left + 8, frame.top + frame.h - 16, footerW, 0xFF484848);
-        if (footerTip != null && mouseY >= frame.top + frame.h - 20 && mouseX < frame.left + 8 + footerW) {
-            hover = List.of(Component.literal(footerTip));
-        }
-    }
-
-    private int drawCountPills(GuiDraw.Canvas canvas, int x, int y, int limit, int locked, int found, int total, int needed) {
-        String lockedText = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.locked_count", locked).getString();
-        int fill = locked == 0 ? 0xFFE0E0E0 : 0xFFD8E2DC;
-        int border = locked == 0 ? 0xFF808080 : 0xFF52796F;
-        int color = locked == 0 ? 0xFF404040 : 0xFF1B4332;
-        if (x + canvas.font().width(lockedText) + 8 < limit) {
-            x += GuiDraw.pill(canvas, x, y, lockedText, fill, border, color) + 3;
-        }
-        if (total > 0 && locked > 0) {
-            String wanted = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.wanted_count", found, total).getString();
-            if (x + canvas.font().width(wanted) + 8 < limit) {
-                x += GuiDraw.pill(canvas, x, y, wanted, 0xFFD7ECD9, 0xFF2E7D32, 0xFF1B5E20) + 3;
-            }
-        }
-        if (needed > 0) {
-            String missing = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.needed_count", needed).getString();
-            if (x + canvas.font().width(missing) + 8 < limit) {
-                x += GuiDraw.pill(canvas, x, y, missing, 0xFFFFF0C2, 0xFFD48806, 0xFF9C4A00) + 3;
-            }
-        }
-        return x;
-    }
-
-    private void layoutTabs(GuiDraw.Canvas canvas, Frame frame, int limit, int mouseX, int mouseY) {
-        int searchRight = search == null ? frame.left + 8 : widgetX(search) + widgetW(search);
-        int x = searchRight + 3;
-        int y = frame.top + 20;
-        Filter[] values = Filter.values();
-        int[] counts = {roster().size(), neededVillagers(roster()), professionCount(roster(), true), professionCount(roster(), false)};
-        String[] labels = {
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.all", counts[0]).getString(),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.needed", counts[1]).getString(),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.librarian", counts[2]).getString(),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.filter.other", counts[3]).getString()
-        };
-        int remaining = Math.max(0, limit - x);
-        int[] preferred = {44, 62, 74, 53};
-        int[] widths = new int[values.length];
-        int natural = 0;
-        int gap = 2;
-        for (int i = 0; i < values.length; i++) {
-            int text = canvas.font().width(labels[i]) + 8;
-            int want = i < preferred.length ? Math.max(preferred[i], text) : text;
-            widths[i] = want;
-            natural += want;
-        }
-        int gaps = gap * Math.max(0, values.length - 1);
-        if (natural + gaps > remaining && natural > 0) {
-            int budget = Math.max(values.length * 16, remaining - gaps);
-            int used = 0;
-            for (int i = 0; i < widths.length; i++) {
-                widths[i] = Math.max(16, widths[i] * budget / natural);
-                used += widths[i];
-            }
-            if (used > budget) {
-                widths[widths.length - 1] = Math.max(16, widths[widths.length - 1] - (used - budget));
-            }
-        }
-        for (int i = 0; i < values.length; i++) {
-            if (x + 16 > limit) {
-                break;
-            }
-            int width = Math.min(widths[i], limit - x);
-            boolean selected = filter == values[i];
-            canvas.fill(x, y, x + width, y + 14, selected ? 0xFF2E7D32 : 0xFF000000);
-            canvas.fill(x + 1, y + 1, x + width - 1, y + 13, selected ? 0xFFD7ECD9 : 0xFFC6C6C6);
-            String shown = GuiDraw.ellipsis(canvas.font(), labels[i], width - 4);
-            canvas.text(shown, x + 2, y + 3, selected ? 0xFF1B5E20 : GuiDraw.BODY);
-            tabs.add(new TabHit(values[i], x, y, width, 14, labels[i], shown));
-            if (!shown.equals(labels[i]) && inside(mouseX, mouseY, x, y, width, 14)) {
-                hover = List.of(Component.literal(labels[i]));
-            }
-            x += width + 2;
-        }
-    }
-
-    private void paintNeeded(GuiDraw.Canvas canvas, List<VillagerRoster.WantedCheck> needed, int lockedIn, int total, int mouseX, int mouseY) {
-        canvas.fill(needX, needY, needX + needW, needY + needH, 0xFFF5E6C4);
-        canvas.fill(needX, needY, needX + needW, needY + 1, 0xFF8A5600);
-        canvas.fill(needX, needY, needX + 1, needY + needH, 0xFF8A5600);
-        canvas.fill(needX, needY + needH - 1, needX + needW, needY + needH, 0xFFFFF8E7);
-        canvas.fill(needX + needW - 1, needY, needX + needW, needY + needH, 0xFFFFF8E7);
-        canvas.fill(needX + 1, needY + 1, needX + 4, needY + needH - 1, 0xFFD48806);
-        String header = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.still_needed_header", needed.size()).getString();
-        String right = lockedIn == 0
-                ? Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.none_locked", total).getString()
-                : Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.locked_in_count", lockedIn).getString();
-        int rightW = canvas.font().width(right);
-        int headerMax = Math.max(10, needW - rightW - 16);
-        GuiDraw.fit(canvas, header, needX + 7, needY + 3, headerMax, 0xFF8A3E00);
-        canvas.text(right, needX + needW - rightW - 6, needY + 3, lockedIn == 0 ? 0xFF8A3E00 : 0xFF1B5E20);
-        canvas.fill(needX + 6, needY + 12, needX + needW - 4, needY + 13, 0xFFD4A856);
-        int rowH = 11;
-        int rows = Math.max(1, (needH - 16) / rowH);
-        neededCount = needed.size();
-        neededVisible = rows;
-        int trackY = needY + 14;
-        int trackH = Math.max(1, needH - 16);
-        int max = ListScroll.maxOffset(neededCount, neededVisible);
-        neededBar.clamp(max);
-        canvas.scissor(needX + 4, needY + 14, needX + needW - 8, needY + needH - 1);
-        for (int i = 0; i < rows && neededBar.offset() + i < needed.size(); i++) {
-            VillagerRoster.WantedCheck check = needed.get(neededBar.offset() + i);
-            int y = needY + 14 + i * rowH;
-            int fill = i % 2 == 0 ? 0xFFFFE3A3 : 0xFFFFEAC0;
-            canvas.fill(needX + 5, y, needX + needW - 3, y + rowH - 1, fill);
-            boolean over = check.state() == VillagerRoster.WantedState.OVER_CAP;
-            canvas.text("!", needX + 7, y + 1, over ? 0xFF8A5600 : 0xFF9C2B00);
-            String name = check.displayName();
-            String profession = "\u00b7 " + professionName(check.profession());
-            String cap = check.targetMax() == Integer.MAX_VALUE
-                    ? Component.translatable("text." + VillagerReroller.MOD_ID + ".any").getString()
-                    : Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.want_cap", check.targetMax()).getString();
-            String status = over
-                    ? Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.over_cap_status", check.bestCost(), check.bestVillagerIndex()).getString()
-                    : Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.missing_status").getString();
-            int nameMax = Math.max(16, needW / 5);
-            String nameShown = GuiDraw.ellipsis(canvas.font(), name, nameMax);
-            canvas.text(nameShown, needX + 13, y + 1, 0xFF201000);
-            int px = needX + 13 + canvas.font().width(nameShown) + 4;
-            String professionShown = GuiDraw.ellipsis(canvas.font(), profession, Math.max(8, needW / 6));
-            if (px + canvas.font().width(professionShown) < needX + needW - 8) {
-                canvas.text(professionShown, px, y + 1, 0xFF6B5328);
-                px += canvas.font().width(professionShown) + 4;
-            }
-            if (px + canvas.font().width(cap) + 8 < needX + needW / 2 + 40) {
-                px += GuiDraw.pill(canvas, px, y, cap, 0xFFFFF8E7, 0xFFC77700, 0xFF7A4200) + 4;
-            }
-            String statusShown = GuiDraw.ellipsis(canvas.font(), status, Math.max(8, needX + needW - 6 - px));
-            canvas.text(statusShown, px, y + 1, over ? 0xFF8A5600 : 0xFF9C2B00);
-            if (inside(mouseX, mouseY, needX + 5, y, needW - 8, rowH)
-                    && (!nameShown.equals(name) || !statusShown.equals(status) || !professionShown.equals(profession))) {
-                hover = List.of(Component.literal(name + " " + profession), Component.literal(cap + "  " + status));
-            }
-        }
-        canvas.unscissor();
-        if (max > 0) {
-            int thumb = ListScroll.thumbHeight(trackH, neededCount, neededVisible);
-            int thumbY = trackY + ListScroll.thumbTop(trackH, thumb, neededBar.offset(), max);
-            canvas.scroller(needX + needW - 7, thumbY, thumb, false);
-        }
-    }
-
-    private void paintRoster(GuiDraw.Canvas canvas, List<VillagerRoster.Entry> roster, List<VillagerRoster.WantedCheck> checks, int mouseX, int mouseY) {
-        GuiDraw.recessed(canvas, wellX, wellY, wellW, wellH, 0xFF8E8E8E);
+        ChecklistSections sections = ChecklistSections.place(body, needed.size());
+        paintWanted(canvas, sections.wanted(), needed, checks.size(), mouseX, mouseY);
         List<Indexed> rows = filtered(roster, checks);
-        visibleRows = Math.max(1, (wellH - 4) / ROW);
-        rosterCount = rows.size();
-        maxScroll = ListScroll.maxOffset(rosterCount, visibleRows);
-        rosterBar.clamp(maxScroll);
-        int scroll = rosterBar.offset();
-        if (rows.isEmpty()) {
-            if (roster.isEmpty()) {
-                paintEmpty(canvas, mouseX, mouseY);
-            } else {
-                String none = Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.no_match").getString();
-                String tip = GuiDraw.fit(canvas, none, wellX + 8, wellY + wellH / 2, wellW - 16, GuiDraw.MUTED);
-                if (tip != null && inside(mouseX, mouseY, wellX, wellY, wellW, wellH)) {
-                    hover = List.of(Component.literal(tip));
-                }
-            }
-        } else {
-            canvas.scissor(wellX + 1, wellY + 1, wellX + wellW - 8, wellY + wellH - 1);
-            for (int i = 0; i < visibleRows && scroll + i < rows.size(); i++) {
-                Indexed indexed = rows.get(scroll + i);
-                int y = wellY + 2 + i * ROW;
-                paintVillager(canvas, indexed, i, y, checks, mouseX, mouseY);
-            }
-            canvas.unscissor();
+        paintVillagers(canvas, sections.villagers(), roster.size(), rows, checks, mouseX, mouseY);
+        if (!rows.isEmpty()) {
+            Rect range = footer.column(1, 3);
+            GuiDraw.label(canvas, message("ui.showing", villagersBar.offset() + 1,
+                    Math.min(villagersBar.offset() + villagersVisible, rows.size()), rows.size()), range, MUTED, mouseX, mouseY);
         }
-        int thumb = ListScroll.thumbHeight(wellH, rosterCount, visibleRows);
-        int barY = wellY + ListScroll.thumbTop(wellH, thumb, scroll, maxScroll);
-        canvas.scroller(wellX + wellW - 7, barY, thumb, maxScroll == 0);
     }
 
-    private void paintVillager(GuiDraw.Canvas canvas, Indexed indexed, int row, int y, List<VillagerRoster.WantedCheck> checks, int mouseX, int mouseY) {
-        VillagerRoster.Entry entry = indexed.entry;
-        boolean within = false;
-        boolean over = false;
-        for (VillagerRoster.LockedOffer offer : entry.trades()) {
-            VillagerRoster.WantedCheck check = find(checks, entry.profession(), offer.tradeId());
-            if (check == null) {
-                continue;
-            }
-            if (check.state() == VillagerRoster.WantedState.OVER_CAP && check.bestVillagerIndex() == indexed.index) {
-                over = true;
-            } else if (check.state() == VillagerRoster.WantedState.LOCKED_IN && check.bestVillagerIndex() == indexed.index) {
-                within = true;
+    private void paintWanted(GuiDraw.Canvas canvas, Rect section, List<VillagerRoster.WantedCheck> needed,
+                             int total, int mouseX, int mouseY) {
+        int matched = total - needed.size();
+        Component heading = total == 0 ? message("checklist.wanted")
+                : message("checklist.wanted_progress", matched, total);
+        Rect title = new Rect(section.x(), section.y(), section.width(), LINE_HEIGHT);
+        GuiDraw.label(canvas, heading, title, matched == total && total > 0 ? UiStatus.READY.color() : TEXT, mouseX, mouseY);
+        wantedWell = sectionWell(section);
+        GuiDraw.well(canvas, wantedWell);
+        wantedCount = needed.size();
+        wantedVisible = wantedWell.height() / WANTED_ROW;
+        wantedBar.clamp(ListScroll.maxOffset(wantedCount, wantedVisible));
+        if (needed.isEmpty()) {
+            Component label = message(total == 0 ? "checklist.no_wanted" : "checklist.all_matched");
+            Component hint = message(total == 0 ? "checklist.pick_targets" : "checklist.all_locked", total);
+            GuiDraw.empty(canvas, wantedWell, label, hint, mouseX, mouseY);
+            return;
+        }
+        for (int i = 0; i < wantedVisible && wantedBar.offset() + i < wantedCount; i++) {
+            int index = wantedBar.offset() + i;
+            Rect row = listRow(wantedWell, WANTED_ROW, i);
+            VillagerRoster.WantedCheck check = needed.get(index);
+            boolean overCap = check.state() == VillagerRoster.WantedState.OVER_CAP;
+            boolean hovered = row.contains(mouseX, mouseY);
+            GuiDraw.row(canvas, row, index, UiStatus.RUNNING, hovered);
+
+            Rect text = new Rect(row.x() + PADDING, row.y(), row.width() - PADDING - GAP, row.height());
+            int statusWidth = text.width() * 2 / 5;
+            Rect status = new Rect(text.right() - statusWidth, text.y(), statusWidth, text.height());
+            Rect name = new Rect(text.x(), text.y(), text.width() - statusWidth - GAP, text.height());
+            GuiDraw.line(canvas, check.displayName(), name, TEXT);
+            GuiDraw.line(canvas, message(overCap ? "checklist.over_cap" : "checklist.missing").getString(),
+                    status, UiStatus.RUNNING.color());
+            if (hovered) {
+                Component price = check.targetMax() == Integer.MAX_VALUE ? message("any") : message("checklist.want_cap", check.targetMax());
+                Component detail = overCap ? message("checklist.over_cap_status", check.bestCost(), check.bestVillagerIndex())
+                        : message("checklist.missing_status");
+                hover = List.of(message("ui.with_detail", check.displayName(), professionName(check.profession())), price, detail);
             }
         }
-        int stripe = within ? 0xFF2E7D32 : over ? 0xFFC77700 : 0xFF707070;
-        int fill = over && !within ? 0xFFE2D6BE : (row % 2 == 0 ? 0xFFD4D4D4 : 0xFFCACACA);
-        int rowW = wellW - 14;
-        canvas.fill(wellX + 1, y, wellX + 1 + rowW, y + ROW - 1, fill);
-        canvas.fill(wellX + 1, y, wellX + 4, y + ROW - 1, stripe);
-        canvas.fill(wellX + 1, y + ROW - 1, wellX + 1 + rowW, y + ROW, 0xFF707070);
-        ItemStack icon = icon(entry);
-        canvas.item(icon, wellX + 6, y + 4);
-        String name = entry.customName() == null || entry.customName().isEmpty()
-                ? professionName(entry.profession()) + " #" + indexed.index
-                : "#" + indexed.index + " \"" + entry.customName() + "\"";
-        String tier = " \u00b7 " + professionName(entry.profession()) + " \u00b7 " + VillagerRoster.tierName(entry.level());
-        String place = placeLabel(entry);
-        int textX = wellX + 24;
-        int removeX = wellX + rowW - 16;
-        int nameMax = Math.max(12, removeX - textX - canvas.font().width(tier) - 8);
-        String nameShown = GuiDraw.ellipsis(canvas.font(), name, nameMax);
-        canvas.text(nameShown, textX, y + 3, 0xFF181818);
-        int after = textX + canvas.font().width(nameShown);
-        String tierShown = GuiDraw.ellipsis(canvas.font(), tier, Math.max(8, removeX - after - 8));
-        canvas.text(tierShown, after, y + 3, 0xFF484848);
-        after += canvas.font().width(tierShown) + 4;
-        if (after + 20 < removeX) {
-            String placeShown = GuiDraw.ellipsis(canvas.font(), place, removeX - after - 2);
-            GuiDraw.pill(canvas, after, y + 2, placeShown, 0xFFE4E4E4, 0xFF808080, 0xFF303030);
+        GuiDraw.scrollbar(canvas, track(wantedWell), wantedBar, wantedCount, wantedVisible);
+    }
+
+    private void paintVillagers(GuiDraw.Canvas canvas, Rect section, int total, List<Indexed> rows,
+                                List<VillagerRoster.WantedCheck> checks, int mouseX, int mouseY) {
+        Rect title = new Rect(section.x(), section.y(), section.width(), LINE_HEIGHT);
+        GuiDraw.label(canvas, message("checklist.locked_count", total), title, TEXT, mouseX, mouseY);
+        villagersWell = sectionWell(section);
+        GuiDraw.well(canvas, villagersWell);
+        villagersCount = rows.size();
+        villagersVisible = villagersWell.height() / ROW_HEIGHT;
+        villagersBar.clamp(ListScroll.maxOffset(villagersCount, villagersVisible));
+        if (rows.isEmpty()) {
+            GuiDraw.empty(canvas, villagersWell, message(total == 0 ? "checklist.empty.title" : "checklist.no_match"),
+                    message(total == 0 ? "checklist.record_trade" : "checklist.clear_filters"), mouseX, mouseY);
+            return;
         }
-        canvas.fill(removeX, y + 2, removeX + 13, y + 14, 0xFF000000);
-        canvas.fill(removeX + 1, y + 3, removeX + 12, y + 13, 0xFFC6C6C6);
-        canvas.text("\u00d7", removeX + 3, y + 3, 0xFF202020);
-        hits.add(new Hit(removeX, y + 2, 13, 12, entry.uuid()));
-        List<Component> lines = new ArrayList<>();
-        int tradeX = textX;
-        int tradeMax = removeX - 2;
-        boolean truncated = false;
-        for (VillagerRoster.LockedOffer offer : entry.trades()) {
-            VillagerRoster.WantedCheck check = find(checks, entry.profession(), offer.tradeId());
-            String piece = tradePiece(offer, check, indexed.index);
-            int color = tradeColor(offer, check, indexed.index);
-            lines.add(Component.literal(piece));
-            if (truncated) {
-                continue;
-            }
-            String drawn = piece;
-            int width = canvas.font().width(drawn);
-            if (tradeX + width > tradeMax) {
-                drawn = GuiDraw.ellipsis(canvas.font(), piece, tradeMax - tradeX);
-                truncated = true;
-            }
-            if (!drawn.isEmpty() && tradeX < tradeMax) {
-                canvas.text(drawn, tradeX, y + 14, color);
-                tradeX += canvas.font().width(drawn) + canvas.font().width(" \u00b7 ");
-                if (!truncated && tradeX < tradeMax) {
-                    canvas.text(" \u00b7", tradeX - canvas.font().width(" \u00b7 "), y + 14, 0xFF505050);
-                }
+        for (int i = 0; i < villagersVisible && villagersBar.offset() + i < villagersCount; i++) {
+            int index = villagersBar.offset() + i;
+            paintVillager(canvas, listRow(villagersWell, ROW_HEIGHT, i), rows.get(index), i, checks, mouseX, mouseY);
+        }
+        GuiDraw.scrollbar(canvas, track(villagersWell), villagersBar, villagersCount, villagersVisible);
+    }
+
+    private void paintVillager(GuiDraw.Canvas canvas, Rect row, Indexed indexed, int visible,
+                               List<VillagerRoster.WantedCheck> checks, int mouseX, int mouseY) {
+        VillagerRoster.Entry villager = indexed.entry;
+        List<Component> trades = new ArrayList<>();
+        List<UiStatus> states = new ArrayList<>();
+        UiStatus tone = UiStatus.IDLE;
+        for (VillagerRoster.LockedOffer offer : villager.trades()) {
+            VillagerRoster.WantedCheck check = find(checks, villager.profession(), offer.tradeId());
+            UiStatus state = check == null || check.bestVillagerIndex() != indexed.index ? UiStatus.IDLE
+                    : check.state() == VillagerRoster.WantedState.LOCKED_IN ? UiStatus.READY
+                    : check.state() == VillagerRoster.WantedState.OVER_CAP ? UiStatus.RUNNING : UiStatus.IDLE;
+            trades.add(tradePiece(offer, check, state));
+            states.add(state);
+            if (state == UiStatus.READY || tone == UiStatus.IDLE) {
+                tone = state;
             }
         }
-        boolean hoverRow = inside(mouseX, mouseY, wellX + 1, y, rowW, ROW);
-        if (hoverRow && (truncated || !nameShown.equals(name) || !tierShown.equals(tier))) {
+        boolean hovered = row.contains(mouseX, mouseY);
+        GuiDraw.row(canvas, row, indexed.index - 1, tone, hovered);
+        canvas.item(icon(villager), row.x() + GAP + 2, row.y() + 6);
+        Rect remove = new Rect(row.right() - REMOVE_WIDTH - GAP, row.y() + GAP, REMOVE_WIDTH, BUTTON_HEIGHT);
+        Button button = removeButtons.get(visible);
+        removeIds[visible] = villager.uuid();
+        FitButton.place(button, remove.x(), remove.y());
+        button.visible = true;
+        button.active = true;
+
+        String profession = professionName(villager.profession());
+        Component name = message("checklist.villager_name", indexed.index,
+                villager.customName() == null || villager.customName().isEmpty() ? profession : villager.customName());
+        Component tier = Component.translatable("merchant.level." + Math.max(1, Math.min(5, villager.level())));
+        Component identity = message("ui.with_detail", name, tier);
+        String place = placeLabel(villager);
+        int textX = row.x() + 26;
+        int textWidth = remove.x() - GAP - textX;
+        int titleWidth = Math.min(textWidth, canvas.font().width(identity));
+        GuiDraw.line(canvas, identity.getString(), new Rect(textX, row.y() + 3, titleWidth, LINE_HEIGHT), TEXT);
+        if (titleWidth + GAP < textWidth) {
+            int placeX = textX + titleWidth + GAP;
+            GuiDraw.line(canvas, place, new Rect(placeX, row.y() + 3, textWidth - titleWidth - GAP, LINE_HEIGHT), MUTED);
+        }
+        paintTradePreview(canvas, textX, row.y() + 15, textWidth, trades, states);
+
+        if (hovered && !remove.contains(mouseX, mouseY)) {
             List<Component> tip = new ArrayList<>();
-            tip.add(Component.literal(name + tier + " " + place));
-            tip.addAll(lines);
+            tip.add(identity);
+            tip.add(message("ui.with_detail", profession, place));
+            tip.addAll(trades);
             hover = tip;
         }
     }
 
-    private void paintEmpty(GuiDraw.Canvas canvas, int mouseX, int mouseY) {
-        int cardX = wellX + 8;
-        int cardY = wellY + 8;
-        int cardW = Math.max(20, wellW - 22);
-        int cardH = Math.max(20, wellH - 16);
-        GuiDraw.beveled(canvas, cardX, cardY, cardW, cardH);
-        int mid = cardX + cardW / 2;
-        if (cardH > 36) {
-            canvas.item(new ItemStack(Items.EMERALD), mid - 26, cardY + 6);
-            canvas.item(new ItemStack(Items.ENCHANTED_BOOK), mid - 8, cardY + 6);
-            canvas.item(new ItemStack(Items.BOOKSHELF), mid + 10, cardY + 6);
-        }
-        String[] lines = {
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.empty.title").getString(),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.empty.step1").getString(),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.empty.step2").getString(),
-                Component.translatable("text." + VillagerReroller.MOD_ID + ".checklist.empty.step3").getString()
-        };
-        int[] colors = {0xFF202020, 0xFF484848, 0xFF484848, 0xFF1B5E20};
-        int y = cardY + (cardH > 70 ? 28 : 8);
-        for (int i = 0; i < lines.length && y < cardY + cardH - 12; i++) {
-            int max = cardW - 12;
-            String shown = GuiDraw.ellipsis(canvas.font(), lines[i], max);
-            int dx = cardX + (cardW - canvas.font().width(shown)) / 2;
-            canvas.text(shown, dx, y, colors[i]);
-            if (!shown.equals(lines[i]) && inside(mouseX, mouseY, cardX, y - 1, cardW, 11)) {
-                hover = List.of(Component.literal(lines[i]));
+    private void paintTradePreview(GuiDraw.Canvas canvas, int x, int y, int width,
+                                   List<Component> trades, List<UiStatus> states) {
+        int right = x + width;
+        String separator = " · ";
+        int separatorWidth = canvas.font().width(separator);
+        for (int i = 0; i < trades.size() && x < right; i++) {
+            if (i > 0) {
+                if (right - x <= separatorWidth) {
+                    break;
+                }
+                canvas.text(separator, x, y, MUTED);
+                x += separatorWidth;
             }
-            y += i == 0 ? 14 : 12;
+            String shown = GuiDraw.ellipsis(canvas.font(), trades.get(i).getString(), right - x);
+            canvas.text(shown, x, y, states.get(i).color());
+            if (!shown.equals(trades.get(i).getString())) {
+                break;
+            }
+            x += canvas.font().width(shown);
         }
     }
 
-    private String tradePiece(VillagerRoster.LockedOffer offer, VillagerRoster.WantedCheck check, int index) {
+    private Component tradePiece(VillagerRoster.LockedOffer offer, VillagerRoster.WantedCheck check, UiStatus state) {
         String name = offer.displayName() == null || offer.displayName().isEmpty() ? offer.tradeId() : offer.displayName();
-        if (check != null && check.bestVillagerIndex() == index && offer.paysEmeralds()) {
-            if (check.state() == VillagerRoster.WantedState.OVER_CAP) {
-                return "! " + name + " (" + offer.effectiveCost() + " em \u00b7 want \u2264" + check.targetMax() + ")";
-            }
-            if (check.state() == VillagerRoster.WantedState.LOCKED_IN) {
-                String cap = check.targetMax() == Integer.MAX_VALUE ? "" : " \u2264" + check.targetMax();
-                return "\u2605 " + name + " (" + offer.effectiveCost() + " em" + cap + ")";
-            }
-        }
         if (!offer.paysEmeralds()) {
-            return offer.itemCount() + " " + name + " \u2192 " + offer.effectiveCost() + " em";
+            return message("checklist.trade.sold", offer.itemCount(), name, offer.effectiveCost());
         }
-        return name + " (" + offer.effectiveCost() + " em)";
+        if (state == UiStatus.RUNNING) {
+            return message("checklist.trade.over_cap", name, offer.effectiveCost(), check.targetMax());
+        }
+        if (state == UiStatus.READY) {
+            return check.targetMax() == Integer.MAX_VALUE ? message("checklist.trade.matched", name, offer.effectiveCost())
+                    : message("checklist.trade.matched_cap", name, offer.effectiveCost(), check.targetMax());
+        }
+        return message("checklist.trade.price", name, offer.effectiveCost());
     }
 
-    private int tradeColor(VillagerRoster.LockedOffer offer, VillagerRoster.WantedCheck check, int index) {
-        if (check != null && check.bestVillagerIndex() == index) {
-            if (check.state() == VillagerRoster.WantedState.OVER_CAP) {
-                return 0xFF7A4200;
-            }
-            if (check.state() == VillagerRoster.WantedState.LOCKED_IN) {
-                return 0xFF1B5E20;
-            }
-        }
-        return 0xFF303030;
+    private static Rect sectionWell(Rect section) {
+        int y = section.y() + LINE_HEIGHT + GAP;
+        return new Rect(section.x(), y, section.width(), Math.max(0, section.bottom() - y));
+    }
+
+    private static Rect listRow(Rect well, int height, int row) {
+        return new Rect(well.x(), well.y() + row * height, well.width() - SCROLLBAR_SPACE, height);
+    }
+
+    private static Rect track(Rect well) {
+        return new Rect(well.right() - SCROLLBAR_SPACE, well.y(), SCROLLBAR_SPACE, well.height());
     }
 
     private String placeLabel(VillagerRoster.Entry entry) {
@@ -723,9 +545,7 @@ public final class MyVillagersScreen extends Screen {
         return false;
     }
 
-    private int neededVillagers(List<VillagerRoster.Entry> roster) {
-        List<VillagerRoster.WantedCheck> checks = VillagerRoster.evaluateWanted(
-                ProfessionPicks.load(PickFiles.configFile()), roster, null);
+    private int neededVillagers(List<VillagerRoster.Entry> roster, List<VillagerRoster.WantedCheck> checks) {
         int count = 0;
         int index = 1;
         for (VillagerRoster.Entry entry : roster) {
@@ -782,61 +602,34 @@ public final class MyVillagersScreen extends Screen {
         return VillagerRoster.prettyTrade("item:minecraft:" + path);
     }
 
-    private Frame frame() {
-        int w = Math.min(380, Math.max(80, this.width - 4));
-        int h = Math.min(220, Math.max(80, this.height - 4));
-        int left = Math.max(2, (this.width - w) / 2);
-        int top = Math.max(2, (this.height - h) / 2);
-        return new Frame(left, top, w, h);
-    }
-
     private boolean click(double mouseX, double mouseY) {
-        for (Hit hit : hits) {
-            if (inside(mouseX, mouseY, hit.x, hit.y, hit.w, hit.h)) {
-                if (this.minecraft != null) {
-                    VillagerRosterClient.roster().remove(VillagerRosterClient.currentWorldKey(this.minecraft), hit.uuid);
-                    VillagerRosterClient.roster().save(dev.quarkos.villagerreroller.config.VillagerRosterFiles.configFile());
-                }
-                return true;
-            }
+        Rect rosterTrack = track(villagersWell);
+        Rect neededTrack = track(wantedWell);
+        if (rosterTrack.contains(mouseX, mouseY)) {
+            return villagersBar.clickTrack(mouseY, rosterTrack.y(), rosterTrack.height(), villagersCount, villagersVisible);
         }
-        for (TabHit tab : tabs) {
-            if (inside(mouseX, mouseY, tab.x, tab.y, tab.w, tab.h)) {
-                filter = tab.filter;
-                rosterBar.setOffset(0);
-                return true;
-            }
-        }
-        if (inside(mouseX, mouseY, wellX + wellW - 8, wellY, 8, wellH)) {
-            rosterBar.clickTrack(mouseY, wellY, wellH, rosterCount, visibleRows);
-            return true;
-        }
-        int needTrackY = needY + 14;
-        int needTrackH = Math.max(1, needH - 16);
-        if (needH > 16 && inside(mouseX, mouseY, needX + needW - 8, needTrackY, 8, needTrackH)) {
-            neededBar.clickTrack(mouseY, needTrackY, needTrackH, neededCount, neededVisible);
-            return true;
-        }
-        return false;
+        return neededTrack.contains(mouseX, mouseY)
+                && wantedBar.clickTrack(mouseY, neededTrack.y(), neededTrack.height(), wantedCount, wantedVisible);
     }
 
     private boolean scrollBy(double mouseX, double mouseY, double vertical) {
-        if (inside(mouseX, mouseY, wellX, wellY, wellW, wellH)) {
-            return rosterBar.wheel(vertical, rosterCount, visibleRows);
+        if (villagersWell.contains(mouseX, mouseY)) {
+            return villagersBar.wheel(vertical, villagersCount, villagersVisible);
         }
-        if (inside(mouseX, mouseY, needX, needY, needW, needH)) {
-            return neededBar.wheel(vertical, neededCount, neededVisible);
-        }
-        return false;
+        return wantedWell.contains(mouseX, mouseY) && wantedBar.wheel(vertical, wantedCount, wantedVisible);
     }
 
     private boolean drag(double mouseY) {
-        if (rosterBar.drag(mouseY, wellY, wellH, rosterCount, visibleRows)) {
+        return villagersBar.drag(mouseY, villagersWell.y(), villagersWell.height(), villagersCount, villagersVisible)
+                || wantedBar.drag(mouseY, wantedWell.y(), wantedWell.height(), wantedCount, wantedVisible);
+    }
+
+    private boolean submit(int key) {
+        if (GuiDraw.enter(key) && getFocused() == null) {
+            onClose();
             return true;
         }
-        int needTrackY = needY + 14;
-        int needTrackH = Math.max(1, needH - 16);
-        return neededBar.drag(mouseY, needTrackY, needTrackH, neededCount, neededVisible);
+        return false;
     }
 
     //? if <1.21.9 {
@@ -858,8 +651,8 @@ public final class MyVillagersScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        rosterBar.stop();
-        neededBar.stop();
+        villagersBar.stop();
+        wantedBar.stop();
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
@@ -870,7 +663,7 @@ public final class MyVillagersScreen extends Screen {
             VillagerReroller.openChecklist(this.minecraft);
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return submit(keyCode) || super.keyPressed(keyCode, scanCode, modifiers);
     }
     *///?} else {
     @Override
@@ -891,8 +684,8 @@ public final class MyVillagersScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        rosterBar.stop();
-        neededBar.stop();
+        villagersBar.stop();
+        wantedBar.stop();
         return super.mouseReleased(event);
     }
 
@@ -903,7 +696,7 @@ public final class MyVillagersScreen extends Screen {
             VillagerReroller.openChecklist(this.minecraft);
             return true;
         }
-        return super.keyPressed(event);
+        return submit(event.key()) || super.keyPressed(event);
     }
     //?}
 
@@ -925,38 +718,19 @@ public final class MyVillagersScreen extends Screen {
     }
     //?}
 
-    private static boolean inside(double mouseX, double mouseY, int x, int y, int w, int h) {
-        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
-    }
-
-    private static int widgetX(net.minecraft.client.gui.components.AbstractWidget widget) {
-        //? if <1.19.3 {
-        /*return widget.x;
-        *///?} else {
-        return widget.getX();
-        //?}
-    }
-
-    private static int widgetW(net.minecraft.client.gui.components.AbstractWidget widget) {
-        return widget.getWidth();
-    }
-
     private enum Filter {
-        ALL,
-        NEEDED,
-        LIBRARIAN,
-        OTHER
-    }
+        ALL("all"),
+        NEEDED("needed"),
+        LIBRARIAN("librarian"),
+        OTHER("other");
 
-    private record Frame(int left, int top, int w, int h) {
+        private final String key;
+
+        Filter(String key) {
+            this.key = key;
+        }
     }
 
     private record Indexed(int index, VillagerRoster.Entry entry) {
-    }
-
-    private record Hit(int x, int y, int w, int h, String uuid) {
-    }
-
-    private record TabHit(Filter filter, int x, int y, int w, int h, String full, String shown) {
     }
 }
