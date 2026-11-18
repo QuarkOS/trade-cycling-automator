@@ -3,7 +3,6 @@ package dev.quarkos.villagerreroller.picker;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
-import dev.quarkos.villagerreroller.config.AutomatorConfig.HallView;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.picker.HallTradeFilter.Filter;
 import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
@@ -30,11 +29,7 @@ import static dev.quarkos.villagerreroller.picker.UiTheme.*;
 
 /** Wanted and recorded trades, with a separate view of the reroll queue. */
 public final class TradeHallScreen extends PanelScreen {
-    private static final int TILE_WIDTH = 33;
-    private static final int TILE_HEIGHT = 24;
-    private static final int TILE_GAP = 3;
     private static final int ITEM_SLOT = 18;
-    private static final int PAGER_WIDTH = 96;
     private static final int LIST_STATS_WIDTH = 44;
     private static final int LIST_MARK_WIDTH = 18;
     private static final int QUEUE_ROW = 24;
@@ -45,11 +40,10 @@ public final class TradeHallScreen extends PanelScreen {
     private final ListScroll queueScroll = new ListScroll();
     private final ItemStack emerald = new ItemStack(Items.EMERALD);
     private final List<Button> filters = new ArrayList<>();
-    private final List<TileWidgets> tradeButtons = new ArrayList<>();
+    private final List<RowWidgets> tradeButtons = new ArrayList<>();
     private final List<Button> removeButtons = new ArrayList<>();
     private Tab tab;
     private Filter filter = Filter.ALL;
-    private HallView view;
     private String query = "";
     private SearchBox searchBox;
     private HallTrades trades;
@@ -58,8 +52,6 @@ public final class TradeHallScreen extends PanelScreen {
     private List<HallTrades.Tile> filtered = List.of();
     private List<SlotStatus> statuses = List.of();
     private int queueStatusAge;
-    private int page;
-    private int columns;
     private int visibleRows;
     private int[] removeSlots;
     private boolean saveFailed;
@@ -68,15 +60,12 @@ public final class TradeHallScreen extends PanelScreen {
     private Rect well;
     private Rect footer;
     private Rect details;
-    private Rect pageLabel;
     private Rect info;
     private Rect caption;
     private Rect track;
     private List<Component> hover = List.of();
     private Button browseButton;
     private Button villagersButton;
-    private Button previous;
-    private Button next;
     private Button worldButton;
     private Button primaryButton;
     private Button clearButton;
@@ -144,8 +133,7 @@ public final class TradeHallScreen extends PanelScreen {
         backButton = addRenderableWidget(FitButton.create(back, message("button.back"), pressed -> onClose()));
         int top = tabs.bottom() + GAP;
         if (tab == Tab.TRADES) {
-            view = AutomatorConfig.get().hallView();
-            initTradeHeader(inner, tabs);
+            initTradeSearch(inner, tabs);
             initTrades(inner, top);
         } else {
             initQueue(inner, top);
@@ -160,11 +148,9 @@ public final class TradeHallScreen extends PanelScreen {
         }
     }
 
-    private void initTradeHeader(Rect inner, Rect tabs) {
-        Rect list = new Rect(inner.right() - BUTTON_HEIGHT, tabs.y(), BUTTON_HEIGHT, BUTTON_HEIGHT);
-        Rect grid = new Rect(list.x() - GAP - BUTTON_HEIGHT, list.y(), BUTTON_HEIGHT, BUTTON_HEIGHT);
+    private void initTradeSearch(Rect inner, Rect tabs) {
         int searchX = tabs.right() + GAP;
-        Rect search = new Rect(searchX, tabs.y(), grid.x() - searchX - GAP, BUTTON_HEIGHT);
+        Rect search = new Rect(searchX, tabs.y(), inner.right() - searchX, BUTTON_HEIGHT);
         searchBox = new SearchBox(font, search, message("hall.search"), () -> {});
         searchBox.setMaxLength(128);
         searchBox.setValue(query);
@@ -173,19 +159,6 @@ public final class TradeHallScreen extends PanelScreen {
             resetTradeFilter();
         });
         addRenderableWidget(searchBox);
-        FitButton.select(addRenderableWidget(FitButton.icon(grid, message("hall.grid_view"), FitButton.Icon.GRID,
-                pressed -> showView(HallView.GRID))), view == HallView.GRID);
-        FitButton.select(addRenderableWidget(FitButton.icon(list, message("hall.list_view"), FitButton.Icon.LIST,
-                pressed -> showView(HallView.LIST))), view == HallView.LIST);
-    }
-
-    private void showView(HallView value) {
-        if (view != value) {
-            tradeScroll.stop();
-            AutomatorConfig.get().setHallView(value);
-            AutomatorConfig.save();
-            rebuildWidgets();
-        }
     }
 
     private void openVillagers() {
@@ -211,59 +184,28 @@ public final class TradeHallScreen extends PanelScreen {
         }
         int resultsTop = chips.bottom() + GAP;
         well = new Rect(chips.x(), resultsTop, chips.width(), Math.max(0, footer.y() - GAP - resultsTop));
-        tradeButtons.clear();
-        if (view == HallView.GRID) {
-            initGrid();
-        } else {
-            initList();
-        }
+        initTradeRows();
         worldButton = addRenderableWidget(FitButton.create(new Rect(details.x(), footer.y(), details.width(), BUTTON_HEIGHT),
                 message("hall.view_world"), pressed -> viewWorld()));
         refreshTrades();
     }
 
-    private void initGrid() {
-        columns = Math.max(1, (well.width() - 2 * GAP + TILE_GAP) / (TILE_WIDTH + TILE_GAP));
-        visibleRows = Math.max(1, (well.height() - 2 * GAP + TILE_GAP) / (TILE_HEIGHT + TILE_GAP));
-
-        for (int index = 0; index < columns * visibleRows; index++) {
-            Rect tile = tileBounds(index);
-            addTradeButtons(index, new Rect(tile.x() + 3, tile.y() + 3, ITEM_SLOT, ITEM_SLOT),
-                    new Rect(tile.right() - 12, tile.y() + 1, 11, 12));
-        }
-        int pagerWidth = Math.min(PAGER_WIDTH, well.right() - GuiDraw.bounds(backButton).right() - GAP);
-        Rect pager = new Rect(well.right() - pagerWidth, footer.y(), pagerWidth, BUTTON_HEIGHT);
-        pageLabel = new Rect(pager.column(1, 4).x(), pager.y(),
-                pager.column(2, 4).right() - pager.column(1, 4).x(), BUTTON_HEIGHT);
-        previous = addRenderableWidget(FitButton.create(pager.column(0, 4), message("ui.previous"), pressed -> turn(-1)));
-        next = addRenderableWidget(FitButton.create(pager.column(3, 4), message("ui.next"), pressed -> turn(1)));
-        FitButton.hint(previous, message("ui.previous_page"));
-        FitButton.hint(next, message("ui.next_page"));
-    }
-
-    private void initList() {
+    private void initTradeRows() {
         Rect content = well.inset(1);
         track = new Rect(content.right() - SCROLLBAR_SPACE, content.y(), SCROLLBAR_SPACE, content.height());
         visibleRows = content.height() / ROW_HEIGHT;
+        tradeButtons.clear();
         for (int index = 0; index < visibleRows; index++) {
+            int rowIndex = index;
             Rect row = listRowBounds(index);
-            addTradeButtons(index, new Rect(row.x(), row.y(), row.width() - LIST_MARK_WIDTH, row.height()),
-                    new Rect(row.right() - LIST_MARK_WIDTH, row.y(), LIST_MARK_WIDTH, row.height()));
+            Rect selectBounds = new Rect(row.x(), row.y(), row.width() - LIST_MARK_WIDTH, row.height());
+            Rect markBounds = new Rect(selectBounds.right(), row.y(), LIST_MARK_WIDTH, row.height());
+            FitButton select = addRenderableWidget(FitButton.row(selectBounds, Component.empty(),
+                    pressed -> selectTrade(tradeAt(rowIndex))));
+            FitButton wanted = addRenderableWidget(FitButton.mark(markBounds, Component.empty(),
+                    pressed -> toggleWanted(tradeAt(rowIndex))));
+            tradeButtons.add(new RowWidgets(select, wanted));
         }
-    }
-
-    private void addTradeButtons(int index, Rect selectBounds, Rect markBounds) {
-        Button.OnPress select = pressed -> selectTile(tileAt(index));
-        FitButton button = view == HallView.GRID
-                ? FitButton.slot(selectBounds, Component.empty(), ItemStack.EMPTY, null, select)
-                : FitButton.row(selectBounds, Component.empty(), select);
-        FitButton wanted = FitButton.mark(markBounds, Component.empty(), pressed -> toggleWanted(tileAt(index)));
-        tradeButtons.add(new TileWidgets(addRenderableWidget(button), addRenderableWidget(wanted)));
-    }
-
-    private Rect tileBounds(int index) {
-        return new Rect(well.x() + GAP + index % columns * (TILE_WIDTH + TILE_GAP),
-                well.y() + GAP + index / columns * (TILE_HEIGHT + TILE_GAP), TILE_WIDTH, TILE_HEIGHT);
     }
 
     private Rect listRowBounds(int index) {
@@ -285,7 +227,6 @@ public final class TradeHallScreen extends PanelScreen {
     }
 
     private void resetTradeFilter() {
-        page = 0;
         tradeScroll.setOffset(0);
         tradeScroll.stop();
         applyTradeFilter();
@@ -298,46 +239,25 @@ public final class TradeHallScreen extends PanelScreen {
         syncTradeButtons();
     }
 
-    private int pageCount() {
-        return Math.max(1, (filtered.size() + tradeButtons.size() - 1) / tradeButtons.size());
-    }
-
-    private HallTrades.Tile tileAt(int cell) {
-        return filtered.get(firstVisibleTrade() + cell);
-    }
-
-    private int firstVisibleTrade() {
-        return view == HallView.GRID ? page * tradeButtons.size() : tradeScroll.offset();
+    private HallTrades.Tile tradeAt(int rowIndex) {
+        return filtered.get(tradeScroll.offset() + rowIndex);
     }
 
     private void syncTradeButtons() {
-        if (view == HallView.GRID) {
-            int pages = pageCount();
-            page = Math.min(page, pages - 1);
-            previous.visible = next.visible = pages > 1;
-            previous.active = page > 0;
-            next.active = page + 1 < pages;
-        } else {
-            tradeScroll.clamp(ListScroll.maxOffset(filtered.size(), visibleRows));
-        }
+        tradeScroll.clamp(ListScroll.maxOffset(filtered.size(), visibleRows));
         for (Filter value : Filter.values()) {
             FitButton.select(filters.get(value.ordinal()), filter == value);
         }
         boolean editable = canEditPicks();
         for (int index = 0; index < tradeButtons.size(); index++) {
-            TileWidgets widgets = tradeButtons.get(index);
-            boolean visible = firstVisibleTrade() + index < filtered.size();
+            RowWidgets widgets = tradeButtons.get(index);
+            boolean visible = tradeScroll.offset() + index < filtered.size();
             widgets.select().visible = widgets.wanted().visible = visible;
             widgets.select().active = visible;
             widgets.wanted().active = visible && editable;
             if (visible) {
-                HallTrades.Tile tile = tileAt(index);
+                HallTrades.Tile tile = tradeAt(index);
                 widgets.select().setMessage(tile.name());
-                if (view == HallView.GRID) {
-                    widgets.select().setItem(tile.icon(), tile.badge());
-                    FitButton.hint(widgets.select(), tile.profession());
-                    FitButton.select(widgets.select(), isSelected(tile));
-                }
                 widgets.wanted().setMessage(message(tile.wanted() ? "hall.unwant_trade" : "hall.want_trade", tile.name()));
                 FitButton.select(widgets.wanted(), tile.wanted());
             }
@@ -345,22 +265,12 @@ public final class TradeHallScreen extends PanelScreen {
         syncWorldButton();
     }
 
-    private boolean turn(int change) {
-        int nextPage = page + change;
-        if (nextPage < 0 || nextPage >= pageCount()) {
-            return false;
-        }
-        page = nextPage;
-        syncTradeButtons();
-        return true;
-    }
-
     private static boolean isSelected(HallTrades.Tile tile) {
         HallTrades.Tile selected = HallHighlights.selected();
         return selected != null && selected.key().equals(tile.key());
     }
 
-    private void selectTile(HallTrades.Tile tile) {
+    private void selectTrade(HallTrades.Tile tile) {
         if (isSelected(tile)) {
             HallHighlights.clear();
         } else {
@@ -524,25 +434,16 @@ public final class TradeHallScreen extends PanelScreen {
             }
         }
         for (int index = 0; index < tradeButtons.size() && tradeButtons.get(index).select().visible; index++) {
-            TileWidgets widgets = tradeButtons.get(index);
-            HallTrades.Tile tile = tileAt(index);
+            RowWidgets widgets = tradeButtons.get(index);
             widgets.wanted().active = browseButton.active;
-            if (view == HallView.GRID) {
-                GuiDraw.frame(canvas, tileBounds(index), isSelected(tile) ? ACCENT : BORDER, RAISED);
-            } else {
-                paintTradeRow(canvas, listRowBounds(index), tile, widgets, mouseX, mouseY);
-            }
+            paintTradeRow(canvas, listRowBounds(index), tradeAt(index), widgets, mouseX, mouseY);
         }
-        if (view == HallView.LIST) {
-            GuiDraw.scrollbar(canvas, track, tradeScroll, filtered.size(), visibleRows);
-        } else if (pageCount() > 1) {
-            GuiDraw.label(canvas, message("ui.page", page + 1, pageCount()), pageLabel, MUTED, mouseX, mouseY);
-        }
+        GuiDraw.scrollbar(canvas, track, tradeScroll, filtered.size(), visibleRows);
         syncWorldButton();
         paintDetails(canvas, mouseX, mouseY);
     }
 
-    private void paintTradeRow(GuiDraw.Canvas canvas, Rect row, HallTrades.Tile tile, TileWidgets widgets,
+    private void paintTradeRow(GuiDraw.Canvas canvas, Rect row, HallTrades.Tile tile, RowWidgets widgets,
                                int mouseX, int mouseY) {
         boolean selected = isSelected(tile);
         GuiDraw.row(canvas, row, UiStatus.IDLE, selected || widgets.select().isFocused() || row.contains(mouseX, mouseY));
@@ -731,7 +632,7 @@ public final class TradeHallScreen extends PanelScreen {
     }
 
     private ListScroll scrollbar() {
-        return tab == Tab.QUEUE ? queueScroll : view == HallView.LIST ? tradeScroll : null;
+        return tab == Tab.QUEUE ? queueScroll : tradeScroll;
     }
 
     private int scrolledCount() {
@@ -746,9 +647,8 @@ public final class TradeHallScreen extends PanelScreen {
     }
 
     private boolean clickTrack(double mouseX, double mouseY, int button) {
-        ListScroll scroll = scrollbar();
-        if (scroll == null || button != InputConstants.MOUSE_BUTTON_LEFT || !track.contains(mouseX, mouseY)
-                || !scroll.clickTrack(mouseY, track.y(), track.height(), scrolledCount(), visibleRows)) {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !track.contains(mouseX, mouseY)
+                || !scrollbar().clickTrack(mouseY, track.y(), track.height(), scrolledCount(), visibleRows)) {
             return false;
         }
         if (searchFocused()) {
@@ -758,8 +658,7 @@ public final class TradeHallScreen extends PanelScreen {
     }
 
     private boolean dragTrack(double mouseY) {
-        ListScroll scroll = scrollbar();
-        return scroll != null && afterScroll(scroll.drag(mouseY, track.y(), track.height(), scrolledCount(), visibleRows));
+        return afterScroll(scrollbar().drag(mouseY, track.y(), track.height(), scrolledCount(), visibleRows));
     }
 
     private void stopScrolling() {
@@ -771,9 +670,7 @@ public final class TradeHallScreen extends PanelScreen {
         if (!well.contains(mouseX, mouseY) || vertical == 0) {
             return false;
         }
-        ListScroll scroll = scrollbar();
-        return scroll == null ? turn(vertical < 0 ? 1 : -1)
-                : afterScroll(scroll.wheel(vertical, scrolledCount(), visibleRows));
+        return afterScroll(scrollbar().wheel(vertical, scrolledCount(), visibleRows));
     }
 
     //? if <1.21.9 {
@@ -835,7 +732,7 @@ public final class TradeHallScreen extends PanelScreen {
 
     private enum Tab { TRADES, QUEUE }
 
-    private record TileWidgets(FitButton select, FitButton wanted) {
+    private record RowWidgets(FitButton select, FitButton wanted) {
     }
 
     private record SlotStatus(Component text, UiStatus tone) {

@@ -26,7 +26,6 @@ class AutomatorConfigTest {
         assertTrue(config.allowBareHand());
         assertTrue(config.autoHallDiscovery());
         assertEquals(16, config.hallDiscoveryRadius());
-        assertEquals(AutomatorConfig.HallView.GRID, config.hallView());
         assertFalse(config.serverFriendly());
         assertEquals(AutomatorConfig.NORMAL_TICKS, config.ticksBetweenCycles());
         assertEquals(AutomatorConfig.NORMAL_TIMEOUT, config.timeoutMultiplier());
@@ -90,15 +89,16 @@ class AutomatorConfigTest {
     }
 
     @Test
-    void hallViewRoundTripsAndUnknownValuesUseGrid() {
+    void legacyHallViewIsIgnoredAndOmittedOnSave() {
         AutomatorConfig config = AutomatorConfig.parse(new StringReader("""
-                {"hallView": "unknown"}
+                {
+                  "hallView": "LIST",
+                  "autoHallDiscovery": false,
+                  "hallDiscoveryRadius": 24
+                }
                 """));
-        assertEquals(AutomatorConfig.HallView.GRID, config.hallView());
-
-        config.setHallView(AutomatorConfig.HallView.LIST);
-        assertEquals("LIST", config.toJson().get("hallView").getAsString());
-        AutomatorConfig again = AutomatorConfig.parse(new StringReader(config.toJson().toString()));
-        assertEquals(AutomatorConfig.HallView.LIST, again.hallView());
+        assertFalse(config.autoHallDiscovery());
+        assertEquals(24, config.hallDiscoveryRadius());
+        assertFalse(config.toJson().has("hallView"));
     }
 }

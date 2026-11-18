@@ -232,8 +232,6 @@
   "text.villager_reroller.browser.save_price": "Save price",
   "text.villager_reroller.hall.trades": "Trades",
   "text.villager_reroller.hall.search": "Search trades…",
-  "text.villager_reroller.hall.grid_view": "Grid view",
-  "text.villager_reroller.hall.list_view": "List view",
   "text.villager_reroller.hall.filter.all": "All",
   "text.villager_reroller.hall.filter.available": "Available",
   "text.villager_reroller.hall.filter.missing": "Missing",

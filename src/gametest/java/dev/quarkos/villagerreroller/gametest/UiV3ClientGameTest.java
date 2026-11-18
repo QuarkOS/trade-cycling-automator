@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
-import dev.quarkos.villagerreroller.config.AutomatorConfig.HallView;
 import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
@@ -80,19 +79,15 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
     public void runTest(ClientGameTestContext context) {
         Path picksFile = PickFiles.configFile();
         Path rosterFile = VillagerRosterFiles.configFile();
-        Path configFile = automatorConfigFile();
         byte[] previousPicks = read(picksFile);
         byte[] previousRoster = read(rosterFile);
-        byte[] previousConfig = read(configFile);
         ConfigState previous = context.computeOnClient(client -> {
             observedMenus.clear();
             AutomatorConfig config = AutomatorConfig.get();
-            ConfigState saved = new ConfigState(config.enabled(), config.autoHallDiscovery(), config.hallDiscoveryRadius(),
-                    config.hallView());
+            ConfigState saved = new ConfigState(config.enabled(), config.autoHallDiscovery(), config.hallDiscoveryRadius());
             config.setEnabled(true);
             config.setAutoHallDiscovery(true);
             config.setHallDiscoveryRadius(16);
-            config.setHallView(HallView.GRID);
             TradeHall.clear();
             TradeSession.simulateClientRestart();
             client.options.pauseOnLostFocus = false;
@@ -194,8 +189,6 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                 config.setEnabled(previous.enabled());
                 config.setAutoHallDiscovery(previous.discovery());
                 config.setHallDiscoveryRadius(previous.radius());
-                config.setHallView(previous.view());
-                restore(configFile, previousConfig);
             });
         }
     }
@@ -372,20 +365,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
 
     private void captureHall(ClientGameTestContext context, Viewport viewport) {
         openHall(context);
-        assertHallView(context, HallView.GRID);
-        shot(context, "hall-all", viewport);
-        click(context, "hall.filter.available");
-        assertButton(context, MENDING_NAME, true);
-        assertButton(context, "Efficiency V", false);
-        shot(context, "hall-available", viewport);
-        click(context, "hall.filter.missing");
-        assertButton(context, "Efficiency V", true);
-        assertButton(context, MENDING_NAME, false);
-        shot(context, "hall-missing", viewport);
-
-        click(context, "hall.filter.available");
-        assertBookshelfWantedRoundTrip(context);
-
+        captureHallList(context, viewport);
         click(context, "hall.queue");
         shot(context, "hall-queue", viewport);
         click(context, "hall.trades");
@@ -394,8 +374,6 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         waitForScreen(context, TradeBrowserScreen.class);
         click(context, "button.back");
         waitForScreen(context, TradeHallScreen.class);
-        Map<String, Integer> gridHighlights = captureGridSelection(context, viewport);
-        captureHallSearchAndList(context, viewport, gridHighlights);
         clickLabel(context, MENDING_NAME);
         click(context, "hall.view_world");
         waitForScreen(context, null);
@@ -407,7 +385,24 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         });
     }
 
-    private Map<String, Integer> captureGridSelection(ClientGameTestContext context, Viewport viewport) {
+    private void captureHallList(ClientGameTestContext context, Viewport viewport) {
+        shot(context, "hall-list", viewport);
+        assertListScroll(context);
+        click(context, "hall.filter.available");
+        assertButton(context, MENDING_NAME, true);
+        assertButton(context, "Efficiency V", false);
+        shot(context, "hall-available", viewport);
+        assertBookshelfWantedRoundTrip(context);
+        click(context, "hall.filter.missing");
+        assertButton(context, "Efficiency V", true);
+        assertButton(context, MENDING_NAME, false);
+        shot(context, "hall-missing", viewport);
+
+        captureHallSearch(context, viewport);
+        captureHallSelection(context, viewport);
+    }
+
+    private void captureHallSelection(ClientGameTestContext context, Viewport viewport) {
         Map<String, Integer> expected = Map.of(LOCKED[0], UiTheme.GREEN & 0xFFFFFF, LOCKED[1], UiTheme.YELLOW & 0xFFFFFF,
                 SOURCE, UiTheme.AMBER & 0xFFFFFF, LOCKED[2], UiTheme.RED & 0xFFFFFF);
         waitFor(context, "all Hall outline fixtures to be loaded",
@@ -417,13 +412,12 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         if (!highlights.equals(expected)) {
             throw new AssertionError("Expected price-ranked Hall outlines " + expected + ", saw " + highlights);
         }
-        shot(context, "hall-selected", viewport);
+        shot(context, "hall-list-selected", viewport);
         clickLabel(context, MENDING_NAME);
         assertNoHallHighlights(context);
-        return highlights;
     }
 
-    private void captureHallSearchAndList(ClientGameTestContext context, Viewport viewport, Map<String, Integer> gridHighlights) {
+    private void captureHallSearch(ClientGameTestContext context, Viewport viewport) {
         click(context, "hall.filter.all");
         TradeHallScreen hall = focusHallSearch(context);
         context.getInput().pressKey(InputConstants.KEY_E);
@@ -454,28 +448,6 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         context.getInput().pressKey(InputConstants.KEY_ESCAPE);
         waitForScreen(context, MerchantScreen.class);
         openHall(context);
-
-        click(context, "hall.list_view");
-        assertHallView(context, HallView.LIST);
-        assertSavedHallView(HallView.LIST);
-        shot(context, "hall-list", viewport);
-        assertListScroll(context);
-        assertBookshelfWantedRoundTrip(context);
-        clickLabel(context, MENDING_NAME);
-        Map<String, Integer> listHighlights = hallHighlights(context);
-        if (!listHighlights.equals(gridHighlights)) {
-            throw new AssertionError("List selection showed " + listHighlights + ", grid selection showed " + gridHighlights);
-        }
-        shot(context, "hall-list-selected", viewport);
-        clickLabel(context, MENDING_NAME);
-        assertNoHallHighlights(context);
-
-        click(context, "button.back");
-        waitForScreen(context, MerchantScreen.class);
-        openHall(context);
-        assertHallView(context, HallView.LIST);
-        click(context, "hall.grid_view");
-        assertHallView(context, HallView.GRID);
     }
 
     private void captureCompact(ClientGameTestContext context, TestSingleplayerContext world, int y,
@@ -502,9 +474,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         click(context, "button.back");
         waitForScreen(context, MerchantScreen.class);
         openHall(context);
-        shot(context, "hall-all", viewport);
-        Map<String, Integer> gridHighlights = captureGridSelection(context, viewport);
-        captureHallSearchAndList(context, viewport, gridHighlights);
+        captureHallList(context, viewport);
         click(context, "hall.queue");
         shot(context, "hall-queue", viewport);
         click(context, "button.back");
@@ -558,7 +528,7 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
             Screen hall = McBridge.currentScreen(client);
             List<String> visible = hall.children().stream().filter(Button.class::isInstance).map(Button.class::cast)
                     .filter(button -> button.visible).map(button -> button.getMessage().getString()).toList();
-            // Both layouts pair each visible trade button with its wanted marker.
+            // Each visible trade row pairs its selection button with a wanted marker.
             List<String> trades = visible.stream().filter(label ->
                     visible.contains(GuiDraw.message("hall.want_trade", label).getString())
                             || visible.contains(GuiDraw.message("hall.unwant_trade", label).getString())).toList();
@@ -566,30 +536,6 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
                 throw new AssertionError("Expected Hall trade results " + expected + ", saw " + trades);
             }
         });
-    }
-
-    private static void assertHallView(ClientGameTestContext context, HallView expected) {
-        context.runOnClient(client -> {
-            Button mending = findButton(McBridge.currentScreen(client), MENDING_NAME);
-            if (mending == null || (mending.getWidth() > mending.getHeight()) != (expected == HallView.LIST)) {
-                throw new AssertionError("Mending did not have a " + expected + " button in the Hall");
-            }
-        });
-    }
-
-    private static Path automatorConfigFile() {
-        return PickFiles.configFile().resolveSibling("villager_reroller.json");
-    }
-
-    private static void assertSavedHallView(HallView expected) {
-        try (var reader = Files.newBufferedReader(automatorConfigFile())) {
-            HallView saved = AutomatorConfig.parse(reader).hallView();
-            if (saved != expected) {
-                throw new AssertionError("Expected saved Hall view " + expected + ", saw " + saved);
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     private static void assertListScroll(ClientGameTestContext context) {
@@ -874,6 +820,6 @@ public final class UiV3ClientGameTest implements FabricClientGameTest {
         }
     }
 
-    private record ConfigState(boolean enabled, boolean discovery, int radius, HallView view) {
+    private record ConfigState(boolean enabled, boolean discovery, int radius) {
     }
 }
