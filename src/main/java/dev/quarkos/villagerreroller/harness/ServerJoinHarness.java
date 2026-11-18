@@ -338,9 +338,22 @@ public final class ServerJoinHarness {
             shot(client, "trade-screen");
             shot(client, "server-" + MODE + "-panel");
         }
+        if (ticks % 20 != 1) {
+            if (ticks > timeout(20 * 30)) {
+                fail("reroll did not start: " + JobSiteReroller.stopReason());
+            }
+            return;
+        }
         JobSiteReroller.start(client);
         if (!JobSiteReroller.isRunning()) {
-            fail("reroll did not start: " + JobSiteReroller.stopReason());
+            JobSiteReroller.StopReason reason = JobSiteReroller.stopReason();
+            boolean retry = reason == JobSiteReroller.StopReason.NO_JOB_SITE
+                    || reason == JobSiteReroller.StopReason.OUT_OF_REACH
+                    || reason == JobSiteReroller.StopReason.NO_PROFESSION;
+            if (retry && ticks <= timeout(20 * 30)) {
+                return;
+            }
+            fail("reroll did not start: " + reason);
             return;
         }
         state = State.REROLL;

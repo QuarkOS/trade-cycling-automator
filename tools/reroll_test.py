@@ -110,7 +110,10 @@ def main(argv: list[str] | None = None) -> int:
         previous = output / "results.json"
         if previous.is_file():
             for row in json.loads(previous.read_text()).get("rows", []):
-                if row.get("status") == "pass":
+                reason = row.get("failureReason") or ""
+                # A missing lectern was the command dispatcher. Retry those.
+                stale = "librarian or lectern missing" in reason or "dedicated server exited" in reason or "did not enter" in reason
+                if row.get("status") == "pass" or (row.get("status") == "fail" and not stale):
                     args.kept[(row["version"], row["loader"], row["tradeCycling"])] = row
             print(f"resume kept {len(args.kept)} passing rows", flush=True)
     print(f"reroll matrix {len(selected)} loaders x {len(modes)} trade-cycling modes, jobs={jobs}", flush=True)
