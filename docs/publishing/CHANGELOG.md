@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0
+
+- New trade browser replaces the old side-panel trade list. The book button (or K) on the villager screen opens it at that villager's job: pick the item, the enchantment level if there is one, then the highest emerald price (-/+, Shift for 5, or Any). **Add & roll** saves the pick and starts rerolling right away, **Add** keeps browsing. Your picks, the odds, an ETA and Start rolling / Stop are on the same screen.
+- Only novice trades can be rerolled, so trades that first unlock at a higher villager level are shown greyed out with a lock and the reason. Old saved picks for those trades are ignored.
+- Trading Hall: a searchable list of every trade with All / Available / Missing filters, how many known villagers have it and the cheapest price. Selecting a trade outlines those villagers in the world, cheapest first.
+- Automatic Hall discovery: after a successful reroll, nearby villagers that match your picks are added to the Hall too (settings `autoHallDiscovery`, `hallDiscoveryRadius`, default 16 blocks).
+- Refreshed screens with a soft-gray theme, themed tooltips, long trade names shortened with an ellipsis, and a clearer "ready to reroll" status. Old config files keep loading.
+- Fixed the "Invalid move player packet received" kick on Minecraft 26.3 servers while rerolling.
+- Fabric servers: the reroll packet is registered before the client joins, so the server-side reroll channel works on dedicated servers.
+
 ## 1.1.1
 
 - The trade list's scroll bar now works. The thumb is sized to the visible part of the list, dragging it scrolls, clicking the track moves a page, and the mouse wheel moves one row.
