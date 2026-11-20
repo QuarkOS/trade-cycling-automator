@@ -172,7 +172,7 @@ public final class AutomatorConfig {
 
     private static Boolean bool(JsonObject object, String key) {
         JsonElement element = object.get(key);
-        if (element == null || !element.isJsonPrimitive()) {
+        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isBoolean()) {
             return null;
         }
         return element.getAsBoolean();

@@ -262,4 +262,37 @@ if (project == rootProject) {
         commandLine("python3", rootProject.file("tools/validate.py").absolutePath, "--skip-build")
         environment("VALIDATE_FROM_GRADLE", "1")
     }
+
+    tasks.register<Exec>("rerollTest") {
+        group = "verification"
+        description = "Unit tests, then the dedicated-server reroll matrix. Narrow with -PrerollVersion=, -PrerollLoader=, or -PrerollChanged=true."
+        notCompatibleWithConfigurationCache("Launches Minecraft.")
+        workingDir = rootProject.layout.projectDirectory.asFile
+        val args = mutableListOf("python3", rootProject.file("tools/reroll_test.py").absolutePath, "--skip-unit")
+        val version = providers.gradleProperty("rerollVersion").orNull
+        val loader = providers.gradleProperty("rerollLoader").orNull
+        if (!version.isNullOrBlank()) {
+            args.add("--version")
+            args.add(version)
+        }
+        if (!loader.isNullOrBlank()) {
+            args.add("--loader")
+            args.add(loader)
+        }
+        if (providers.gradleProperty("rerollChanged").orNull == "true") {
+            args.add("--changed")
+        }
+        val extra = providers.gradleProperty("rerollArgs").orNull
+        if (!extra.isNullOrBlank()) {
+            args.addAll(extra.split(" ").filter { it.isNotBlank() })
+        }
+        commandLine(args)
+        environment("JAVA_HOME", "/opt/jdk25")
+    }
+
+    gradle.projectsEvaluated {
+        tasks.named("rerollTest").configure {
+            dependsOn(rootProject.allprojects.mapNotNull { it.tasks.findByName("test") })
+        }
+    }
 }

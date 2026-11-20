@@ -10,7 +10,9 @@ public final class VillagerRerollerServer {
     }
 
     public static void bootstrap(IEventBus modBus) {
-        NeoForgeChannels.register(modBus);
+        if (!Boolean.getBoolean("villager_reroller.proofJobSite")) {
+            NeoForgeChannels.register(modBus);
+        }
         DedicatedProof.hook();
     }
 }
@@ -25,7 +27,9 @@ public final class VillagerRerollerServer {
     }
 
     public static void bootstrap() {
-        ForgeChannels.registerServer();
+        if (!Boolean.getBoolean("villager_reroller.proofJobSite")) {
+            ForgeChannels.registerServer();
+        }
         DedicatedProof.hook();
     }
 }
@@ -42,7 +46,10 @@ public final class VillagerRerollerServer implements ModInitializer {
     }
 
     public static void bootstrap() {
-        FabricChannels.registerServer();
+        FabricChannels.registerPayloadTypes();
+        if (!Boolean.getBoolean("villager_reroller.proofJobSite")) {
+            FabricChannels.registerServer();
+        }
         DedicatedProof.hook();
     }
 }

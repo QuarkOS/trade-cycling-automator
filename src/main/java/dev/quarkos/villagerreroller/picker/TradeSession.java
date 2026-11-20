@@ -19,6 +19,7 @@ public final class TradeSession {
     private static String profession = "";
     private static TradeCatalog.BrowserCatalog catalog;
     private static Map<String, Integer> chosenMax = Map.of();
+    private static boolean proofAcceptAny;
 
     private TradeSession() {
     }
@@ -28,6 +29,7 @@ public final class TradeSession {
         profession = "";
         catalog = null;
         chosenMax = Map.of();
+        proofAcceptAny = false;
     }
 
     static void rebuild(Level level, Villager villager) {
@@ -72,7 +74,15 @@ public final class TradeSession {
         return chosenMax;
     }
 
+    /** The dedicated-server proof stops on whatever offer is open, which is the lock-in path. */
+    public static void harnessLockAny() {
+        proofAcceptAny = true;
+    }
+
     public static boolean offerMatchesSelection(MerchantOffers offers) {
+        if (proofAcceptAny && offers != null && !offers.isEmpty()) {
+            return true;
+        }
         return matches(offers, entries(), chosenMax);
     }
 

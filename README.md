@@ -148,6 +148,10 @@ xvfb-run -a -s "-screen 0 1280x720x24" bash -c \
 
 Use `-PartifactsDir=<path>` to choose the screenshot folder. Quote the whole argument for paths with spaces. Use `-PtimeoutScale=<number>` to override the dev harness timeout scale of 8.
 
+## Test the reroll
+
+`./gradlew rerollTest` is the check to run before debugging a reroll by hand. It runs the unit tests, then a dedicated server and a scripted client for every supported version and loader. The summary is `artifacts/reroll-test/results.md`. Flags, the invalid-move kick check, and the result columns are in [TESTING.md](TESTING.md).
+
 ## Validate release jars
 
 `./tools/validate` is the production check. It builds every Fabric, Forge, and NeoForge jar, then launches that jar (the file under `build/libs`, not the Loom, ForgeGradle, or ModDevGradle dev classes) in a headless client. The jar is copied into `mods/` with the dependencies that version already uses: Fabric API on Fabric. Cloth Config is not required, and Mod Menu is not installed for the run, so the vanilla settings screen is what opens. Forge and NeoForge use the same screen from the mods list. Each jar runs twice, once without Trade Cycling and once with the matching Trade Cycling jar. Pass `--loader neoforge` to launch only the NeoForge rows. Versions without a NeoForge build are omitted from that loader.

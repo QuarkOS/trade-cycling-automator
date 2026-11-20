@@ -1,11 +1,13 @@
 package dev.quarkos.villagerreroller.config;
 
+import com.google.gson.JsonSyntaxException;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutomatorConfigTest {
@@ -35,6 +37,53 @@ class AutomatorConfigTest {
         assertFalse(config.toJson().has("enchantment"));
         assertFalse(config.toJson().has("level"));
         assertFalse(config.toJson().has("maxPrice"));
+    }
+
+    @Test
+    void anEmptyFileAndANonObjectKeepTheDefaults() {
+        AutomatorConfig empty = AutomatorConfig.parse(new StringReader("{}"));
+        assertTrue(empty.enabled());
+        assertEquals(500, empty.maxAttempts());
+        assertEquals(AutomatorConfig.DEFAULT_DURABILITY_FLOOR, empty.durabilityFloor());
+        assertTrue(empty.allowBareHand());
+        assertEquals(AutomatorConfig.NORMAL_TICKS, empty.ticksBetweenCycles());
+        assertEquals(AutomatorConfig.NORMAL_LOOK, empty.lookDegreesPerTick(), 0.001F);
+
+        AutomatorConfig array = AutomatorConfig.parse(new StringReader("[]"));
+        assertTrue(array.enabled());
+        assertEquals(500, array.maxAttempts());
+
+        AutomatorConfig nil = AutomatorConfig.parse(new StringReader("null"));
+        assertEquals(AutomatorConfig.DEFAULT_DURABILITY_FLOOR, nil.durabilityFloor());
+    }
+
+    @Test
+    void wrongTypesAreIgnoredAndOutOfRangeNumbersClamp() {
+        AutomatorConfig config = AutomatorConfig.parse(new StringReader("""
+                {
+                  "enabled": "yes",
+                  "maxAttempts": -3,
+                  "durabilityFloor": -1,
+                  "lookDegreesPerTick": 0,
+                  "ticksBetweenCycles": "slow",
+                  "timeoutMultiplier": 0,
+                  "matchVolume": 400,
+                  "allowBareHand": "sometimes"
+                }
+                """));
+        assertTrue(config.enabled());
+        assertEquals(1, config.maxAttempts());
+        assertEquals(0, config.durabilityFloor());
+        assertEquals(1.0F, config.lookDegreesPerTick(), 0.001F);
+        assertEquals(AutomatorConfig.NORMAL_TICKS, config.ticksBetweenCycles());
+        assertEquals(1, config.timeoutMultiplier());
+        assertEquals(100, config.matchVolume());
+        assertTrue(config.allowBareHand());
+    }
+
+    @Test
+    void truncatedJsonIsRejected() {
+        assertThrows(JsonSyntaxException.class, () -> AutomatorConfig.parse(new StringReader("{")));
     }
 
     @Test
