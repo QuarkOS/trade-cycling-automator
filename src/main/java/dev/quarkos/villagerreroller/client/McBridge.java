@@ -1,12 +1,11 @@
 package dev.quarkos.villagerreroller.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.quarkos.villagerreroller.VillagerReroller;
-import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 //? if forge {
 /* *///?} else {
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.gui.components.EditBox;
 //?}
 import net.minecraft.client.KeyMapping;
@@ -70,8 +69,7 @@ public final class McBridge {
     }
 
     public static KeyMapping registerToggle() {
-        // GLFW_KEY_K. 26.3 does not expose org.lwjgl.glfw on the compile classpath.
-        return registerKey("key." + VillagerReroller.MOD_ID + ".toggle", 75);
+        return registerKey("key." + VillagerReroller.MOD_ID + ".toggle", InputConstants.KEY_K);
     }
 
     public static KeyMapping registerConfig() {
@@ -80,11 +78,6 @@ public final class McBridge {
 
     public static KeyMapping registerChecklist() {
         return registerKey("key." + VillagerReroller.MOD_ID + ".checklist", 86);
-    }
-
-    public static void placeMerchant(MerchantScreen screen, int left, int top) {
-        screen.leftPos = left;
-        screen.topPos = top;
     }
 
     public static int merchantLeft(MerchantScreen screen) {
@@ -116,15 +109,13 @@ public final class McBridge {
         //? if forge {
         /*return;
         *///?} else {
-        ScreenMouseEvents.allowMouseScroll(screen).register((current, mouseX, mouseY, horizontal, vertical) ->
-                !dev.quarkos.villagerreroller.picker.TradePickerUi.scrollWheel(current, mouseX, mouseY, vertical));
         //? if <1.21.9 {
         /*        ScreenKeyboardEvents.afterKeyPress(screen).register((current, key, scancode, modifiers) -> {
             if (current.getFocused() instanceof EditBox) {
                 return;
             }
-            if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(key, scancode)) {
-                JobSiteReroller.onToggleKey();
+            if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.matches(key, scancode)) {
+                VillagerReroller.openBrowser(Minecraft.getInstance());
             }
             if (AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(key, scancode)) {
                 VillagerReroller.openChecklist(Minecraft.getInstance());
@@ -135,8 +126,8 @@ public final class McBridge {
             if (current.getFocused() instanceof EditBox) {
                 return;
             }
-            if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE.matches(event)) {
-                JobSiteReroller.onToggleKey();
+            if (current instanceof MerchantScreen && AutomatorKeys.TOGGLE != null && AutomatorKeys.TOGGLE.matches(event)) {
+                VillagerReroller.openBrowser(Minecraft.getInstance());
             }
             if (AutomatorKeys.CHECKLIST != null && AutomatorKeys.CHECKLIST.matches(event)) {
                 VillagerReroller.openChecklist(Minecraft.getInstance());
@@ -345,20 +336,18 @@ public final class McBridge {
     }
 
     public static void sendLook(LocalPlayer player, float yaw, float pitch) {
-        // Rotation alone leaves a lagged server at the pre-teleport position, and the
-        // break is then rejected as out of range with no block correction. The client
-        // still predicts the lectern away, so the villager never loses the profession.
-        double x = player.getX();
-        double y = player.getY();
-        double z = player.getZ();
+        // Called from the end of the client tick, after vanilla has already queued
+        // its position packet and the tick-end. 26.3 rejects a second position
+        // packet in that window with "Invalid move player packet received".
+        // A rotation packet updates the look before the break and is not a position.
         //? if <1.20 {
-        /*player.connection.send(new ServerboundMovePlayerPacket.PosRot(x, y, z, yaw, pitch, player.isOnGround()));
+        /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.isOnGround()));
         *///?}
         //? if >=1.20 && <1.21.2 {
-        /*player.connection.send(new ServerboundMovePlayerPacket.PosRot(x, y, z, yaw, pitch, player.onGround()));
+        /*player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround()));
         *///?}
         //? if >=1.21.2 {
-        player.connection.send(new ServerboundMovePlayerPacket.PosRot(x, y, z, yaw, pitch, player.onGround(), player.horizontalCollision));
+        player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
         //?}
     }
 

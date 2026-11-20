@@ -1,33 +1,22 @@
 package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.harness.BrowserHarness;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
 import dev.quarkos.villagerreroller.config.AutomatorConfig;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
 import dev.quarkos.villagerreroller.picker.ToolGuard;
 import dev.quarkos.villagerreroller.picker.TradeEntry;
-import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.picker.TradeSession;
-import dev.quarkos.villagerreroller.text.ScrollingNames;
-import dev.quarkos.villagerreroller.text.TradeNameLayout;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-//? if <1.21.11 {
-/*import net.minecraft.client.gui.components.AbstractWidget;
-*///?} else {
-import net.minecraft.client.gui.ActiveTextCollector;
-//?}
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
 import net.minecraft.core.BlockPos;
-//? if <1.21.11 {
-/*import net.minecraft.Util;
-*///?} else {
-import net.minecraft.util.Util;
-//?}
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -40,7 +29,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 /**
  * Spawns a novice librarian, opens the trade screen, and rerolls the lectern
@@ -48,7 +36,6 @@ import java.nio.file.StandardCopyOption;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class TradePickerClientGameTest implements FabricClientGameTest {
-    private static final Path ARTIFACTS = Path.of("/opt/cursor/artifacts");
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -70,7 +57,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                             .ifPresent(settings::setWorldType);
                 })
                 .create()) {
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
             assertServerChannel(context);
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
             int x = feet.getX() + 6;
@@ -109,7 +96,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("clear @p");
             world.getServer().runCommand("give @p minecraft:diamond_axe");
             world.getServer().runCommand("give @p minecraft:lectern 16");
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
 
             context.waitFor(client -> {
                 if (client.level == null || client.player == null) {
@@ -137,100 +124,44 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             context.runOnClient(client -> RerollMethod.reset());
             boolean cycling = context.computeOnClient(client -> TradeCyclingHook.serverSupports());
             if (!cycling) {
-                saveShot(context, "merchant-button");
+                GameTestSupport.saveShot(context, "merchant-button");
             }
-            context.clickScreenButton("text.villager_reroller.button.offers");
-            context.waitTicks(5);
+            MerchantOffers initial = context.computeOnClient(client ->
+                    ((MerchantScreen) McBridge.currentScreen(client)).getMenu().getOffers());
+            context.clickScreenButton("text.villager_reroller.browser.title");
             context.runOnClient(client -> {
-                //? if <1.21.11 {
-                /*if (ScrollingNames.PERIOD_PER_PIXEL != AbstractWidget.PERIOD_PER_SCROLLED_PIXEL
-                        || ScrollingNames.MIN_PERIOD_SECONDS != AbstractWidget.MIN_SCROLL_PERIOD) {
-                *///?} else {
-                if (ScrollingNames.PERIOD_PER_PIXEL != ActiveTextCollector.PERIOD_PER_SCROLLED_PIXEL
-                        || ScrollingNames.MIN_PERIOD_SECONDS != ActiveTextCollector.MIN_SCROLL_PERIOD) {
-                //?}
-                    throw new AssertionError("name scroll period does not match vanilla");
-                }
+                BrowserHarness.browser(client);
                 boolean ranged = TradeSession.entries().stream().anyMatch(entry -> entry.paysEmeralds && entry.emeraldMin != entry.emeraldMax);
                 boolean fixed = TradeSession.entries().stream().anyMatch(entry -> entry.emeraldMin == entry.emeraldMax && entry.emeraldMin > 0);
                 if (!ranged || !fixed) {
-                    throw new AssertionError("panel catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
+                    throw new AssertionError("browser catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
                 }
-                if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
-                    throw new AssertionError("offers button did not leave the merchant screen open");
-                }
-            });
-            context.runOnClient(client -> {
-                TradeSession.clearSelection();
-                TradeEntry sample = null;
-                for (TradeEntry entry : TradeSession.entries()) {
-                    if ("enchant:minecraft:mending:1".equals(entry.id)) {
-                        sample = entry;
-                        break;
-                    }
-                }
-                if (sample == null) {
-                    for (TradeEntry entry : TradeSession.entries()) {
-                        if (entry.id.startsWith("enchant:")) {
-                            sample = entry;
-                            break;
-                        }
-                    }
-                }
-                if (sample == null) {
-                    throw new AssertionError("no enchanted book to estimate");
-                }
-                TradeSession.toggle(sample);
-                TradePickerUi.reveal(sample.id);
-            });
-            context.waitTicks(5);
-            context.runOnClient(client -> {
-                String[] lines = TradePickerUi.oddsLines();
-                if (lines == null || lines[0] == null || !lines[0].contains("1 in")) {
-                    throw new AssertionError("odds line missing: " + java.util.Arrays.toString(lines));
+                BrowserHarness.clearPicks(client);
+                TradeEntry sample = TradeSession.entries().stream().filter(entry -> entry.id.startsWith("enchant:"))
+                        .findFirst().orElseThrow();
+                BrowserHarness.pick(client, sample, sample.emeraldMax);
+                var lines = BrowserHarness.browser(client).oddsLines();
+                if (lines.size() != 2 || !lines.get(0).getString().contains("1 in")) {
+                    throw new AssertionError("browser odds or ETA missing: " + lines);
                 }
                 try {
-                    Path dir = artifactsDir();
+                    Path dir = GameTestSupport.artifactsDir();
                     Files.createDirectories(dir);
-                    String time = lines.length > 1 && lines[1] != null ? lines[1] : "";
-                    Files.writeString(dir.resolve("panel-odds.txt"), lines[0] + "\n" + time + "\n");
+                    Files.writeString(dir.resolve("panel-odds.txt"), lines.get(0).getString() + "\n" + lines.get(1).getString() + "\n");
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
             });
-            saveShot(context, "panel-odds");
-            context.runOnClient(client -> TradeSession.clearSelection());
-            context.waitFor(client -> scrollSpot(client) == ScrollSpot.MID, 20 * 40);
-            if (!cycling) {
-                saveShot(context, "name-scroll-mid");
-                copyArtifact("name-scroll-mid", "name-scroll");
-                copyArtifact("name-scroll-mid", "trade-panel");
-            }
-            context.waitFor(client -> scrollSpot(client) == ScrollSpot.MAX, 20 * 40);
-            if (!cycling) {
-                saveShot(context, "name-scroll-max");
-                copyArtifact("name-scroll-max", "panel-job-site");
-            } else {
-                saveShot(context, "panel-job-site");
+            GameTestSupport.saveShot(context, "panel-odds");
+            GameTestSupport.saveShot(context, "panel-job-site");
+            if (cycling) {
                 context.clickScreenButton("text.villager_reroller.method.job_site");
-                context.waitTicks(5);
-                boolean switched = context.computeOnClient(client -> RerollMethod.usesTradeCycling());
-                if (!switched) {
+                if (!context.computeOnClient(client -> RerollMethod.usesTradeCycling())) {
                     throw new AssertionError("method toggle did not select Trade Cycling");
                 }
-                context.waitFor(client -> scrollSpot(client) == ScrollSpot.MAX, 20 * 40);
-                saveShot(context, "panel-trade-cycling");
+                GameTestSupport.saveShot(context, "panel-trade-cycling");
             }
-            context.runOnClient(client -> assertNameClearsThePrice(client));
-            context.runOnClient(client -> {
-                if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-                    throw new AssertionError("offers button did not leave the merchant screen open");
-                }
-                int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
-                if (selected <= 0) {
-                    throw new AssertionError("every catalog row was already on the counter");
-                }
-            });
+            context.runOnClient(client -> BrowserHarness.pickMissing(client, initial));
 
             BlockPos lecternPos = new BlockPos(x, y, z);
             boolean lecternThere = context.computeOnClient(client -> client.level.getBlockState(lecternPos).is(Blocks.LECTERN));
@@ -238,7 +169,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 throw new AssertionError("lectern missing before the reroll");
             }
             int lecternsBefore = context.computeOnClient(TradePickerClientGameTest::lecternCount);
-            context.clickScreenButton("text.villager_reroller.button.start");
+            context.clickScreenButton("text.villager_reroller.browser.start");
             String reason = "running";
             boolean sawAir = false;
             for (int tick = 0; tick < 20 * 300; tick++) {
@@ -276,7 +207,7 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
             }
             context.waitForScreen(MerchantScreen.class);
             context.waitTicks(5);
-            saveShot(context, cycling ? "reroll-cycling" : "reroll-found");
+            GameTestSupport.saveShot(context, cycling ? "reroll-cycling" : "reroll-found");
             int attempts = context.computeOnClient(client -> JobSiteReroller.attempts());
             boolean stillLectern = context.computeOnClient(client -> client.level.getBlockState(lecternPos).is(Blocks.LECTERN));
             int lecternsAfter = context.computeOnClient(TradePickerClientGameTest::lecternCount);
@@ -291,68 +222,6 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
                 throw new AssertionError("job-block path never broke the lectern");
             }
         }
-    }
-
-    private enum ScrollSpot {
-        NONE,
-        MID,
-        MAX
-    }
-
-    private static ScrollSpot scrollSpot(net.minecraft.client.Minecraft client) {
-        TradeEntry bane = bane(client);
-        if (bane == null) {
-            return ScrollSpot.NONE;
-        }
-        int available = TradePickerUi.nameBudget(client.font.width(bane.priceLabel()));
-        int textWidth = client.font.width(bane.name);
-        int overflow = textWidth - available;
-        if (overflow < 8) {
-            return ScrollSpot.NONE;
-        }
-        int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
-        if (offset >= overflow - 1) {
-            return ScrollSpot.MAX;
-        }
-        if (offset >= overflow * 2 / 5 && offset <= overflow * 3 / 5) {
-            return ScrollSpot.MID;
-        }
-        return ScrollSpot.NONE;
-    }
-
-    private static void assertNameClearsThePrice(net.minecraft.client.Minecraft client) {
-        TradeEntry bane = bane(client);
-        if (bane == null) {
-            throw new AssertionError("Bane of Arthropods was not in the catalog");
-        }
-        int priceWidth = client.font.width(bane.priceLabel());
-        int textWidth = client.font.width(bane.name);
-        int available = TradePickerUi.nameBudget(priceWidth);
-        int nameLeft = TradeNameLayout.NAME_LEFT;
-        int nameRight = nameLeft + available;
-        int priceX = nameRight + TradeNameLayout.PRICE_GAP;
-        int overflow = textWidth - available;
-        if (overflow < 8) {
-            throw new AssertionError("Bane of Arthropods does not overflow the name box");
-        }
-        for (int offset = 0; offset <= overflow; offset++) {
-            int visibleRight = TradeNameLayout.clippedRight(nameLeft, nameRight, textWidth, offset);
-            if (visibleRight > priceX - TradeNameLayout.PRICE_GAP) {
-                throw new AssertionError("name reaches the price at offset " + offset);
-            }
-        }
-    }
-
-    private static TradeEntry bane(net.minecraft.client.Minecraft client) {
-        if (client.font == null) {
-            return null;
-        }
-        for (TradeEntry entry : TradeSession.entries()) {
-            if (entry.name.startsWith("Bane of Arthropods")) {
-                return entry;
-            }
-        }
-        return null;
     }
 
     private static int lecternCount(net.minecraft.client.Minecraft client) {
@@ -447,43 +316,5 @@ public class TradePickerClientGameTest implements FabricClientGameTest {
         });
     }
 
-    private static Path artifactsDir() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return ARTIFACTS;
-        }
-        return Path.of(configured);
-    }
 
-    private static void saveShot(ClientGameTestContext context, String name) {
-        Path shot = context.takeScreenshot(name);
-        try {
-            Path dir = artifactsDir();
-            Files.createDirectories(dir);
-            Files.copy(shot, dir.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void waitForChunks(TestSingleplayerContext world) {
-        //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
-        *///?} else {
-        //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
-        *///?} else {
-        world.getClientWorld().waitForChunksRender();
-        //?}
-        //?}
-    }
-
-    private static void copyArtifact(String from, String to) {
-        try {
-            Path dir = artifactsDir();
-            Files.copy(dir.resolve(from + ".png"), dir.resolve(to + ".png"), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
 }

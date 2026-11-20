@@ -1,6 +1,8 @@
 package dev.quarkos.villagerreroller.gametest;
 
 import dev.quarkos.villagerreroller.client.McBridge;
+import dev.quarkos.villagerreroller.harness.BrowserHarness;
+import dev.quarkos.villagerreroller.config.ForgeConfigScreen;
 import dev.quarkos.villagerreroller.config.PickFiles;
 import dev.quarkos.villagerreroller.config.ProfessionPicks;
 import dev.quarkos.villagerreroller.config.VillagerRoster;
@@ -26,7 +28,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 
@@ -36,7 +37,6 @@ import java.util.Map;
  */
 @SuppressWarnings("UnstableApiUsage")
 public class ChecklistClientGameTest implements FabricClientGameTest {
-    private static final Path ARTIFACTS = Path.of("/opt/cursor/artifacts");
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -55,7 +55,7 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                             .ifPresent(settings::setWorldType);
                 })
                 .create()) {
-            waitForChunks(world);
+            GameTestSupport.waitForChunks(world);
             //? if >=1.21.11 {
             world.getServer().runCommand("gamerule send_command_feedback false");
             world.getServer().runCommand("gamerule advance_time false");
@@ -74,16 +74,16 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                         "enchant:minecraft:unbreaking:3", 14,
                         "enchant:minecraft:efficiency:5", 20));
                 client.options.guiScale().set(3);
-                client.resizeDisplay();
+                resize(client);
             });
             context.waitTicks(5);
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(10);
-            saveShot(context, "checklist-empty");
+            GameTestSupport.saveShot(context, "checklist-empty");
             scale(context, 4, 1280, 960);
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
-            saveShot(context, "checklist-empty-scale4");
+            GameTestSupport.saveShot(context, "checklist-empty-scale4");
             scale(context, 3, 1280, 720);
 
             context.runOnClient(client -> {
@@ -107,47 +107,58 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                         "enchant:minecraft:protection:4", 16,
                         "enchant:minecraft:silk_touch:1", 10));
                 client.options.guiScale().set(3);
-                client.resizeDisplay();
+                resize(client);
             });
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
             context.runOnClient(client -> {
-                if (client.screen instanceof MyVillagersScreen screen) {
+                if (McBridge.currentScreen(client) instanceof MyVillagersScreen screen) {
                     screen.scrollTo(1);
                 }
             });
             context.waitTicks(5);
-            saveShot(context, "checklist-populated");
+            GameTestSupport.saveShot(context, "checklist-populated");
             context.runOnClient(client -> {
                 client.options.guiScale().set(2);
-                client.resizeDisplay();
+                resize(client);
             });
             context.waitTicks(5);
-            saveShot(context, "checklist-populated-scale2");
+            GameTestSupport.saveShot(context, "checklist-populated-scale2");
             scale(context, 4, 1280, 960);
             context.setScreen(() -> new MyVillagersScreen(null));
             context.waitTicks(5);
             context.runOnClient(client -> {
-                if (client.screen instanceof MyVillagersScreen screen) {
+                if (McBridge.currentScreen(client) instanceof MyVillagersScreen screen) {
                     screen.scrollTo(1);
                 }
             });
             context.waitTicks(5);
-            saveShot(context, "checklist-populated-scale4");
+            GameTestSupport.saveShot(context, "checklist-populated-scale4");
             scale(context, 3, 1280, 720);
 
             context.runOnClient(client -> {
                 TradeHall.clear();
                 client.options.guiScale().set(3);
-                client.resizeDisplay();
+                resize(client);
             });
             context.setScreen(() -> new TradeHallScreen());
             context.waitTicks(8);
-            saveShot(context, "hall-empty");
+            GameTestSupport.saveShot(context, "hall-empty");
             scale(context, 4, 1280, 960);
             context.setScreen(() -> new TradeHallScreen());
             context.waitTicks(5);
-            saveShot(context, "hall-empty-scale4");
+            GameTestSupport.saveShot(context, "hall-empty-scale4");
+            scale(context, 2, 1280, 720);
+            context.setScreen(() -> new ForgeConfigScreen(null));
+            context.waitTicks(8);
+            GameTestSupport.saveShot(context, "settings-scale2");
+            scale(context, 4, 1280, 960);
+            context.setScreen(() -> new ForgeConfigScreen(null));
+            context.waitTicks(8);
+            GameTestSupport.saveShot(context, "settings-scale4");
+            // The settings screen pauses the integrated server. Close it before the villager has to claim a lectern.
+            context.runOnClient(client -> McBridge.setScreen(client, null));
+            context.waitForScreen(null);
             scale(context, 2, 1280, 720);
 
             BlockPos feet = context.computeOnClient(client -> client.player.blockPosition());
@@ -157,7 +168,13 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             world.getServer().runCommand("setblock " + x + " " + y + " " + z + " minecraft:lectern");
             world.getServer().runCommand("summon minecraft:villager " + (x + 1.2) + " " + y + " " + (z + 0.5) + " {PersistenceRequired:1b}");
             world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);
-            context.waitTicks(5);
+            BlockPos job = new BlockPos(x, y, z);
+            // Claiming a job site can take a minute of server time when the PC is busy. The wait
+            // returns as soon as the librarian exists, so a generous bound costs nothing on a fast run.
+            GameTestSupport.waitForServer(context, world, GameTestSupport.scaled(20 * 60), server ->
+                    !server.overworld().getEntitiesOfClass(Villager.class, new AABB(job).inflate(4), villager ->
+                            villager.getVillagerData().profession().is(VillagerProfession.LIBRARIAN)).isEmpty(),
+                    "Checklist librarian did not claim the lectern");
             context.waitFor(client -> {
                 if (client.level == null || client.player == null) {
                     return false;
@@ -169,10 +186,10 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
                     }
                 }
                 return false;
-            }, 20 * 30);
+            }, GameTestSupport.scaled(20 * 10));
             context.runOnClient(client -> {
                 client.options.guiScale().set(2);
-                client.resizeDisplay();
+                resize(client);
                 Villager nearest = null;
                 AABB box = client.player.getBoundingBox().inflate(16.0);
                 for (Villager villager : McBridge.nearby(client.level, Villager.class, box)) {
@@ -190,30 +207,33 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             context.waitTicks(10);
             openPicker(context);
             context.runOnClient(client -> {
-                int toggled = 0;
-                for (TradeEntry entry : TradeSession.entries()) {
-                    if (entry.paysEmeralds && toggled < 2) {
-                        TradeSession.toggle(entry);
-                        toggled++;
-                    }
+                BrowserHarness.clearPicks(client);
+                List<TradeEntry> entries = TradeSession.entries().stream().filter(entry -> entry.paysEmeralds).limit(2).toList();
+                for (TradeEntry entry : entries) {
+                    BrowserHarness.pick(client, entry, entry.emeraldMax);
                 }
-                if (toggled == 0) {
-                    throw new AssertionError("picker had no emerald trades to select");
+                if (entries.isEmpty()) {
+                    throw new AssertionError("browser had no emerald trades to select");
                 }
             });
             context.waitTicks(5);
-            saveShot(context, "picker-polished");
+            GameTestSupport.saveShot(context, "picker-polished");
             scale(context, 3, 1280, 720);
             context.waitTicks(20);
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
-            saveShot(context, "picker-scale3");
+            GameTestSupport.saveShot(context, "picker-scale3");
             scale(context, 4, 1280, 960);
             context.waitTicks(20);
             reopenMerchant(context, world, x, y, z);
             openPicker(context);
-            saveShot(context, "picker-scale4");
-            context.runOnClient(client -> client.setScreen(null));
+            GameTestSupport.saveShot(context, "picker-scale4");
+            scale(context, 4, 1920, 1080);
+            context.waitTicks(10);
+            reopenMerchant(context, world, x, y, z);
+            openPicker(context);
+            GameTestSupport.saveShot(context, "picker-scale4-wide");
+            context.runOnClient(client -> McBridge.setScreen(client, null));
         } finally {
             restore(picks, picksBackup);
             restore(villagers, villagerBackup);
@@ -266,24 +286,25 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
         }
     }
 
+    private static void resize(net.minecraft.client.Minecraft client) {
+        //? if >=26.1 {
+        /*client.resizeGui();
+        *///?} else {
+        client.resizeDisplay();
+        //?}
+    }
+
     private static void scale(ClientGameTestContext context, int gui, int width, int height) {
         context.getInput().resizeWindow(width, height);
         context.runOnClient(client -> {
             client.options.guiScale().set(gui);
-            client.resizeDisplay();
+            resize(client);
         });
         context.waitTicks(5);
     }
 
-    /**
-     * A merchant opened while the panel was already open gets it for free, and
-     * the offers button would close it. Click only when it is shut.
-     */
     private static void openPicker(ClientGameTestContext context) {
-        if (Boolean.TRUE.equals(context.computeOnClient(client -> TradeSession.panelOpen()))) {
-            return;
-        }
-        context.clickScreenButton("text.villager_reroller.button.offers");
+        context.clickScreenButton("text.villager_reroller.browser.title");
         context.waitTicks(5);
     }
 
@@ -293,14 +314,14 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
      * teleport. Keep offering the trade until the screen is actually open.
      */
     private static void reopenMerchant(ClientGameTestContext context, TestSingleplayerContext world, int x, int y, int z) {
-        context.runOnClient(client -> client.setScreen(null));
+        context.runOnClient(client -> client.player.closeContainer());
         context.waitTicks(10);
         world.getServer().runCommand("tp @e[type=minecraft:villager,limit=1,sort=nearest] " + (x + 1.2) + " " + y + " " + (z + 0.5) + " 180 0");
         world.getServer().runCommand("tp @p " + (x + 0.5) + " " + y + " " + (z - 1.6) + " facing " + x + " " + (y + 1) + " " + z);
         boolean sawLibrarian = false;
         for (int attempt = 0; attempt < 45; attempt++) {
             context.waitTicks(8);
-            if (Boolean.TRUE.equals(context.computeOnClient(client -> client.screen instanceof MerchantScreen))) {
+            if (Boolean.TRUE.equals(context.computeOnClient(client -> McBridge.currentScreen(client) instanceof MerchantScreen))) {
                 context.waitTicks(10);
                 return;
             }
@@ -337,30 +358,5 @@ public class ChecklistClientGameTest implements FabricClientGameTest {
             throw new AssertionError("librarian missing");
         }
         throw new AssertionError("merchant screen did not reopen");
-    }
-
-    private static void saveShot(ClientGameTestContext context, String name) {
-        Path shot = context.takeScreenshot(name);
-        try {
-            Files.createDirectories(ARTIFACTS);
-            Files.copy(shot, ARTIFACTS.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-            Path plain = ARTIFACTS.resolve("1.21.11").resolve("plain");
-            Files.createDirectories(plain);
-            Files.copy(shot, plain.resolve(name + ".png"), StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void waitForChunks(TestSingleplayerContext world) {
-        //? if >=26.2 {
-        /*world.getConnection().waitForChunksRender();
-        *///?} else {
-        //? if >=26.1 {
-        /*world.getClientLevel().waitForChunksRender();
-        *///?} else {
-        world.getClientWorld().waitForChunksRender();
-        //?}
-        //?}
     }
 }

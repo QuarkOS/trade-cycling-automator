@@ -18,6 +18,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 //?}
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 //? if >=1.21 {
 import net.minecraft.tags.EnchantmentTags;
@@ -54,46 +55,47 @@ public final class ListingTrades {
         if (level == null || villager == null) {
             return List.of();
         }
-        int tradeLevel = Math.max(1, Math.min(5, villagerLevel));
-        //? if >=1.20.2 {
-        boolean rebalance = level.enabledFeatures().contains(FeatureFlags.TRADE_REBALANCE);
+        //? if <1.21.5 {
+        /*return list(level, villager.getVillagerData().getProfession(), villager.getVillagerData().getType(), villagerLevel, false);
+        *///?} else {
+        return list(level, villager.getVillagerData().profession().unwrapKey().orElse(null),
+                villager.getVillagerData().type().unwrapKey().orElse(null), villagerLevel, false);
         //?}
-        Int2ObjectMap<VillagerTrades.ItemListing[]> table = null;
-        Object villagerType;
-        //? if <1.20.2 {
-        /*VillagerProfession profession = villager.getVillagerData().getProfession();
-        if (profession == VillagerProfession.NONE || profession == VillagerProfession.NITWIT) {
-            return List.of();
-        }
-        table = VillagerTrades.TRADES.get(profession);
-        villagerType = villager.getVillagerData().getType();
+    }
+
+    static List<TradeEntry> browse(Level level, Identifier id, int villagerLevel) {
+        //? if <1.19.3 {
+        /*VillagerProfession profession = Registry.VILLAGER_PROFESSION.getOptional(id).orElse(null);
         *///?}
-        //? if >=1.20.2 && <1.21.5 {
-        /*VillagerProfession profession = villager.getVillagerData().getProfession();
-        if (profession == VillagerProfession.NONE || profession == VillagerProfession.NITWIT) {
-            return List.of();
-        }
-        if (rebalance) {
-            table = VillagerTrades.EXPERIMENTAL_TRADES.get(profession);
-        }
-        if (table == null) {
-            table = VillagerTrades.TRADES.get(profession);
-        }
-        villagerType = villager.getVillagerData().getType();
+        //? if >=1.19.3 && <1.21.5 {
+        /*VillagerProfession profession = BuiltInRegistries.VILLAGER_PROFESSION.getOptional(id).orElse(null);
         *///?}
         //? if >=1.21.5 {
-        ResourceKey<VillagerProfession> profession = villager.getVillagerData().profession().unwrapKey().orElse(null);
+        ResourceKey<VillagerProfession> profession = ResourceKey.create(Registries.VILLAGER_PROFESSION, id);
+        //?}
+        return list(level, profession, null, villagerLevel, true);
+    }
+
+    private static List<TradeEntry> list(Level level,
+                                        //? if <1.21.5 {
+                                        /*VillagerProfession profession,
+                                        *///?} else {
+                                        ResourceKey<VillagerProfession> profession,
+                                        //?}
+                                        Object villagerType, int villagerLevel, boolean allTypes) {
         if (profession == null || profession.equals(VillagerProfession.NONE) || profession.equals(VillagerProfession.NITWIT)) {
             return List.of();
         }
-        if (rebalance) {
+        int tradeLevel = Math.max(1, Math.min(5, villagerLevel));
+        Int2ObjectMap<VillagerTrades.ItemListing[]> table = null;
+        //? if >=1.20.2 {
+        if (level.enabledFeatures().contains(FeatureFlags.TRADE_REBALANCE)) {
             table = VillagerTrades.EXPERIMENTAL_TRADES.get(profession);
         }
+        //?}
         if (table == null) {
             table = VillagerTrades.TRADES.get(profession);
         }
-        villagerType = villager.getVillagerData().type().unwrapKey().orElse(null);
-        //?}
         if (table == null) {
             return List.of();
         }
@@ -109,12 +111,37 @@ public final class ListingTrades {
         //?}
         List<TradeEntry> entries = new ArrayList<>();
         for (int index = 0; index < listings.length; index++) {
-            expand(listings[index], villagerType, enchantments, entries, "listing-" + index);
+            VillagerTrades.ItemListing listing = listings[index];
+            String group = "listing-" + index;
+            boolean typeSpecific = listing instanceof VillagerTrades.EmeraldsForVillagerTypeItem;
+            //? if >=1.20.2 {
+            typeSpecific |= listing instanceof VillagerTrades.TypeSpecificTrade;
+            //?}
+            if (allTypes && typeSpecific) {
+                for (Object type : villagerTypes()) {
+                    expand(listing, type, enchantments, entries, group);
+                }
+            } else {
+                expand(listing, villagerType, enchantments, entries, group);
+            }
         }
         entries.sort(Comparator
                 .comparing((TradeEntry entry) -> entry.id.startsWith("enchant:"))
                 .thenComparing(entry -> entry.name));
         return List.copyOf(entries);
+    }
+
+    private static List<?> villagerTypes() {
+        //? if <1.19.3 {
+        /*return Registry.VILLAGER_TYPE.stream().toList();
+        *///?}
+        //? if >=1.19.3 && <1.21.5 {
+        /*return BuiltInRegistries.VILLAGER_TYPE.stream().toList();
+        *///?}
+        //? if >=1.21.5 {
+        return BuiltInRegistries.VILLAGER_TYPE.keySet().stream()
+                .map(id -> ResourceKey.create(Registries.VILLAGER_TYPE, id)).toList();
+        //?}
     }
 
     private static void expand(VillagerTrades.ItemListing listing, Object type, HolderLookup.RegistryLookup<Enchantment> enchantments, List<TradeEntry> entries, String group) {

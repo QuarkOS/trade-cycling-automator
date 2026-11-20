@@ -5,7 +5,9 @@ import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.net.ServerRerollClient;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
-import dev.quarkos.villagerreroller.picker.TradeSession;
+import dev.quarkos.villagerreroller.picker.RerollMethod;
+import dev.quarkos.villagerreroller.picker.TradeBrowserScreen;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.Button;
@@ -46,7 +48,7 @@ public final class ServerJoinHarness {
     private static int ticks;
     private static BlockPos lectern;
     private static boolean sawAir;
-    private static boolean shotPanel;
+    private static MerchantOffers initialOffers;
     private static boolean shotResult;
 
     private ServerJoinHarness() {
@@ -76,7 +78,8 @@ public final class ServerJoinHarness {
                 case WAIT_WORLD -> waitWorld(client);
                 case WAIT_VILLAGER -> waitVillager(client);
                 case WAIT_MERCHANT -> waitMerchant(client);
-                case PANEL -> panel(client);
+                case BROWSER -> browse(client);
+                case START -> start(client);
                 case REROLL -> reroll(client);
                 case DONE -> finish(client);
             }
@@ -203,6 +206,11 @@ public final class ServerJoinHarness {
                 fail("server advertised the reroll channel without the addon");
             }
             note("villager_reroller server harness joined mode=" + MODE + " capable=" + ServerRerollClient.available());
+            if (Boolean.getBoolean("villager_reroller.proofFly") && client.player != null) {
+                client.player.getAbilities().mayfly = true;
+                client.player.getAbilities().flying = true;
+                client.player.onUpdateAbilities();
+            }
             state = State.WAIT_VILLAGER;
             ticks = 0;
             return;
@@ -280,8 +288,11 @@ public final class ServerJoinHarness {
     }
 
     private static void waitMerchant(Minecraft client) {
-        if (McBridge.currentScreen(client) instanceof MerchantScreen) {
-            state = State.PANEL;
+        if (McBridge.currentScreen(client) instanceof MerchantScreen screen && !screen.getMenu().getOffers().isEmpty()) {
+            RerollMethod.reset();
+            initialOffers = screen.getMenu().getOffers();
+            BrowserHarness.open(client);
+            state = State.BROWSER;
             ticks = 0;
             return;
         }
@@ -299,38 +310,24 @@ public final class ServerJoinHarness {
         }
     }
 
-    private static void panel(Minecraft client) {
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-            if (ticks > timeout(20 * 10)) {
-                fail("merchant screen closed before the panel");
-            }
+    private static void browse(Minecraft client) {
+        if (!(McBridge.currentScreen(client) instanceof TradeBrowserScreen)) {
+            fail("merchant did not open the trade browser");
             return;
         }
-        if (!TradeSession.panelOpen()) {
-            if (!press(screen, "text.villager_reroller.button.offers")) {
-                if (ticks > timeout(20 * 10)) {
-                    fail("offers button missing");
-                }
-            }
+        BrowserHarness.pickMissing(client, initialOffers);
+        state = State.START;
+        ticks = 0;
+    }
+
+    private static void start(Minecraft client) {
+        if (ticks < 5) {
             return;
         }
-        if (TradeSession.entries().isEmpty()) {
-            if (ticks > timeout(20 * 10)) {
-                fail("trade catalog was empty");
-            }
-            return;
-        }
-        int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
-        if (selected <= 0) {
-            fail("every catalog row was already on the counter");
-            return;
-        }
-        if (!shotPanel) {
-            shotPanel = true;
-            shot(client, "server-" + MODE + "-panel");
-        }
-        if (!press(screen, "text.villager_reroller.button.start")) {
-            fail("start button missing");
+        shot(client, "server-" + MODE + "-panel");
+        BrowserHarness.click(client, "browser.start");
+        if (!JobSiteReroller.isRunning()) {
+            fail("reroll did not start: " + JobSiteReroller.stopReason());
             return;
         }
         state = State.REROLL;
@@ -344,6 +341,13 @@ public final class ServerJoinHarness {
         if (!shotResult && ticks > timeout(40) && McBridge.currentScreen(client) instanceof MerchantScreen) {
             shotResult = true;
             shot(client, "server-" + MODE + "-reroll");
+        }
+        int holdSeconds = Integer.getInteger("villager_reroller.proofHoldSeconds", 0);
+        if (holdSeconds > 0 && ticks >= holdSeconds * 20 && sawAir && client.player != null) {
+            note("villager_reroller server harness held " + holdSeconds + "s mode=" + MODE + " attempts=" + JobSiteReroller.attempts());
+            state = State.DONE;
+            ticks = 0;
+            return;
         }
         boolean running = JobSiteReroller.isRunning();
         JobSiteReroller.StopReason reason = JobSiteReroller.stopReason();
@@ -493,18 +497,13 @@ public final class ServerJoinHarness {
             /*NativeImage image = Screenshot.takeScreenshot(mainTarget(client));
             try {
                 image.writeToFile(dir.resolve(name + ".png"));
-                Files.copy(dir.resolve(name + ".png"), Path.of("/opt/cursor/artifacts/server-reroll").resolve(name + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             } finally {
                 image.close();
             }
             *///?} else {
             Screenshot.takeScreenshot(mainTarget(client), image -> {
                 try {
-                    Path file = dir.resolve(name + ".png");
-                    image.writeToFile(file);
-                    Path copyDir = Path.of("/opt/cursor/artifacts/server-reroll");
-                    Files.createDirectories(copyDir);
-                    Files.copy(file, copyDir.resolve(name + ".png"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    image.writeToFile(dir.resolve(name + ".png"));
                 } catch (IOException ex) {
                     fail("screenshot " + name + " failed: " + ex.getMessage());
                 } finally {
@@ -518,11 +517,7 @@ public final class ServerJoinHarness {
     }
 
     private static Path artifacts() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return Path.of("/opt/cursor/artifacts/server-reroll");
-        }
-        return Path.of(configured);
+        return HarnessArtifacts.directory();
     }
 
     private static int timeout(int ticks) {
@@ -536,7 +531,7 @@ public final class ServerJoinHarness {
 
     private static void writeResult(String body) {
         try {
-            Path file = Path.of("/opt/cursor/artifacts/server-reroll/harness-result.txt");
+            Path file = artifacts().resolve("harness-result.txt");
             Files.createDirectories(file.getParent());
             Files.writeString(file, body);
         } catch (IOException ignored) {
@@ -559,7 +554,8 @@ public final class ServerJoinHarness {
         WAIT_WORLD,
         WAIT_VILLAGER,
         WAIT_MERCHANT,
-        PANEL,
+        BROWSER,
+        START,
         REROLL,
         DONE
     }

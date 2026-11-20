@@ -4,20 +4,16 @@ import com.mojang.blaze3d.platform.NativeImage;
 import dev.quarkos.villagerreroller.client.LibrarianTracker;
 import dev.quarkos.villagerreroller.client.McBridge;
 import dev.quarkos.villagerreroller.compat.TradeCyclingHook;
+import dev.quarkos.villagerreroller.picker.GuiDraw;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
+import dev.quarkos.villagerreroller.picker.TradeBrowserScreen;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
 import dev.quarkos.villagerreroller.picker.TradeEntry;
-import dev.quarkos.villagerreroller.picker.TradePickerUi;
 import dev.quarkos.villagerreroller.picker.TradeSession;
-import dev.quarkos.villagerreroller.text.ScrollingNames;
-import dev.quarkos.villagerreroller.text.TradeNameLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
-//? if >=1.21.11 {
-import net.minecraft.client.gui.ActiveTextCollector;
-//?}
 //? if >=1.21.9 {
 import net.minecraft.client.input.InputWithModifiers;
 //?}
@@ -34,16 +30,12 @@ import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-//? if <1.21.11 {
-/*import net.minecraft.Util;
-*///?} else {
-import net.minecraft.util.Util;
-//?}
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
@@ -70,26 +62,15 @@ public final class ClientHarness121 {
     private static double villagerZ;
     private static boolean cycling;
     private static boolean sawAir;
-    private static boolean midShot;
-    private static boolean maxShot;
-    private static boolean jobSiteShot;
-    private static boolean cyclingPanelShot;
     private static boolean rerollShot;
-    private static boolean oddsShot;
-    private static boolean oddsCleared;
-    private static boolean unsupportedShot;
     private static int proofStep;
     private static int proofTicks;
     private static int proofLayout;
-    private static boolean proofDone;
-    /** Window width, height, and requested GUI scale. 0 is Minecraft's auto scale. */
+    private static MerchantOffers initialOffers;
     private static final int[][] PROOF_LAYOUTS = {
-            {854, 480, 2},
-            {854, 480, 3},
-            {854, 480, 0},
             {1920, 1080, 2},
-            {1920, 1080, 3},
-            {1920, 1080, 0}
+            {1920, 1080, 4},
+            {1280, 960, 4}
     };
     private static int lecternsBefore;
     private static String stopReason = "running";
@@ -143,8 +124,7 @@ public final class ClientHarness121 {
                 case WAIT_PLAYER -> waitPlayer(client);
                 case WAIT_LIBRARIAN -> waitLibrarian(client);
                 case WAIT_MERCHANT -> waitMerchant(client);
-                case PANEL -> openPanel(client);
-                case WAIT_SCROLL -> waitScroll(client);
+                case BROWSER -> openBrowser(client);
                 case START_REROLL -> startReroll(client);
                 case WAIT_FOUND -> waitFound(client);
                 case DONE -> finish(client);
@@ -488,130 +468,120 @@ public final class ClientHarness121 {
         if (!cycling) {
             shot(client, "merchant-button");
         }
-        if (!press(McBridge.currentScreen(client), "text.villager_reroller.button.offers")) {
-            fail("offers button missing");
+        MerchantScreen merchant = (MerchantScreen) McBridge.currentScreen(client);
+        if (merchant.getMenu().getOffers().isEmpty()) {
+            if (ticks > timeout(20 * 20)) {
+                fail("merchant offers did not arrive");
+            }
             return;
         }
-        state = State.PANEL;
+        initialOffers = merchant.getMenu().getOffers();
+        BrowserHarness.open(client);
+        state = State.BROWSER;
         ticks = 0;
     }
 
-    private static void openPanel(Minecraft client) {
+    private static void openBrowser(Minecraft client) {
         if (ticks < 5) {
             return;
         }
+        TradeBrowserScreen browser = BrowserHarness.browser(client);
         if (Boolean.getBoolean("villager_reroller.uiProof")) {
             proveUi(client);
-            return;
-        }
-        //? if <1.19.4 {
-        /*if (false) {
-        *///?}
-        //? if >=1.19.4 && <1.21.11 {
-        /*if (ScrollingNames.PERIOD_PER_PIXEL != AbstractWidget.PERIOD_PER_SCROLLED_PIXEL
-                || ScrollingNames.MIN_PERIOD_SECONDS != AbstractWidget.MIN_SCROLL_PERIOD) {
-        *///?}
-        //? if >=1.21.11 {
-        if (ScrollingNames.PERIOD_PER_PIXEL != ActiveTextCollector.PERIOD_PER_SCROLLED_PIXEL
-                || ScrollingNames.MIN_PERIOD_SECONDS != ActiveTextCollector.MIN_SCROLL_PERIOD) {
-        //?}
-            fail("name scroll period does not match vanilla");
             return;
         }
         boolean ranged = TradeSession.entries().stream().anyMatch(entry -> entry.paysEmeralds && entry.emeraldMin != entry.emeraldMax);
         boolean fixed = TradeSession.entries().stream().anyMatch(entry -> entry.emeraldMin == entry.emeraldMax && entry.emeraldMin > 0);
         if (!ranged || !fixed) {
-            fail("panel catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
+            fail("browser catalog missing a fixed price or a min/max range: " + TradeSession.entries().size());
+            return;
+        }
+        BrowserHarness.clearPicks(client);
+        TradeEntry book = TradeSession.entries().stream().filter(entry -> entry.id.startsWith("enchant:")).findFirst().orElseThrow();
+        BrowserHarness.pick(client, book, book.emeraldMax);
+        var lines = browser.oddsLines();
+        if (lines.size() != 2 || !lines.get(0).getString().contains("1 in")) {
+            fail("browser odds line missing: " + lines);
+            return;
+        }
+        try {
+            Path dir = artifacts();
+            Files.createDirectories(dir);
+            Files.writeString(dir.resolve("panel-odds.txt"), lines.get(0).getString() + "\n" + lines.get(1).getString() + "\n");
+        } catch (IOException e) {
+            fail("odds text was not written: " + e.getMessage());
             return;
         }
         note("villager_reroller harness check trade-panel");
-        state = State.WAIT_SCROLL;
+        shot(client, "panel-odds", "trade-panel", "panel-job-site");
+        if (cycling) {
+            BrowserHarness.click(client, "method.job_site");
+            if (!RerollMethod.usesTradeCycling()) {
+                fail("method toggle did not select Trade Cycling");
+                return;
+            }
+            shot(client, "panel-trade-cycling");
+        } else if (TradeCyclingHook.installed()) {
+            Button method = BrowserHarness.find(browser, GuiDraw.message("method.trade_cycling").getString());
+            if (method == null || method.active) {
+                fail("expected the disabled Trade Cycling method");
+                return;
+            }
+            shot(client, "trade-cycling-unsupported");
+        }
+        BrowserHarness.pickMissing(client, initialOffers);
+        if (!client.level.getBlockState(new BlockPos(x, y, z)).is(Blocks.LECTERN)) {
+            fail("lectern missing before the reroll");
+            return;
+        }
+        lecternsBefore = lecternCount(client);
+        state = State.START_REROLL;
         ticks = 0;
     }
 
     private static void proveUi(Minecraft client) {
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-            fail("ui proof lost the trade screen");
-            return;
-        }
-        if (TradeSession.entries().size() < 8) {
-            if (ticks > timeout(20 * 20)) {
-                fail("ui proof list was short: " + TradeSession.entries().size());
-            }
-            return;
-        }
-        clearChrome(client);
         if (proofLayout >= PROOF_LAYOUTS.length) {
-            if (!proofDone) {
-                proofDone = true;
-                note("villager_reroller ui proof ok");
-                client.stop();
-            }
+            note("villager_reroller ui proof ok");
+            client.stop();
             return;
         }
         int[] layout = PROOF_LAYOUTS[proofLayout];
         String tag = proofTag(layout);
         if (proofStep == 0 && proofTicks == 0) {
-            TradeSession.setFilter("");
+            clearChrome(client);
             applyLayout(client, layout[0], layout[1], layout[2]);
         }
-        proofTicks++;
-        if (proofStep == 0) {
-            if (proofTicks == 15) {
-                forceScale(client, layout[2]);
-            }
-            if (proofTicks < 20) {
-                return;
-            }
-            shot(client, "screen-" + tag);
-            note("villager_reroller ui proof screen " + tag
-                    + " gui " + client.getWindow().getGuiScaledWidth() + "x" + client.getWindow().getGuiScaledHeight()
-                    + " effective " + client.getWindow().getGuiScale()
-                    + " panel=" + TradePickerUi.panelShown()
-                    + " follows=" + TradePickerUi.merchantBackgroundFollowsLeftPos);
-            if (!TradePickerUi.panelShown()) {
-                nextLayout();
-                return;
-            }
-            int offset = TradePickerUi.proveDrag(screen);
-            if (offset <= 0) {
-                fail("scrollbar drag did not move, offset " + offset + " follows=" + TradePickerUi.merchantBackgroundFollowsLeftPos);
-                return;
-            }
-            note("villager_reroller ui proof scroll " + offset + " " + tag);
-            proofStep = 1;
-            proofTicks = 0;
+        if (++proofTicks < 20) {
             return;
         }
-        if (proofStep == 1) {
-            if (proofTicks < 12) {
-                return;
-            }
-            shot(client, "scrollbar-" + tag);
-            if (!TradePickerUi.proveType(screen, "eq1")) {
-                fail("search box did not keep eq1");
-                return;
-            }
-            if (!(McBridge.currentScreen(client) instanceof MerchantScreen)) {
-                fail("search closed the trade screen");
-                return;
-            }
-            note("villager_reroller ui proof typed eq1 " + tag);
-            proofStep = 2;
-            proofTicks = 0;
-            return;
-        }
-        if (proofTicks < 12) {
-            return;
-        }
-        shot(client, "search-" + tag);
-        nextLayout();
-    }
-
-    private static void nextLayout() {
-        proofLayout++;
-        proofStep = 0;
         proofTicks = 0;
+        switch (proofStep++) {
+            case 0 -> {
+                forceScale(client, layout[2]);
+                shot(client, "browser-item-" + tag);
+                BrowserHarness.findItem(client, new ItemStack(Items.ENCHANTED_BOOK).getHoverName().getString());
+            }
+            case 1 -> {
+                Button next = BrowserHarness.find(BrowserHarness.browser(client), GuiDraw.message("ui.next").getString());
+                if (next == null || !next.active) {
+                    fail("browser book grid did not paginate");
+                    return;
+                }
+                BrowserHarness.click(client, "ui.next");
+                shot(client, "browser-page-" + tag);
+                BrowserHarness.search(client).setValue("Unbreaking");
+            }
+            default -> {
+                if (BrowserHarness.find(BrowserHarness.browser(client), "Unbreaking III") == null) {
+                    fail("book search lost the desired level");
+                    return;
+                }
+                shot(client, "browser-search-" + tag);
+                BrowserHarness.click(client, "button.back");
+                proofLayout++;
+                proofStep = 0;
+            }
+        }
     }
 
     private static String proofTag(int[] layout) {
@@ -677,144 +647,12 @@ public final class ClientHarness121 {
         //?}
     }
 
-    private static void waitScroll(Minecraft client) {
-        if (!oddsShot) {
-            if (ticks == 1) {
-                if (!selectOddsSample()) {
-                    fail("no enchanted book to estimate");
-                }
-                return;
-            }
-            if (ticks < 3) {
-                return;
-            }
-            String[] lines = TradePickerUi.oddsLines();
-            if (lines == null || lines[0] == null || !lines[0].contains("1 in")) {
-                fail("odds line missing: " + java.util.Arrays.toString(lines));
-                return;
-            }
-            try {
-                Path dir = artifacts();
-                Files.createDirectories(dir);
-                String time = lines.length > 1 && lines[1] != null ? lines[1] : "";
-                Files.writeString(dir.resolve("panel-odds.txt"), lines[0] + "\n" + time + "\n");
-            } catch (IOException e) {
-                fail("odds text was not written: " + e.getMessage());
-                return;
-            }
-            shot(client, "panel-odds");
-            oddsShot = true;
-            return;
-        }
-        if (!oddsCleared) {
-            TradeSession.clearSelection();
-            oddsCleared = true;
-        }
-        if (TradeCyclingHook.installed() && !TradeCyclingHook.serverSupports() && !unsupportedShot) {
-            if (!TradePickerUi.hasMethodButton()) {
-                fail("Trade Cycling toggle was not shown");
-                return;
-            }
-            if (TradePickerUi.methodButtonActive()) {
-                fail("Trade Cycling toggle was clickable on a server without the channel");
-                return;
-            }
-            TradePickerUi.aimCursorAtMethodButton();
-            if (ticks < 8) {
-                return;
-            }
-            unsupportedShot = true;
-            shot(client, "trade-cycling-unsupported");
-            TradePickerUi.clearAim();
-        }
-        ScrollSpot spot = scrollSpot(client);
-        if (!cycling && spot == ScrollSpot.MID && !midShot) {
-            midShot = true;
-            shot(client, "name-scroll-mid", "name-scroll", "trade-panel");
-        }
-        if (spot != ScrollSpot.MAX) {
-            if (ticks > timeout(20 * 40)) {
-                fail("name scroll did not reach the far end");
-            }
-            return;
-        }
-        if (!cycling) {
-            if (!maxShot) {
-                maxShot = true;
-                shot(client, "name-scroll-max", "panel-job-site");
-            }
-            assertNameClearsThePrice(client);
-            selectAndRemember(client);
-            state = State.START_REROLL;
-            ticks = 0;
-            return;
-        }
-        if (!jobSiteShot) {
-            jobSiteShot = true;
-            shot(client, "panel-job-site");
-            if (!press(McBridge.currentScreen(client), "text.villager_reroller.method.job_site")) {
-                fail("method button missing");
-                return;
-            }
-            return;
-        }
-        if (!RerollMethod.usesTradeCycling()) {
-            if (ticks > timeout(20 * 10)) {
-                fail("method toggle did not select Trade Cycling");
-            }
-            return;
-        }
-        if (!cyclingPanelShot) {
-            cyclingPanelShot = true;
-            shot(client, "panel-trade-cycling");
-        }
-        assertNameClearsThePrice(client);
-        selectAndRemember(client);
-        state = State.START_REROLL;
-        ticks = 0;
-    }
-
-    private static boolean selectOddsSample() {
-        TradeSession.clearSelection();
-        for (TradeEntry entry : TradeSession.entries()) {
-            if ("enchant:minecraft:mending:1".equals(entry.id)) {
-                TradeSession.toggle(entry);
-                TradePickerUi.reveal(entry.id);
-                return true;
-            }
-        }
-        for (TradeEntry entry : TradeSession.entries()) {
-            if (entry.id.startsWith("enchant:")) {
-                TradeSession.toggle(entry);
-                TradePickerUi.reveal(entry.id);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void selectAndRemember(Minecraft client) {
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
-            fail("offers button did not leave the merchant screen open");
-            return;
-        }
-        int selected = TradeSession.selectAllExcept(screen.getMenu().getOffers());
-        if (selected <= 0) {
-            fail("every catalog row was already on the counter");
-            return;
-        }
-        if (!client.level.getBlockState(new BlockPos(x, y, z)).is(Blocks.LECTERN)) {
-            fail("lectern missing before the reroll");
-            return;
-        }
-        lecternsBefore = lecternCount(client);
-    }
-
     private static void startReroll(Minecraft client) {
-        if (!press(McBridge.currentScreen(client), "text.villager_reroller.button.start")) {
-            fail("start button missing");
+        Button start = BrowserHarness.find(McBridge.currentScreen(client), GuiDraw.message("browser.start").getString());
+        if ((start == null || !start.active) && ticks < timeout(20 * 20)) {
             return;
         }
+        BrowserHarness.click(client, "browser.start");
         sawAir = false;
         stopReason = "running";
         state = State.WAIT_FOUND;
@@ -844,17 +682,6 @@ public final class ClientHarness121 {
         }
         stopReason = JobSiteReroller.stopReason().name();
         if (!"FOUND".equals(stopReason)) {
-            // The villager can finish claiming the lectern after the trade screen opens. Pull them
-            // back onto it and press Start again instead of failing the first lookup.
-            if ("NO_JOB_SITE".equals(stopReason) && ticks < 20 * 20) {
-                if (ticks % 20 == 0) {
-                    command(client, "tp @e[type=minecraft:villager,limit=1,sort=nearest] " + villagerX + " " + y + " " + villagerZ + " 90 0");
-                }
-                if (ticks % 20 == 10) {
-                    press(McBridge.currentScreen(client), "text.villager_reroller.button.start");
-                }
-                return;
-            }
             fail("reroll stopped with " + stopReason + " after " + JobSiteReroller.attempts() + " attempts");
             return;
         }
@@ -957,68 +784,6 @@ public final class ClientHarness121 {
         return false;
     }
 
-    private enum ScrollSpot {
-        NONE,
-        MID,
-        MAX
-    }
-
-    private static ScrollSpot scrollSpot(Minecraft client) {
-        TradeEntry bane = bane(client);
-        if (bane == null || client.font == null) {
-            return ScrollSpot.NONE;
-        }
-        int available = TradePickerUi.nameBudget(client.font.width(bane.priceLabel()));
-        int textWidth = client.font.width(bane.name);
-        int overflow = textWidth - available;
-        if (overflow < 8) {
-            return ScrollSpot.NONE;
-        }
-        int offset = ScrollingNames.offset(textWidth, available, Util.getMillis());
-        if (offset >= overflow - 1) {
-            return ScrollSpot.MAX;
-        }
-        if (offset >= overflow * 2 / 5 && offset <= overflow * 3 / 5) {
-            return ScrollSpot.MID;
-        }
-        return ScrollSpot.NONE;
-    }
-
-    private static void assertNameClearsThePrice(Minecraft client) {
-        TradeEntry bane = bane(client);
-        if (bane == null) {
-            fail("Bane of Arthropods was not in the catalog");
-            return;
-        }
-        int priceWidth = client.font.width(bane.priceLabel());
-        int textWidth = client.font.width(bane.name);
-        int available = TradePickerUi.nameBudget(priceWidth);
-        int nameLeft = TradeNameLayout.NAME_LEFT;
-        int nameRight = nameLeft + available;
-        int priceX = nameRight + TradeNameLayout.PRICE_GAP;
-        int overflow = textWidth - available;
-        if (overflow < 8) {
-            fail("Bane of Arthropods does not overflow the name box");
-            return;
-        }
-        for (int offset = 0; offset <= overflow; offset++) {
-            int visibleRight = TradeNameLayout.clippedRight(nameLeft, nameRight, textWidth, offset);
-            if (visibleRight > priceX - TradeNameLayout.PRICE_GAP) {
-                fail("name reaches the price at offset " + offset);
-                return;
-            }
-        }
-    }
-
-    private static TradeEntry bane(Minecraft client) {
-        for (TradeEntry entry : TradeSession.entries()) {
-            if (entry.name.startsWith("Bane of Arthropods")) {
-                return entry;
-            }
-        }
-        return null;
-    }
-
     private static int lecternCount(Minecraft client) {
         int count = 0;
         var inventory = client.player.getInventory();
@@ -1067,11 +832,7 @@ public final class ClientHarness121 {
     }
 
     private static Path artifacts() {
-        String configured = System.getProperty("villager_reroller.artifacts");
-        if (configured == null || configured.isBlank()) {
-            return Path.of("/opt/cursor/artifacts/1.21.1/plain");
-        }
-        return Path.of(configured);
+        return HarnessArtifacts.directory();
     }
 
     private static com.mojang.blaze3d.pipeline.RenderTarget mainTarget(Minecraft client) {
@@ -1136,8 +897,7 @@ public final class ClientHarness121 {
         WAIT_PLAYER,
         WAIT_LIBRARIAN,
         WAIT_MERCHANT,
-        PANEL,
-        WAIT_SCROLL,
+        BROWSER,
         START_REROLL,
         WAIT_FOUND,
         DONE

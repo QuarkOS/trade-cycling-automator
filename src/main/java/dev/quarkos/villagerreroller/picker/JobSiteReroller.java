@@ -29,6 +29,8 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.UUID;
+
 /**
  * Breaks and replaces a villager's job site with ordinary client mining and
  * placement. One break packet is started, then continued once per tick.
@@ -76,6 +78,7 @@ public final class JobSiteReroller {
 
     private static Phase phase = Phase.IDLE;
     private static StopReason stopReason;
+    private static UUID resultVillager;
     private static int phaseTicks;
     private static int attempts;
     private static boolean breakStarted;
@@ -154,6 +157,10 @@ public final class JobSiteReroller {
         return stopReason;
     }
 
+    static StopReason stopReasonFor(Villager villager) {
+        return villager.getUUID().equals(resultVillager) ? stopReason : null;
+    }
+
     public static int attempts() {
         if (dev.quarkos.villagerreroller.net.ServerRerollClient.isRunning()) {
             return dev.quarkos.villagerreroller.net.ServerRerollClient.attempts();
@@ -190,6 +197,10 @@ public final class JobSiteReroller {
             attempts = serverAttempts;
         }
         status = message(reason);
+        if (reason == StopReason.FOUND) {
+            Minecraft client = Minecraft.getInstance();
+            TradeHall.onRerollMatch(client, LibrarianTracker.current(client));
+        }
     }
 
     public static void stop(StopReason reason) {
@@ -223,6 +234,7 @@ public final class JobSiteReroller {
             return;
         }
         packetRun = false;
+        resultVillager = null;
         AutomatorConfig config = AutomatorConfig.get();
         if (!config.enabled()) {
             fail(client, StopReason.DISABLED);
@@ -237,6 +249,7 @@ public final class JobSiteReroller {
             fail(client, StopReason.NOT_VILLAGER);
             return;
         }
+        resultVillager = villager.getUUID();
         MerchantMenu menu = screen.getMenu();
         if (locked(menu)) {
             fail(client, StopReason.LOCKED);
@@ -285,7 +298,6 @@ public final class JobSiteReroller {
         villagerId = villager.getId();
         attempts = 0;
         stopReason = null;
-        TradeSession.setPanelOpen(true);
         closingForReroll = true;
         client.player.closeContainer();
         enter(Phase.PREPARE_BREAK);
@@ -351,7 +363,6 @@ public final class JobSiteReroller {
         pendingSignature = "";
         packetRun = true;
         stopReason = null;
-        TradeSession.setPanelOpen(true);
         enter(Phase.CYCLE);
         status = rerolling();
         LOGGER.info("Trade cycling reroll started for {}", McBridge.professionId(villager));
@@ -473,7 +484,7 @@ public final class JobSiteReroller {
     }
 
     private static void open(Minecraft client, LocalPlayer player, Villager villager) {
-        if (McBridge.currentScreen(client) instanceof MerchantScreen) {
+        if (TradeBrowserScreen.activeMerchant(client) != null) {
             closingForReroll = false;
             enter(Phase.CHECK);
             return;
@@ -501,7 +512,8 @@ public final class JobSiteReroller {
     }
 
     private static void check(Minecraft client, LocalPlayer player) {
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
+        MerchantScreen screen = TradeBrowserScreen.activeMerchant(client);
+        if (screen == null) {
             if (!closingForReroll) {
                 stop(StopReason.GUI_CLOSED);
             }
@@ -534,7 +546,8 @@ public final class JobSiteReroller {
     }
 
     private static void cycle(Minecraft client) {
-        if (!(McBridge.currentScreen(client) instanceof MerchantScreen screen)) {
+        MerchantScreen screen = TradeBrowserScreen.activeMerchant(client);
+        if (screen == null) {
             stop(StopReason.GUI_CLOSED);
             return;
         }
@@ -594,12 +607,12 @@ public final class JobSiteReroller {
     }
 
     private static void succeed(Minecraft client) {
+        Villager matched = phase == Phase.IDLE ? LibrarianTracker.current(client) : villager(client);
         phase = Phase.IDLE;
         closingForReroll = false;
         breakStarted = false;
         stopReason = StopReason.FOUND;
         status = message(StopReason.FOUND);
-        TradeSession.setPanelOpen(true);
         announce(client, status);
         AutomatorConfig config = AutomatorConfig.get();
         if (MatchSound.audible(config.matchSound(), config.matchVolume())) {
@@ -607,6 +620,7 @@ public final class JobSiteReroller {
         }
         LOGGER.info("Trade reroll found a target after {} {}", attempts, packetRun ? "cycles" : "replacements");
         packetRun = false;
+        TradeHall.onRerollMatch(client, matched);
     }
 
     private static void fail(Minecraft client, StopReason reason) {

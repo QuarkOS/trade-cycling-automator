@@ -1,32 +1,35 @@
 package dev.quarkos.villagerreroller.picker;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.quarkos.villagerreroller.picker.UiLayout.Rect;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 //? if >=1.21.9 {
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 //?}
 
-/**
- * Search field that keeps keybinds while it is focused.
- * Letter keys such as inventory (E), drop (Q), and the hotbar numbers are delivered to
- * {@code keyPressed} before {@code charTyped}. An edit box returns false for those keys,
- * and a container screen then closes or acts on the key. Returning true swallows them.
- * Escape still returns false so the screen can unfocus or close the way it already does.
- */
-public final class SearchBox extends EditBox {
-    public SearchBox(Font font, int x, int y, int width, int height, Component message) {
-        super(font, x, y, width, height, message);
+/** Keeps inventory shortcuts from handling letter keys while the search field has focus. */
+public final class SearchBox extends ThemedEditBox {
+    private final Runnable submit;
+
+    public SearchBox(Font font, Rect bounds, Component placeholder, Runnable submit) {
+        super(font, bounds, placeholder);
+        this.submit = submit;
+        placeholder(placeholder);
     }
 
     //? if <1.21.9 {
     /*@Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (!isFocused() || keyCode == 256) {
+        if (!isFocused() || keyCode == InputConstants.KEY_ESCAPE) {
             return false;
         }
-        super.keyPressed(keyCode, scanCode, modifiers);
+        if (GuiDraw.enter(keyCode)) {
+            submit.run();
+        } else {
+            super.keyPressed(keyCode, scanCode, modifiers);
+        }
         return true;
     }
 
@@ -41,10 +44,14 @@ public final class SearchBox extends EditBox {
     *///?} else {
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (!isFocused() || event.key() == 256) {
+        if (!isFocused() || event.key() == InputConstants.KEY_ESCAPE) {
             return false;
         }
-        super.keyPressed(event);
+        if (GuiDraw.enter(event.key())) {
+            submit.run();
+        } else {
+            super.keyPressed(event);
+        }
         return true;
     }
 
