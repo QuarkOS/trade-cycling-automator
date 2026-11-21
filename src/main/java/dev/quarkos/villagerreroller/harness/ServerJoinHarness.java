@@ -7,6 +7,7 @@ import dev.quarkos.villagerreroller.net.ServerRerollClient;
 import dev.quarkos.villagerreroller.picker.JobSiteReroller;
 import dev.quarkos.villagerreroller.picker.RerollMethod;
 import dev.quarkos.villagerreroller.picker.TradeBrowserScreen;
+import dev.quarkos.villagerreroller.picker.TradeSession;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
