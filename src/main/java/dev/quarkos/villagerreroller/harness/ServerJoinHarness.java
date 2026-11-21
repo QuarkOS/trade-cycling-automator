@@ -359,6 +359,22 @@ public final class ServerJoinHarness {
             return;
         }
         if (McBridge.currentScreen(client) instanceof TradeBrowserScreen) {
+            Button roll = BrowserHarness.find(McBridge.currentScreen(client),
+                    dev.quarkos.villagerreroller.picker.GuiDraw.message("browser.start").getString());
+            if (roll == null || !roll.active) {
+                // The browser disables Start while the job block is out of reach. Mirror the
+                // JobSiteReroller.start retry below: close in on the lectern and try again.
+                for (int i = 0; i < 10 && lectern != null && client.player != null
+                        && !McBridge.withinBlock(client.player, lectern); i++) {
+                    stepToward(client, lectern.getX() + 0.5, lectern.getY(), lectern.getZ() + 0.5);
+                }
+                if (ticks <= timeout(20 * 30)) {
+                    return;
+                }
+                fail("reroll did not start: Start rolling stayed disabled (job block in reach="
+                        + (lectern != null && client.player != null && McBridge.withinBlock(client.player, lectern)) + ")");
+                return;
+            }
             BrowserHarness.click(client, "browser.start");
         } else {
             JobSiteReroller.start(client);
