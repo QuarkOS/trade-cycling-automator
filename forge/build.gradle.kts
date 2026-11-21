@@ -604,7 +604,7 @@ if (forgeNode == null) {
         isTransitive = true
     }
     val tradeCyclingDevJar = layout.buildDirectory.file("generated/trade-cycling-devruntime.jar")
-    val officialToSrg = File(System.getProperty("user.home"), ".gradle/caches/minecraftforge/forgegradle/mavenizer/caches/mcp")
+    val officialToSrg = File(gradle.gradleUserHomeDir, "caches/minecraftforge/forgegradle/mavenizer/caches/mcp")
         .walkTopDown()
         .firstOrNull { it.isFile && it.name == "official-$minecraftVersion-obf.tsrg.gz" }
     val tradeCyclingDevRuntime = tasks.register<TradeCyclingDevRuntimeTask>("tradeCyclingDevRuntime") {
@@ -698,7 +698,7 @@ if (forgeNode == null) {
     if (productionUsesSrg(minecraftVersion)) {
         val forgeUserdev = rootProject.file(".gradle/mavenizer/repo/net/minecraftforge/forge/${node.forgeCoordinate}/forge-${node.forgeCoordinate}.jar")
         val mapProvider = providers.provider {
-            officialToSrg ?: File(System.getProperty("user.home"), ".gradle/caches/minecraftforge/forgegradle/mavenizer/caches/mcp")
+            officialToSrg ?: File(gradle.gradleUserHomeDir, "caches/minecraftforge/forgegradle/mavenizer/caches/mcp")
                 .walkTopDown()
                 .firstOrNull { it.isFile && it.name == "official-$minecraftVersion-obf.tsrg.gz" }
                 ?: throw GradleException("No official-to-SRG mapping cached for Minecraft $minecraftVersion.")
