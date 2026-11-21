@@ -51,7 +51,7 @@ public class ThemedEditBox extends EditBox {
         return visible && frame().contains(mouseX, mouseY);
     }
 
-    //? if >=1.19.3 && <1.21.9 {
+    //? if >=1.19.3 && <1.21.4 {
     /*@Override
     protected boolean clicked(double mouseX, double mouseY) {
         return active && isMouseOver(mouseX, mouseY);
