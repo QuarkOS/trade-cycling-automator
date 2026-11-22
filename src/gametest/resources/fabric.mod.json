@@ -12,7 +12,8 @@
       "dev.quarkos.villagerreroller.gametest.TradePickerClientGameTest",
       "dev.quarkos.villagerreroller.gametest.TradeHallClientGameTest",
       "dev.quarkos.villagerreroller.gametest.LecternBreakClientGameTest",
-      "dev.quarkos.villagerreroller.gametest.ChecklistClientGameTest"
+      "dev.quarkos.villagerreroller.gametest.ChecklistClientGameTest",
+      "dev.quarkos.villagerreroller.gametest.ReleaseShotsClientGameTest"
     ]
   },
   "depends": {
