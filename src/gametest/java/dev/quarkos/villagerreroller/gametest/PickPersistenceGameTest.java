@@ -159,7 +159,7 @@ public class PickPersistenceGameTest implements FabricClientGameTest {
                 var screen = McBridge.currentScreen(client);
                 return screen == null ? "" : screen.getTitle().getString();
             });
-            if (!title.toLowerCase().contains("villager")) {
+            if (!title.toLowerCase().contains("reroll")) {
                 throw new AssertionError("match sound settings were not open, title=" + title);
             }
             context.runOnClient(client -> TradeSession.simulateClientRestart());
