@@ -175,6 +175,23 @@ public final class DedicatedProof {
                 break;
             }
         }
+        // Confine the proof villager in a 1x1 barrier cell at (x, y, z + 1). The lectern
+        // at (x, y, z) is the fourth wall. The -x wall is one block high with a barrier
+        // above it, so the cell has a 1-high window at y + 1 facing the player, who
+        // spawns on the -x side. Barriers at y + 2 over the cell, the window and the
+        // lectern stop the villager climbing out. Without this the villager wandered off
+        // after the lectern break and the job-site path stopped with OUT_OF_REACH.
+        int cell = z + 1;
+        for (int[] b : new int[][] {
+                {x + 1, y, cell}, {x + 1, y + 1, cell},
+                {x, y, cell + 1}, {x, y + 1, cell + 1},
+                {x - 1, y, cell},
+                {x, y + 2, cell}, {x - 1, y + 2, cell}, {x, y + 2, z}}) {
+            command(server, "setblock " + b[0] + " " + b[1] + " " + b[2] + " minecraft:barrier");
+        }
+        command(server, "setblock " + (x - 1) + " " + (y + 1) + " " + cell + " minecraft:air");
+        command(server, "setblock " + x + " " + (y + 1) + " " + cell + " minecraft:air");
+        command(server, "setblock " + x + " " + y + " " + cell + " minecraft:air");
         command(server, "setblock " + x + " " + y + " " + z + " minecraft:lectern");
         command(server, "summon minecraft:villager " + (x) + " " + y + " " + (z + 1)
                 + " {PersistenceRequired:1b}");

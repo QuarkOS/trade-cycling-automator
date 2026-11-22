@@ -172,7 +172,7 @@ data class NeoForgeNode(
 fun legacyPack(format: Int): String = """
 {
   "pack": {
-    "description": "Villager Reroller",
+    "description": "Quark's Reroll",
     "pack_format": $format
   }
 }
@@ -181,7 +181,7 @@ fun legacyPack(format: Int): String = """
 fun modernPack(major: Int, minor: Int): String = """
 {
   "pack": {
-    "description": "Villager Reroller",
+    "description": "Quark's Reroll",
     "min_format": [$major, $minor],
     "max_format": [$major, $minor]
   }
@@ -362,7 +362,7 @@ issueTrackerURL = "https://github.com/QuarkOS/trade-cycling-automator/issues"
 [[mods]]
 modId = "villager_reroller"
 version = "1.2.0+$minecraftVersion"
-displayName = "Villager Reroller"
+displayName = "Quark's Reroll"
 authors = "Emilio Schwaiger"
 description = '''Lists every trade a villager can roll, with vanilla emerald ranges, and breaks the job site until a chosen offer is cheap enough. If Trade Cycling is installed, the list can use that mod's cycle action instead.'''
 displayTest = "IGNORE_ALL_VERSION"

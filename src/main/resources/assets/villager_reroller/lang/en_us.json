@@ -1,8 +1,8 @@
 {
   "key.villager_reroller.toggle": "Open trade browser or stop rerolling",
-  "key.villager_reroller.config": "Open Villager Reroller settings",
-  "key.categories.villager_reroller": "Villager Reroller",
-  "text.villager_reroller.config.title": "Villager Reroller",
+  "key.villager_reroller.config": "Open Quark's Reroll settings",
+  "key.categories.villager_reroller": "Quark's Reroll",
+  "text.villager_reroller.config.title": "Quark's Reroll",
   "text.villager_reroller.config.category": "Reroll",
   "text.villager_reroller.config.intro": "Open the trade browser with the book button on a villager’s trade screen. Pick novice offers and start rolling. The browser can also use Trade Cycling on servers that support it.",
   "text.villager_reroller.method.prefix": "Using",

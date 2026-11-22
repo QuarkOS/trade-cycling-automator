@@ -1,4 +1,4 @@
-# Villager Reroller
+# Quark's Reroll
 
 Not affiliated with or endorsed by Trade Cycling or its author.
 

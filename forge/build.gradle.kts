@@ -316,7 +316,7 @@ data class ForgeNode(
 fun legacyPack(format: Int): String = """
 {
   "pack": {
-    "description": "Villager Reroller",
+    "description": "Quark's Reroll",
     "pack_format": $format
   }
 }
@@ -325,7 +325,7 @@ fun legacyPack(format: Int): String = """
 fun modernPack(major: Int, minor: Int): String = """
 {
   "pack": {
-    "description": "Villager Reroller",
+    "description": "Quark's Reroll",
     "min_format": [$major, $minor],
     "max_format": [$major, $minor]
   }

@@ -242,7 +242,7 @@ public final class ServerJoinHarness {
     private static void waitVillager(Minecraft client) {
         Villager villager = nearestProofVillager(client);
         lectern = findLectern(client);
-        if (client.player != null && villager != null && client.player.distanceToSqr(villager) > 2.0) {
+        if (client.player != null && villager != null && client.player.distanceToSqr(villager) > 4.84) {
             stepToward(client, villager.getX(), villager.getY(), villager.getZ());
             return;
         }
@@ -318,7 +318,7 @@ public final class ServerJoinHarness {
         if (ticks % 20 == 0) {
             LibrarianTracker.bindNearest(client);
             Villager villager = LibrarianTracker.current(client);
-            if (villager != null && client.player != null && client.player.distanceToSqr(villager) > 4.0) {
+            if (villager != null && client.player != null && client.player.distanceToSqr(villager) > 5.3) {
                 stepToward(client, villager.getX(), villager.getY(), villager.getZ());
             } else if (villager != null && client.gameMode != null && client.player != null) {
                 McBridge.interact(client.gameMode, client.player, villager, InteractionHand.MAIN_HAND);

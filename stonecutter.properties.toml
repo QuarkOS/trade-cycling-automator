@@ -1,5 +1,5 @@
 mod.id = "villager_reroller"
-mod.name = "Villager Reroller"
+mod.name = "Quark's Reroll"
 mod.group = "dev.quarkos"
 mod.version = "1.2.0"
 
